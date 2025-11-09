@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>LandingZone</name>
+  <author>LandingZone contributors</author>
+  <packageId>com.landingzone</packageId>
+  <supportedVersions>
+    <li>1.5</li>
+  </supportedVersions>
+  <description>
+    LandingZone rebuilds the Prepare Landing feature set with a modern architecture, modular filters,
+    and RimWorld 1.5-first tooling. The initial releases will target feature parity before exploring
+    new UX ideas for scanning and bookmarking landing tiles.
+  </description>
+  <modDependencies>
+  </modDependencies>
+</ModMetaData>
