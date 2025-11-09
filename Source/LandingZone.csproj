@@ -26,10 +26,6 @@
       <HintPath>$(RimWorldManagedPath)/UnityEngine.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Verse">
-      <HintPath>$(RimWorldManagedPath)/Verse.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>

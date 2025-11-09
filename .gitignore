@@ -1,0 +1,16 @@
+# Build artifacts
+Source/bin/
+Source/obj/
+bin/
+obj/
+*.user
+*.csproj.user
+.vs/
+
+# Game-provided assemblies (local only)
+Managed/*
+!Managed/.gitkeep
+
+# Compiled mod output
+Assemblies/*
+!Assemblies/.gitkeep

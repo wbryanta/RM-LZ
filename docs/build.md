@@ -1,7 +1,8 @@
 # Building LandingZone
 
-1. Copy RimWorld's managed assemblies into `Managed/` (or symlink the folder). The project looks for
-   `Assembly-CSharp.dll`, `Verse.dll`, and `UnityEngine*.dll` there.
+1. Copy RimWorld's managed assemblies into `Managed/` (or symlink the folder). The project currently
+   references `Assembly-CSharp.dll`, `UnityEngine.dll`, and `UnityEngine.CoreModule.dll`. (Verse lives
+   inside `Assembly-CSharp.dll` on modern RimWorld builds, so no separate DLL is required.)
 2. `cd Source` and run `dotnet build`. The resulting `LandingZone.dll` should be copied to `Assemblies/`.
 3. Keep RimWorld's major/minor version in sync with the assemblies you reference; mismatched DLLs will
    trigger type load exceptions at runtime.
