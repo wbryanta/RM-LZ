@@ -1,16 +1,25 @@
-# Build artifacts
+# Build artifacts and compiled outputs
+Assemblies/*
+!Assemblies/.gitkeep
 Source/bin/
 Source/obj/
 bin/
 obj/
-*.user
-*.csproj.user
-.vs/
 
-# Game-provided assemblies (local only)
+# Game-provided assemblies (local only - don't distribute)
 Managed/*
 !Managed/.gitkeep
 
-# Compiled mod output
-Assemblies/*
-!Assemblies/.gitkeep
+# IDE and tooling
+.vs/
+.dotnet-cli/
+*.csproj.user
+*.user
+
+# Generated or internal files
+tasks.html
+scripts/tasks_api.py
+scripts/__pycache__/
+docs/rimworld-modding-context.md
+__pycache__/
+*.pyc
