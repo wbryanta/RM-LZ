@@ -1,0 +1,466 @@
+{
+  "meta": {
+    "description": "LandingZone development tasks",
+    "canonical_path": "./tasks.json",
+    "legacy_source": "projects/backlog/tasks.json",
+    "migrated_at": "2025-11-09T00:27:35.022825",
+    "last_validated": "2025-11-11T00:00:00.000000",
+    "notes": [
+      "Single source of truth for LandingZone mod work items.",
+      "Keep statuses synced with GitHub issues once repo goes public.",
+      "Performance strategy: Hybrid approach combining fast snapshot initialization with lazy computation of expensive tile properties."
+    ]
+  },
+  "completed": [
+    {
+      "id": "LZ-PERF-003",
+      "title": "Split TileInfo into Basic and Extended structs",
+      "status": "completed",
+      "owner": "team",
+      "notes": "CRITICAL for hybrid approach. Separate cheap properties (biome, temperature, rainfall, coastal, river, hilliness, feature) from expensive ones (growing days, grazing, movement difficulty, stones). This enables fast snapshot initialization.",
+      "deliverables": [
+        "TileInfoBasic struct with cheap properties only",
+        "TileInfoExtended struct with expensive calculated properties",
+        "Update WorldSnapshot to use TileInfoBasic",
+        "Document performance characteristics of each property"
+      ],
+      "area": "Performance",
+      "blockedBy": [],
+      "blocks": [
+        "LZ-PERF-004",
+        "LZ-PERF-005"
+      ]
+    },
+    {
+      "id": "LZ-PERF-004",
+      "title": "Implement TileDataCache for lazy computation",
+      "status": "completed",
+      "owner": "team",
+      "notes": "CRITICAL for hybrid approach. Create cache that computes expensive TileInfoExtended properties on-demand and memoizes results. This reduces snapshot initialization from ~120s to <1s.",
+      "deliverables": [
+        "TileDataCache class with GetOrCompute pattern",
+        "ComputeExtended method for on-demand calculation",
+        "Cache invalidation on world changes",
+        "Performance telemetry logging"
+      ],
+      "area": "Performance",
+      "blockedBy": [
+        "LZ-PERF-003"
+      ],
+      "blocks": [
+        "LZ-PERF-006"
+      ]
+    },
+    {
+      "id": "LZ-PERF-005",
+      "title": "Update WorldSnapshot for fast initialization",
+      "status": "completed",
+      "owner": "team",
+      "notes": "CRITICAL for hybrid approach. Remove expensive calculations from BuildTileInfo. Only compute cheap properties during RefreshFromCurrentWorld. Target: <1s initialization time for 100% coverage worlds.",
+      "deliverables": [
+        "Modify BuildTileInfo to only compute TileInfoBasic properties",
+        "Remove GenTemperature.TwelfthsInAverageTemperatureRange call",
+        "Remove NaturalRockTypesIn call",
+        "Remove VirtualPlantsUtility call",
+        "Remove WorldPathGrid.CalculatedMovementDifficultyAt call",
+        "Verify snapshot creation <1s on test world"
+      ],
+      "area": "Performance",
+      "blockedBy": [
+        "LZ-PERF-003"
+      ],
+      "blocks": [
+        "LZ-PERF-006"
+      ]
+    },
+    {
+      "id": "LZ-PERF-006",
+      "title": "Update FilterService for on-demand data fetching",
+      "status": "completed",
+      "owner": "team",
+      "notes": "CRITICAL for hybrid approach. Modify BuildTileScore to fetch expensive properties from TileDataCache only for tiles that survive cheap pre-filtering. Integrate with existing FilterEvaluationJob for chunked processing.",
+      "deliverables": [
+        "Add TileDataCache parameter to BuildTileScore",
+        "Fetch extended properties on-demand during scoring",
+        "Update FilterEvaluationJob to pass cache instance",
+        "Verify no performance regression during evaluation",
+        "Document cache hit/miss rates"
+      ],
+      "area": "Performance",
+      "blockedBy": [
+        "LZ-PERF-004",
+        "LZ-PERF-005"
+      ],
+      "blocks": [
+        "LZ-PERF-007"
+      ]
+    },
+    {
+      "id": "LZ-DATA-001",
+      "title": "Design data/state containers",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Create GameData/UserData style containers with observable filter options and preset serialization support.",
+      "deliverables": [
+        "Source/Data/*.cs",
+        "INotifyPropertyChanged plumbing",
+        "Serialization helpers"
+      ],
+      "area": "Core Systems"
+    },
+    {
+      "id": "LZ-CODE-001",
+      "title": "Implement mod bootstrap + Harmony wiring",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Extend LandingZoneMod to initialize services, register Harmony patches, and expose settings UI stub.",
+      "deliverables": [
+        "LandingZoneMod initializes service registry",
+        "Harmony patch assembly",
+        "Settings menu stub"
+      ],
+      "area": "Runtime"
+    },
+    {
+      "id": "LZ-INFRA-001",
+      "title": "Automate build + assembly copy",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Add dotnet build instructions and scripts that drop LandingZone.dll into Assemblies/. Include validation checklist.",
+      "deliverables": [
+        "build.sh or Cake task",
+        "Updated docs/build.md",
+        "Verified Assemblies/LandingZone.dll"
+      ],
+      "area": "Infrastructure"
+    },
+    {
+      "id": "LZ-RESEARCH-002",
+      "title": "Define LandingZone roadmap",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Turn research into milestone roadmap (MVP, parity, enhancements).",
+      "deliverables": [
+        "docs/roadmap.md",
+        "Milestone board",
+        "Success metrics"
+      ],
+      "area": "Planning"
+    },
+    {
+      "id": "LZ-RESEARCH-001",
+      "title": "Catalog Prepare Landing features & pain points",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Review README/issues to capture feature list, bugs, performance pain, and UX gaps.",
+      "deliverables": [
+        "docs/prepare-landing-review.md",
+        "Feature parity checklist",
+        "Pain point summary"
+      ],
+      "area": "Research"
+    },
+    {
+      "id": "LZ-ARCH-001",
+      "title": "Draft LandingZone architecture plan",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Summarize goals, scope, and guiding principles for replacing Prepare Landing. Outline core systems (data, filters, UI, presets, integration).",
+      "deliverables": [
+        "docs/architecture.md with diagrams",
+        "Feature comparison table vs Prepare Landing",
+        "List of initial milestones"
+      ],
+      "area": "Planning"
+    },
+    {
+      "id": "LZ-PERF-002",
+      "title": "Background world evaluation pipeline - scoring phase",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Implemented chunked tile scoring as a per-tick job with progress tracking. NOTE: This solves UI responsiveness during scoring but does NOT address the 2-minute freeze during WorldSnapshot initialization. See LZ-PERF-003 through LZ-PERF-006 for hybrid approach to fix snapshot freeze.",
+      "deliverables": [
+        "LandingZoneEvaluationComponent - DONE",
+        "RequestEvaluation API + StepEvaluation - DONE",
+        "Settings toggle + chunk-size slider - DONE",
+        "FilterEvaluationJob with progress tracking - DONE"
+      ],
+      "area": "Performance"
+    },
+    {
+      "id": "LZ-FILTER-001",
+      "title": "Design modular filter/score registry",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Implemented data-driven tile filters with heaviness tiers and registry pattern.",
+      "deliverables": [
+        "ISiteFilter interface - DONE",
+        "SiteFilterRegistry - DONE",
+        "FilterHeaviness enum - DONE",
+        "Sample filters (biome, temperature, rainfall, coastal, river) - DONE",
+        "FilterService orchestration - DONE"
+      ],
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-HIGHLIGHT-001",
+      "title": "Implement tile highlighting system",
+      "status": "completed",
+      "owner": "team",
+      "notes": "Core highlighting service and heatmap overlay implemented. WorldLayer rendering integration is pending UI work.",
+      "deliverables": [
+        "HighlightService - DONE",
+        "HighlightState - DONE",
+        "HeatmapOverlay with color mapping - DONE",
+        "HighlightLayer abstraction - DONE"
+      ],
+      "area": "Core Systems"
+    }
+  ],
+  "in_progress": [
+    {
+      "id": "LZ-PERF-007",
+      "title": "Verify hybrid approach performance improvements",
+      "status": "in_progress",
+      "owner": "team",
+      "notes": "CRITICAL for hybrid approach validation. Measure and document performance improvements. Target: <1s snapshot init, <5s first evaluation, no UI freeze.",
+      "deliverables": [
+        "Benchmark snapshot initialization time (before/after)",
+        "Benchmark first evaluation time (before/after)",
+        "Benchmark subsequent evaluation time (before/after)",
+        "Measure memory usage impact",
+        "Test on 30%, 50%, 100% coverage worlds",
+        "Document results in performance.md"
+      ],
+      "area": "Performance",
+      "blockedBy": [
+        "LZ-PERF-006"
+      ],
+      "rank": 1
+    }
+  ],
+  "blocked": [],
+  "todo": [
+    {
+      "id": "LZ-PRESET-001",
+      "title": "Define preset storage format",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Plan JSON schema + manager for saving/loading filters/options with versioning.",
+      "deliverables": [
+        "PresetManager class",
+        "schemas/preset_v1.json",
+        "Sample presets"
+      ],
+      "area": "Persistence",
+      "rank": 1,
+      "blockedBy": [
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-PRESET-002",
+      "title": "Preset save/load workflow",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Expose preset slots in the UI so players can save and recall favorite filter profiles; integrate with PresetManager.",
+      "deliverables": [
+        "Preset picker UI (save/overwrite/load)",
+        "Serialization hookup to PresetManager",
+        "Validation + user feedback messages"
+      ],
+      "area": "Persistence/UI",
+      "rank": 2,
+      "blockedBy": [
+        "LZ-PRESET-001",
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-UI-010",
+      "title": "Integrate LZ Results button into inspector header",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Move the floating LZ Results button next to Planet/Terrain tabs, show match count, and ensure the window toggles from that row.",
+      "deliverables": [
+        "Inspector header button with count badge",
+        "Updated toggle logic",
+        "Polish pass on results window entry animations"
+      ],
+      "area": "UI",
+      "rank": 3,
+      "blockedBy": [
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-SEARCH-001",
+      "title": "Guarantee full Top-N results",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Ensure the evaluator always returns the requested number of tiles, even when multiple matches tie at 1.00, and surface ties cleanly in the results window.",
+      "deliverables": [
+        "Adjusted top-N selection logic",
+        "Results window displays lower-ranked matches",
+        "Regression tests for tie scenarios"
+      ],
+      "area": "Filtering",
+      "rank": 4
+    },
+    {
+      "id": "LZ-WORLD-010",
+      "title": "Landmark/road/POI awareness",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Extend the snapshot and filters so users can require/prefer landmarks, quality roads, abandoned colonies, muddy terrain, etc., with tri-state controls.",
+      "deliverables": [
+        "Snapshot metadata for landmarks, roads, POIs",
+        "UI toggles in preferences",
+        "Scoring + highlight rules for new data"
+      ],
+      "area": "World Data",
+      "rank": 5
+    },
+    {
+      "id": "LZ-UI-001",
+      "title": "Prototype LandingZone UI + Best Sites overlay",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Build Verse window with tab controller, filtered tiles tab, and buttons (filter, reset, random, minimize). Core UI foundation needed before other UI tasks.",
+      "deliverables": [
+        "Main window implementation",
+        "Tab stubs",
+        "Minimized view"
+      ],
+      "area": "UI",
+      "rank": 6
+    },
+    {
+      "id": "LZ-UI-003",
+      "title": "Implement WorldLayer for tile highlighting visualization",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Create RimWorld WorldLayer to render highlighted tiles on world map. HighlightService/HeatmapOverlay already exist, need rendering integration.",
+      "deliverables": [
+        "WorldLayerHighlightedTiles class",
+        "Integration with HighlightService",
+        "Blinking controls and debug ID display",
+        "Options wiring"
+      ],
+      "area": "UI",
+      "rank": 7
+    },
+    {
+      "id": "LZ-UX-001",
+      "title": "Show Best Sites overlay UI",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Add UI button and tooltip to activate heatmap-style overlay showing top-scoring tiles. Backend scoring and HeatmapOverlay already exist.",
+      "deliverables": [
+        "UI button + tooltip in main window",
+        "Toggle logic for overlay activation",
+        "Visual polish and color gradient display"
+      ],
+      "area": "UI/Visualization",
+      "rank": 8,
+      "blockedBy": [
+        "LZ-UI-001",
+        "LZ-UI-003"
+      ]
+    },
+    {
+      "id": "LZ-UX-002",
+      "title": "Best Sites preference panel",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Add compact config drawer (checkboxes for Coastal/River/Biome/Feature, temp & rainfall sliders, weight presets) that feeds the Best Sites scoring.",
+      "deliverables": [
+        "Preference model",
+        "UI drawer",
+        "Persistence of custom profile"
+      ],
+      "area": "UI",
+      "rank": 9,
+      "blockedBy": [
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-UI-002",
+      "title": "Window behavior & hotkey settings",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Let players control auto-open behavior, anchoring, and keybind hints to address recurring UX complaints from PrepareLanding users.",
+      "deliverables": [
+        "Settings toggles",
+        "Persisted window position",
+        "Docs update"
+      ],
+      "area": "UI",
+      "rank": 10,
+      "blockedBy": [
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-DIAG-001",
+      "title": "Filter diagnostics & telemetry",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Surface tile counts, evaluation durations, and friendly error messages when filters produce 0 results.",
+      "deliverables": [
+        "Telemetry overlay or log",
+        "Refined empty-result messages"
+      ],
+      "area": "Filtering",
+      "rank": 11
+    },
+    {
+      "id": "LZ-UX-003",
+      "title": "Result insights & keyboard nav",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Revamp the filtered tile panel/minimized view with keyboard navigation, quick stats, and search hints.",
+      "deliverables": [
+        "Scrollable list with key bindings",
+        "Top-stats summary"
+      ],
+      "area": "UI",
+      "rank": 12,
+      "blockedBy": [
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-WORLD-001",
+      "title": "World-map intel overlay",
+      "status": "todo",
+      "owner": "team",
+      "notes": "On the in-game World view, add quick toggles for Show Enemies/Show Allies. Outline hostile settlements in bright red, allies in bright blue; reuse highlighting system.",
+      "deliverables": [
+        "Overlay toggle UI",
+        "Faction selection logic",
+        "Color-coded outlines"
+      ],
+      "area": "UI/World",
+      "rank": 13,
+      "blockedBy": [
+        "LZ-UI-003"
+      ]
+    },
+    {
+      "id": "LZ-API-001",
+      "title": "Expose landing/intel API",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Document and implement a lightweight service/API so sister mods (e.g., covert ops) can query filtered tiles, faction intel, and highlights.",
+      "deliverables": [
+        "Service interface in docs/architecture.md",
+        "Sample usage",
+        "Versioning plan"
+      ],
+      "area": "Architecture",
+      "rank": 14
+    }
+  ]
+}

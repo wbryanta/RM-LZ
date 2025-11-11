@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <LandingZone_ShowBestSites>Show Best Sites</LandingZone_ShowBestSites>
+  <LandingZone_HideBestSites>Hide Best Sites</LandingZone_HideBestSites>
+  <LandingZone_BestSitesToggleTooltip>Highlight the highest-scoring landing tiles based on your current filters.</LandingZone_BestSitesToggleTooltip>
+</LanguageData>

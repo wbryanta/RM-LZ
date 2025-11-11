@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <GlobalWorldDrawLayerDef>
+    <defName>LZ_WorldDrawLayer_BestSites</defName>
+    <label>LandingZone best sites overlay</label>
+    <worldDrawLayer>LandingZone.Core.Highlighting.WorldDrawLayer_LandingZoneBestSites, LandingZone</worldDrawLayer>
+  </GlobalWorldDrawLayerDef>
+</Defs>
