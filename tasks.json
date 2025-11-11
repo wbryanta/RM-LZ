@@ -242,23 +242,6 @@
   "blocked": [],
   "todo": [
     {
-      "id": "LZ-PRESET-001",
-      "title": "Define preset storage format",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Plan JSON schema + manager for saving/loading filters/options with versioning.",
-      "deliverables": [
-        "PresetManager class",
-        "schemas/preset_v1.json",
-        "Sample presets"
-      ],
-      "area": "Persistence",
-      "rank": 1,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
-    },
-    {
       "id": "LZ-PRESET-002",
       "title": "Preset save/load workflow",
       "status": "todo",
@@ -270,9 +253,26 @@
         "Validation + user feedback messages"
       ],
       "area": "Persistence/UI",
-      "rank": 2,
+      "rank": 1,
       "blockedBy": [
         "LZ-PRESET-001",
+        "LZ-UI-001"
+      ]
+    },
+    {
+      "id": "LZ-PRESET-001",
+      "title": "Define preset storage format",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Plan JSON schema + manager for saving/loading filters/options with versioning.",
+      "deliverables": [
+        "PresetManager class",
+        "schemas/preset_v1.json",
+        "Sample presets"
+      ],
+      "area": "Persistence",
+      "rank": 2,
+      "blockedBy": [
         "LZ-UI-001"
       ]
     },

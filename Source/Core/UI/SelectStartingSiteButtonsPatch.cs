@@ -19,6 +19,21 @@ namespace LandingZone.Core.UI
         }
     }
 
+    /// <summary>
+    /// Patches DoWindowContents to tick the evaluation job every frame.
+    /// This allows background evaluation to work on the world selection screen
+    /// where GameComponent.GameComponentTick() doesn't run.
+    /// </summary>
+    [HarmonyPatch(typeof(Page_SelectStartingSite), "DoWindowContents")]
+    internal static class SelectStartingSiteDoWindowContentsPatch
+    {
+        public static void Postfix()
+        {
+            // Tick the background evaluation job if one is active
+            LandingZoneContext.StepEvaluation();
+        }
+    }
+
     internal static class LandingZoneBottomButtonDrawer
     {
         private const float Gap = 10f;
@@ -115,18 +130,13 @@ namespace LandingZone.Core.UI
             {
                 if (highlightState != null)
                 {
-                    highlightState.ShowBestSites = !isShowing;
-                    if (highlightState.ShowBestSites)
-                    {
-                        if (!LandingZoneContext.HasMatches)
-                        {
-                            LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
-                        }
-                    }
+                    // Always run a new search when button clicked - allows users to update filters and re-search
+                    highlightState.ShowBestSites = true;
+                    LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
                 }
             }
             GUI.color = prevColor;
-            TooltipHandler.TipRegion(buttonRect, "LandingZone_BestSitesToggleTooltip".Translate());
+            TooltipHandler.TipRegion(buttonRect, "Click to search for best landing sites based on current filters");
 
             if (Widgets.ButtonImage(gearRect, TexButton.OpenInspectSettings))
             {

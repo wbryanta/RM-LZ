@@ -13,7 +13,7 @@ namespace LandingZone
     /// </summary>
     public class LandingZoneMod : Mod
     {
-        public const string Version = "0.0.02-alpha";
+        public const string Version = "0.0.3-alpha";
         private readonly Harmony _harmony;
 
         public LandingZoneMod(ModContentPack content) : base(content)
