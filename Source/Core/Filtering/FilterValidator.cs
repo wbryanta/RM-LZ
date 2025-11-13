@@ -76,12 +76,26 @@ namespace LandingZone.Core.Filtering
             ValidateRangeFilter(filters.ForageabilityRange, "Forageability", issues);
             ValidateRangeFilter(filters.MovementDifficultyRange, "Movement Difficulty", issues);
             ValidateRangeFilter(filters.ElevationRange, "Elevation", issues);
+            ValidateRangeFilter(filters.SwampinessRange, "Swampiness", issues);
+            ValidateRangeFilter(filters.AnimalDensityRange, "Animal Density", issues);
+            ValidateRangeFilter(filters.FishPopulationRange, "Fish Population", issues);
+            ValidateRangeFilter(filters.PlantDensityRange, "Plant Density", issues);
 
-            // TODO: Update validation for IndividualImportanceContainer filters
-            // ValidateMultiSelectFilter(filters.RiverTypes, "River Types", filters.RiverImportance, issues);
-            // ValidateMultiSelectFilter(filters.RoadTypes, "Road Types", filters.RoadImportance, issues);
-            // ValidateMultiSelectFilter(filters.MapFeatures, "Map Features", filters.MapFeatureImportance, issues);
-            // ValidateMultiSelectFilter(filters.AdjacentBiomes, "Adjacent Biomes", filters.AdjacentBiomeImportance, issues);
+            // Validate IndividualImportanceContainer filters
+            ValidateIndividualImportanceContainer(filters.Rivers, "Rivers", issues);
+            ValidateIndividualImportanceContainer(filters.Roads, "Roads", issues);
+            ValidateIndividualImportanceContainer(filters.Stones, "Stones", issues);
+            ValidateIndividualImportanceContainer(filters.MapFeatures, "Map Features", issues);
+            ValidateIndividualImportanceContainer(filters.AdjacentBiomes, "Adjacent Biomes", issues);
+
+            // Validate stone count mode
+            if (filters.UseStoneCount)
+            {
+                ValidateRangeFilter(filters.StoneCountRange, "Stone Count", issues);
+            }
+
+            // Validate critical strictness
+            ValidateCriticalStrictness(filters, issues);
 
             // Validate hilliness
             if (filters.AllowedHilliness.Count == 0)
@@ -172,43 +186,107 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
+        /// Validates an IndividualImportanceContainer filter.
+        /// </summary>
+        private static void ValidateIndividualImportanceContainer<T>(
+            IndividualImportanceContainer<T> container,
+            string filterName,
+            List<ValidationIssue> issues)
+        {
+            if (container == null)
+                return;
+
+            // Check if all items are set to Critical (might be too restrictive)
+            int criticalCount = container.CountByImportance(FilterImportance.Critical);
+            int preferredCount = container.CountByImportance(FilterImportance.Preferred);
+
+            if (container.HasCritical && criticalCount > 5)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Warning,
+                    FilterName = filterName,
+                    Message = $"{criticalCount} items marked as Critical.",
+                    Suggestion = "Many critical items may eliminate all tiles. Consider changing some to 'Preferred'."
+                });
+            }
+
+            // Info if many items are active
+            if (container.HasAnyImportance && (criticalCount + preferredCount) > 10)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Info,
+                    FilterName = filterName,
+                    Message = $"{criticalCount + preferredCount} items configured.",
+                    Suggestion = "Many active items may reduce results significantly."
+                });
+            }
+        }
+
+        /// <summary>
+        /// Validates the critical strictness parameter.
+        /// </summary>
+        private static void ValidateCriticalStrictness(FilterSettings filters, List<ValidationIssue> issues)
+        {
+            if (filters.CriticalStrictness < 0f || filters.CriticalStrictness > 1f)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Error,
+                    FilterName = "Critical Strictness",
+                    Message = $"Value ({filters.CriticalStrictness:F2}) is outside valid range [0.0, 1.0].",
+                    Suggestion = "Reset to 1.0 for strict matching or adjust to a valid value."
+                });
+            }
+
+            // Info about relaxed strictness
+            if (filters.CriticalStrictness < 1f && filters.CriticalStrictness >= 0.5f)
+            {
+                int criticalCount = CountCriticalFilters(filters);
+                if (criticalCount > 0)
+                {
+                    int requiredMatches = Mathf.CeilToInt(criticalCount * filters.CriticalStrictness);
+                    issues.Add(new ValidationIssue
+                    {
+                        Severity = IssueSeverity.Info,
+                        FilterName = "Critical Strictness",
+                        Message = $"Relaxed to {filters.CriticalStrictness:P0} - tiles must match {requiredMatches} of {criticalCount} critical filters.",
+                        Suggestion = "This k-of-n matching allows more flexible results."
+                    });
+                }
+            }
+        }
+
+        /// <summary>
         /// Validates filter combinations that might be overly restrictive.
         /// </summary>
         private static void ValidateFilterCombinations(FilterSettings filters, List<ValidationIssue> issues)
         {
-            int criticalFilterCount = 0;
-            int preferredFilterCount = 0;
-
-            // Count active filters by importance
-            if (filters.AverageTemperatureImportance == FilterImportance.Critical) criticalFilterCount++;
-            if (filters.RainfallImportance == FilterImportance.Critical) criticalFilterCount++;
-            if (filters.GrowingDaysImportance == FilterImportance.Critical) criticalFilterCount++;
-            if (filters.CoastalImportance == FilterImportance.Critical) criticalFilterCount++;
-
-            if (filters.AverageTemperatureImportance == FilterImportance.Preferred) preferredFilterCount++;
-            if (filters.RainfallImportance == FilterImportance.Preferred) preferredFilterCount++;
-            if (filters.GrowingDaysImportance == FilterImportance.Preferred) preferredFilterCount++;
+            int criticalFilterCount = CountCriticalFilters(filters);
+            int preferredFilterCount = CountPreferredFilters(filters);
+            int totalActive = criticalFilterCount + preferredFilterCount;
 
             // Warn if too many critical filters
-            if (criticalFilterCount >= 5)
+            if (criticalFilterCount >= 8)
             {
                 issues.Add(new ValidationIssue
                 {
                     Severity = IssueSeverity.Warning,
                     FilterName = "Overall",
                     Message = $"{criticalFilterCount} critical filters active.",
-                    Suggestion = "Many critical filters may eliminate all tiles. Consider changing some to 'Preferred'."
+                    Suggestion = "Many critical filters may eliminate all tiles. Consider changing some to 'Preferred' or use Critical Strictness < 1.0."
                 });
             }
 
             // Info if many filters active
-            if (criticalFilterCount + preferredFilterCount >= 10)
+            if (totalActive >= 15)
             {
                 issues.Add(new ValidationIssue
                 {
                     Severity = IssueSeverity.Info,
                     FilterName = "Overall",
-                    Message = $"{criticalFilterCount + preferredFilterCount} filters active.",
+                    Message = $"{totalActive} filters active ({criticalFilterCount} critical, {preferredFilterCount} preferred).",
                     Suggestion = "Many active filters may reduce results significantly. Use presets to save configurations."
                 });
             }
@@ -220,10 +298,98 @@ namespace LandingZone.Core.Filtering
                 {
                     Severity = IssueSeverity.Info,
                     FilterName = "Biome + Temperature",
-                    Message = "Both biome and temperature filters are active.",
-                    Suggestion = "Biome selection already constrains temperature. Consider relaxing temperature filter."
+                    Message = "Both biome lock and temperature filters are active.",
+                    Suggestion = "Locked biome already constrains temperature. Consider relaxing temperature filter."
                 });
             }
+
+            // Check for conflicting stone filters
+            if (filters.UseStoneCount && filters.Stones.HasAnyImportance)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Warning,
+                    FilterName = "Stones",
+                    Message = "Both 'Stone Count' mode and individual stone selections are active.",
+                    Suggestion = "Use either Stone Count mode OR individual stone selections, not both."
+                });
+            }
+        }
+
+        /// <summary>
+        /// Counts all critical filters across all filter types.
+        /// </summary>
+        private static int CountCriticalFilters(FilterSettings filters)
+        {
+            int count = 0;
+
+            // Simple importance filters
+            if (filters.AverageTemperatureImportance == FilterImportance.Critical) count++;
+            if (filters.MinimumTemperatureImportance == FilterImportance.Critical) count++;
+            if (filters.MaximumTemperatureImportance == FilterImportance.Critical) count++;
+            if (filters.RainfallImportance == FilterImportance.Critical) count++;
+            if (filters.GrowingDaysImportance == FilterImportance.Critical) count++;
+            if (filters.PollutionImportance == FilterImportance.Critical) count++;
+            if (filters.ForageImportance == FilterImportance.Critical) count++;
+            if (filters.ForageableFoodImportance == FilterImportance.Critical) count++;
+            if (filters.ElevationImportance == FilterImportance.Critical) count++;
+            if (filters.SwampinessImportance == FilterImportance.Critical) count++;
+            if (filters.GrazeImportance == FilterImportance.Critical) count++;
+            if (filters.AnimalDensityImportance == FilterImportance.Critical) count++;
+            if (filters.FishPopulationImportance == FilterImportance.Critical) count++;
+            if (filters.PlantDensityImportance == FilterImportance.Critical) count++;
+            if (filters.MovementDifficultyImportance == FilterImportance.Critical) count++;
+            if (filters.CoastalImportance == FilterImportance.Critical) count++;
+            if (filters.CoastalLakeImportance == FilterImportance.Critical) count++;
+            if (filters.FeatureImportance == FilterImportance.Critical) count++;
+            if (filters.LandmarkImportance == FilterImportance.Critical) count++;
+
+            // IndividualImportanceContainer filters
+            count += filters.Rivers.CountByImportance(FilterImportance.Critical);
+            count += filters.Roads.CountByImportance(FilterImportance.Critical);
+            count += filters.Stones.CountByImportance(FilterImportance.Critical);
+            count += filters.MapFeatures.CountByImportance(FilterImportance.Critical);
+            count += filters.AdjacentBiomes.CountByImportance(FilterImportance.Critical);
+
+            return count;
+        }
+
+        /// <summary>
+        /// Counts all preferred filters across all filter types.
+        /// </summary>
+        private static int CountPreferredFilters(FilterSettings filters)
+        {
+            int count = 0;
+
+            // Simple importance filters
+            if (filters.AverageTemperatureImportance == FilterImportance.Preferred) count++;
+            if (filters.MinimumTemperatureImportance == FilterImportance.Preferred) count++;
+            if (filters.MaximumTemperatureImportance == FilterImportance.Preferred) count++;
+            if (filters.RainfallImportance == FilterImportance.Preferred) count++;
+            if (filters.GrowingDaysImportance == FilterImportance.Preferred) count++;
+            if (filters.PollutionImportance == FilterImportance.Preferred) count++;
+            if (filters.ForageImportance == FilterImportance.Preferred) count++;
+            if (filters.ForageableFoodImportance == FilterImportance.Preferred) count++;
+            if (filters.ElevationImportance == FilterImportance.Preferred) count++;
+            if (filters.SwampinessImportance == FilterImportance.Preferred) count++;
+            if (filters.GrazeImportance == FilterImportance.Preferred) count++;
+            if (filters.AnimalDensityImportance == FilterImportance.Preferred) count++;
+            if (filters.FishPopulationImportance == FilterImportance.Preferred) count++;
+            if (filters.PlantDensityImportance == FilterImportance.Preferred) count++;
+            if (filters.MovementDifficultyImportance == FilterImportance.Preferred) count++;
+            if (filters.CoastalImportance == FilterImportance.Preferred) count++;
+            if (filters.CoastalLakeImportance == FilterImportance.Preferred) count++;
+            if (filters.FeatureImportance == FilterImportance.Preferred) count++;
+            if (filters.LandmarkImportance == FilterImportance.Preferred) count++;
+
+            // IndividualImportanceContainer filters
+            count += filters.Rivers.CountByImportance(FilterImportance.Preferred);
+            count += filters.Roads.CountByImportance(FilterImportance.Preferred);
+            count += filters.Stones.CountByImportance(FilterImportance.Preferred);
+            count += filters.MapFeatures.CountByImportance(FilterImportance.Preferred);
+            count += filters.AdjacentBiomes.CountByImportance(FilterImportance.Preferred);
+
+            return count;
         }
 
         /// <summary>
