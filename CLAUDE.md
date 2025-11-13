@@ -33,6 +33,50 @@ python3 scripts/build.py              # Builds and copies DLL to Assemblies/
 - Task IDs: `LZ-{AREA}-{NUM}` (e.g., `LZ-PERF-007`)
 - Update status when starting/completing/blocking work
 
+## Canonical World Data (Single Source of Truth)
+
+**Source:** `/Users/will/Library/Application Support/RimWorld/Config/LandingZone_CacheAnalysis_2025-11-13_12-49-46.txt`
+**Generated from:** `LandingZone_FullCache_2025-11-13_12-46-35.txt` (215MB, 295,732 tiles, 137,159 settleable)
+
+**NEVER assume or guess mutator names or availability. Always reference this canonical data.**
+
+### Favorable Mutators (QoL Improvements)
+
+Use these exact defNames when configuring MapFeatures filters:
+
+**High-Value Mutators** (boost tile quality):
+- `AnimalLife_Increased` - 1,994 tiles (1.5%) - More hunting/wool/eggs
+- `PlantLife_Increased` - 1,874 tiles (1.4%) - More foraging/wood
+- `SteamGeysers_Increased` - 1,317 tiles (1.0%) - Free geothermal power/heat
+- `WildPlants` - 2,344 tiles (1.7%) - Extra wild crops for foraging
+- `SunnyMutator` - 2,642 tiles (1.9%) - Solar panel bonus
+- `Fertile` - 838 tiles (0.6%) - Better soil for farming
+- `WindyMutator` - 546 tiles (0.4%) - Wind turbine bonus
+- `MineralRich` - 28 tiles (0.0%) - Extra ore/stone deposits
+
+**Salvage/Resources** (loot opportunities):
+- `Junkyard` - 1,066 tiles (0.8%) - Salvageable materials
+- `AncientRuins` - 42 tiles (0.0%) - Ancient loot (danger risk)
+- `Stockpile` - 38 tiles (0.0%) - Abandoned supplies
+- `AncientWarehouse` - 7 tiles (0.0%) - Major loot cache
+
+**Geographic Features** (situational value):
+- `Caves` - 11,063 tiles (8.1%) - Defense, storage
+- `Mountain` - 23,294 tiles (17.0%) - Defensible position
+- `HotSprings` - 11 tiles (0.0%) - Natural heating
+
+### Unfavorable Mutators (Avoid)
+
+- `AnimalLife_Decreased` - 1,407 tiles (1.0%)
+- `PlantLife_Decreased` - 856 tiles (0.6%)
+- `Fish_Decreased` - 3 tiles (0.0%)
+- `Pollution_Increased` - 23 tiles (0.0%)
+- `FoggyMutator` - 906 tiles (0.7%) - Reduces solar efficiency
+
+### Complete Mutator List
+
+All 83 mutators discovered: AbandonedColonyOutlander, AbandonedColonyTribal, AncientChemfuelRefinery, AncientGarrison, AncientHeatVent, AncientInfestedSettlement, AncientLaunchSite, AncientQuarry, AncientRuins, AncientRuins_Frozen, AncientSmokeVent, AncientToxVent, AncientUplink, AncientWarehouse, AnimalHabitat, AnimalLife_Decreased, AnimalLife_Increased, ArcheanTrees, Archipelago, Basin, Bay, CaveLakes, Cavern, Caves, Chasm, Cliffs, Coast, CoastalAtoll, CoastalIsland, Cove, Crevasse, DryGround, DryLake, Dunes, Fertile, Fish_Decreased, Fish_Increased, Fjord, FoggyMutator, Harbor, Headwater, Hollow, HotSprings, Iceberg, InsectMegahive, Junkyard, Lake, LakeWithIsland, LakeWithIslands, Lakeshore, LavaCaves, LavaCrater, LavaFlow, Marshy, MineralRich, MixedBiome, Mountain, Muddy, Oasis, ObsidianDeposits, Peninsula, PlantGrove, PlantLife_Decreased, PlantLife_Increased, Plateau, Pollution_Increased, Pond, River, RiverConfluence, RiverDelta, RiverIsland, Sandy, SteamGeysers_Increased, Stockpile, SunnyMutator, TerraformingScar, ToxicLake, Valley, WetClimate, Wetland, WildPlants, WildTropicalPlants, WindyMutator
+
 ## Build System
 
 ```bash
