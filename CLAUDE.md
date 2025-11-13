@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LandingZone is a RimWorld mod for intelligent landing site selection. Uses Harmony for runtime patching and a hybrid filtering architecture: cheap property caching (WorldSnapshot) + lazy expensive computation (TileDataCache) + two-phase filtering (Apply → Score).
+LandingZone is a RimWorld mod for intelligent landing site selection. Uses Harmony for runtime patching and a hybrid filtering architecture: game's native cache (cheap, instant) + lazy expensive computation (TileDataCache) + two-phase filtering (Apply → Score).
 
 **Core Value: Quality over shortcuts.** Don't compromise project integrity when facing obstacles - solve them properly or engineer better solutions. Never assume/guess API behavior - validate with evidence.
 
@@ -61,13 +61,14 @@ python3 scripts/build.py -c Release   # Release
 - `Source/Core/Filtering/` - Filter pipeline (FilterService, SiteFilterRegistry)
 - `Source/Core/Filtering/Filters/` - Individual filter implementations
 - `Source/Core/UI/` - Windows (Preferences, Results)
-- `Source/Data/` - WorldSnapshot (cheap cache), TileDataCache (expensive lazy), FilterSettings
+- `Source/Data/` - TileDataCache (expensive lazy computation), FilterSettings
 
 **Two-Phase Pipeline:**
 
 1. **Apply (Hard Filtering)** - Runs in `FilterService.FilterEvaluationJob`
    - Reduces full world → small candidate set (90-95% filtered)
-   - Uses cheap WorldSnapshot data (except Heavy filters use TileCache)
+   - Light filters use game cache (`Find.World.grid[tileId]`) directly - cheap, instant access
+   - Heavy filters use TileDataCache for expensive computations
    - Synchronous, runs in heaviness order (Light → Heavy)
    - Only applies Critical importance filters
 
@@ -90,7 +91,7 @@ public class ExampleFilter : ISiteFilter
         var importance = context.State.Preferences.Filters.ExampleImportance;
         if (importance != FilterImportance.Critical) return inputTiles;
 
-        // Light: Use WorldSnapshot or build O(1) lookup once
+        // Light: Use Find.World.grid[tileId] or build O(1) lookup once
         // Heavy: Use context.Cache.GetOrCompute(tileId) for expensive data
         return inputTiles.Where(id => MeetsCriteria(id));
     }
@@ -114,13 +115,14 @@ foreach (var tile in tiles)
     if (lookup.Contains(tile)) ...
 ```
 
-### 2. Lazy Cache Access
-Only compute expensive data for tiles that survive cheap filters:
+### 2. Game Cache First, Expensive Computation Last
+Use cheap game cache properties first, only compute expensive data for survivors:
 
 ```csharp
-// WorldSnapshot (cheap, pre-cached): Always safe to access
-var info = context.Snapshot.TileInfo[tileId]; // O(1)
-if (info.Temperature < minTemp) return;
+// Game cache (cheap, instant): Always check first
+var tile = Find.World.grid[tileId]; // O(1) - RimWorld's native cache
+if (tile.temperature < minTemp) return;
+if (tile.rainfall < minRainfall) return;
 
 // TileDataCache (expensive, lazy): Only access after cheap checks pass
 var extended = context.Cache.GetOrCompute(tileId); // 5-10ms first call
@@ -129,8 +131,8 @@ if (extended.GrowingDays < minGrowing) return;
 
 ### 3. Filter Ordering
 Register filters with correct heaviness to optimize pipeline:
-- `Light`: Uses WorldSnapshot or simple lookups
-- `Heavy`: Uses TileDataCache or expensive RimWorld APIs
+- `Light`: Uses game cache (`Find.World.grid`) or simple lookups - instant, zero-cost access
+- `Heavy`: Uses TileDataCache or expensive RimWorld APIs - lazy computation, 5-10ms per tile
 
 ## Testing & Validation
 
@@ -143,13 +145,13 @@ Register filters with correct heaviness to optimize pipeline:
 
 **Key log patterns:**
 ```
-[LandingZone] WorldSnapshot: Refreshed {N} tiles in {time}
+[LandingZone] World cache ready - tiles: {N}, settleable: {M}
 [LandingZone] FilterService: Apply phase reduced {N} → {M} tiles
 [LandingZone] FilterService: Found {N} results, scores {range}
 ```
 
 **Performance expectations:**
-- WorldSnapshot: Sub-second initialization
+- Game cache access: Zero initialization cost (uses RimWorld's native cache)
 - Searches: Seconds, not minutes (depends on filter complexity)
 - More restrictive filters = faster (fewer tiles to score)
 
