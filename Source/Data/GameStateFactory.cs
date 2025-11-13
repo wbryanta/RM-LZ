@@ -13,9 +13,6 @@ namespace LandingZone.Data
             // Load definitions immediately
             defCache.Refresh();
 
-            // Migrate legacy stone settings to new individual stone importance properties
-            preferences.Filters.MigrateLegacyStoneSettings();
-
             return new GameState(defCache, preferences, profile);
         }
     }

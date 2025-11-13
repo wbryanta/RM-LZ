@@ -8,6 +8,7 @@ namespace LandingZone.Data
 {
     /// <summary>
     /// Player controlled filter configuration (biomes, temperature, rainfall, etc.).
+    /// Clean slate design for v0.1.0-beta - all legacy code removed.
     /// </summary>
     public sealed class FilterSettings
     {
@@ -25,21 +26,6 @@ namespace LandingZone.Data
         public FilterImportance AverageTemperatureImportance { get; set; } = FilterImportance.Preferred;
         public FilterImportance MinimumTemperatureImportance { get; set; } = FilterImportance.Ignored;
         public FilterImportance MaximumTemperatureImportance { get; set; } = FilterImportance.Ignored;
-
-        // Legacy temperature range - kept for backwards compatibility
-        [System.Obsolete("Use AverageTemperatureRange instead")]
-        public FloatRange TemperatureRange
-        {
-            get => AverageTemperatureRange;
-            set => AverageTemperatureRange = value;
-        }
-
-        [System.Obsolete("Use AverageTemperatureImportance instead")]
-        public FilterImportance TemperatureImportance
-        {
-            get => AverageTemperatureImportance;
-            set => AverageTemperatureImportance = value;
-        }
 
         // Rainfall
         public FloatRange RainfallRange { get; set; } = new FloatRange(1000f, 2200f);
@@ -65,15 +51,20 @@ namespace LandingZone.Data
         public FloatRange ElevationRange { get; set; } = new FloatRange(0f, 5000f);
         public FilterImportance ElevationImportance { get; set; } = FilterImportance.Ignored;
 
+        // Swampiness
+        public FloatRange SwampinessRange { get; set; } = new FloatRange(0f, 1f);
+        public FilterImportance SwampinessImportance { get; set; } = FilterImportance.Ignored;
+
         // Animals can graze now
         public FilterImportance GrazeImportance { get; set; } = FilterImportance.Ignored;
 
-        [System.Obsolete("Use GrazeImportance instead")]
-        public FilterState GrazeState
-        {
-            get => GrazeImportance == FilterImportance.Critical ? FilterState.On : FilterState.Off;
-            set => GrazeImportance = value == FilterState.On ? FilterImportance.Critical : FilterImportance.Ignored;
-        }
+        // Animal density (0-6.5 range from cache dump)
+        public FloatRange AnimalDensityRange { get; set; } = new FloatRange(0f, 6.5f);
+        public FilterImportance AnimalDensityImportance { get; set; } = FilterImportance.Ignored;
+
+        // Fish population (0-900 range from cache dump)
+        public FloatRange FishPopulationRange { get; set; } = new FloatRange(0f, 900f);
+        public FilterImportance FishPopulationImportance { get; set; } = FilterImportance.Ignored;
 
         // === TERRAIN & GEOGRAPHY FILTERS ===
 
@@ -90,40 +81,17 @@ namespace LandingZone.Data
         // Rivers (individual importance per river type)
         public IndividualImportanceContainer<string> Rivers { get; set; } = new IndividualImportanceContainer<string>();
 
-        // Legacy river filters (kept for backward compatibility)
-        [System.Obsolete("Use Rivers container with individual importance instead")]
-        public MultiSelectFilterContainer<string> RiverTypes { get; set; } = new MultiSelectFilterContainer<string>();
-        [System.Obsolete("Use Rivers container with individual importance instead")]
-        public FilterImportance RiverImportance { get; set; } = FilterImportance.Critical;
-
         // Roads (individual importance per road type)
         public IndividualImportanceContainer<string> Roads { get; set; } = new IndividualImportanceContainer<string>();
 
-        // Legacy road filters (kept for backward compatibility)
-        [System.Obsolete("Use Roads container with individual importance instead")]
-        public MultiSelectFilterContainer<string> RoadTypes { get; set; } = new MultiSelectFilterContainer<string>();
-        [System.Obsolete("Use Roads container with individual importance instead")]
-        public FilterImportance RoadImportance { get; set; } = FilterImportance.Ignored;
+        // Stones (individual importance per stone type)
+        public IndividualImportanceContainer<string> Stones { get; set; } = new IndividualImportanceContainer<string>();
 
-        // Individual stone filters (NEW - each stone has its own importance)
-        public FilterImportance GraniteImportance { get; set; } = FilterImportance.Preferred;
-        public FilterImportance MarbleImportance { get; set; } = FilterImportance.Ignored;
-        public FilterImportance LimestoneImportance { get; set; } = FilterImportance.Preferred;
-        public FilterImportance SlateImportance { get; set; } = FilterImportance.Ignored;
-        public FilterImportance SandstoneImportance { get; set; } = FilterImportance.Ignored;
-
-        // Legacy stone filters (kept for backward compatibility - will be migrated to individual filters)
-        [System.Obsolete("Use individual stone importance properties (GraniteImportance, MarbleImportance, etc.) instead")]
-        public HashSet<string> RequiredStoneDefNames { get; } = new HashSet<string>();
-
-        [System.Obsolete("Use individual stone importance properties instead")]
-        public FilterImportance StoneImportance { get; set; } = FilterImportance.Preferred;
-
-        // Stone count filter ("any X stone types")
+        // Stone count filter ("any X stone types") - alternative mode
         public FloatRange StoneCountRange { get; set; } = new FloatRange(2f, 3f);
         public bool UseStoneCount { get; set; } = false;
 
-        // Hilliness (existing multi-select)
+        // Hilliness (multi-select)
         public HashSet<Hilliness> AllowedHilliness { get; } = new HashSet<Hilliness>
         {
             Hilliness.SmallHills,
@@ -139,18 +107,10 @@ namespace LandingZone.Data
         // Map features (individual importance per feature: Caves, Ruins, MixedBiome, etc.)
         public IndividualImportanceContainer<string> MapFeatures { get; set; } = new IndividualImportanceContainer<string>();
 
-        // Legacy map feature filter (kept for backward compatibility)
-        [System.Obsolete("Use MapFeatures container with individual importance instead")]
-        public FilterImportance MapFeatureImportance { get; set; } = FilterImportance.Ignored;
-
         // Adjacent biomes (individual importance per biome)
         public IndividualImportanceContainer<string> AdjacentBiomes { get; set; } = new IndividualImportanceContainer<string>();
 
-        // Legacy adjacent biome filter (kept for backward compatibility)
-        [System.Obsolete("Use AdjacentBiomes container with individual importance instead")]
-        public FilterImportance AdjacentBiomeImportance { get; set; } = FilterImportance.Ignored;
-
-        // World feature (legacy single selection)
+        // World feature (legacy single selection - may remove in future)
         public string? RequiredFeatureDefName { get; set; }
         public FilterImportance FeatureImportance { get; set; } = FilterImportance.Ignored;
 
@@ -173,9 +133,9 @@ namespace LandingZone.Data
 
         /// <summary>
         /// Critical strictness: fraction of critical filters a tile must match (k-of-n).
-        /// 1.0 = all criticals required (backward compatible)
-        /// 0.8 = match 4 of 5 criticals
-        /// 0.6 = match 3 of 5 criticals
+        /// 1.0 = all criticals required (strict)
+        /// 0.8 = match 4 of 5 criticals (relaxed)
+        /// 0.6 = match 3 of 5 criticals (very relaxed)
         /// Range: [0.0, 1.0]
         /// </summary>
         private float _criticalStrictness = 1.0f;
@@ -213,7 +173,16 @@ namespace LandingZone.Data
             ElevationRange = new FloatRange(0f, 5000f);
             ElevationImportance = FilterImportance.Ignored;
 
+            SwampinessRange = new FloatRange(0f, 1f);
+            SwampinessImportance = FilterImportance.Ignored;
+
             GrazeImportance = FilterImportance.Ignored;
+
+            AnimalDensityRange = new FloatRange(0f, 6.5f);
+            AnimalDensityImportance = FilterImportance.Ignored;
+
+            FishPopulationRange = new FloatRange(0f, 900f);
+            FishPopulationImportance = FilterImportance.Ignored;
 
             // Terrain & Geography
             MovementDifficultyRange = new FloatRange(0f, 2f);
@@ -222,26 +191,10 @@ namespace LandingZone.Data
             CoastalImportance = FilterImportance.Ignored;
             CoastalLakeImportance = FilterImportance.Ignored;
 
-            // Reset new individual importance containers
             Rivers.Reset();
             Roads.Reset();
+            Stones.Reset();
 
-            // Reset legacy containers (for backward compatibility)
-            RiverTypes.Reset();
-            RiverImportance = FilterImportance.Critical;
-            RoadTypes.Reset();
-            RoadImportance = FilterImportance.Ignored;
-
-            // Individual stone filters
-            GraniteImportance = FilterImportance.Preferred;
-            MarbleImportance = FilterImportance.Ignored;
-            LimestoneImportance = FilterImportance.Preferred;
-            SlateImportance = FilterImportance.Ignored;
-            SandstoneImportance = FilterImportance.Ignored;
-
-            // Legacy stone filters (for backward compatibility)
-            RequiredStoneDefNames.Clear();
-            StoneImportance = FilterImportance.Preferred;
             StoneCountRange = new FloatRange(2f, 3f);
             UseStoneCount = false;
 
@@ -253,13 +206,8 @@ namespace LandingZone.Data
             // World & Features
             LockedBiome = null;
 
-            // Reset new individual importance containers
             MapFeatures.Reset();
             AdjacentBiomes.Reset();
-
-            // Reset legacy properties (for backward compatibility)
-            MapFeatureImportance = FilterImportance.Ignored;
-            AdjacentBiomeImportance = FilterImportance.Ignored;
 
             RequiredFeatureDefName = null;
             FeatureImportance = FilterImportance.Ignored;
@@ -271,47 +219,6 @@ namespace LandingZone.Data
 
             // Advanced Matching
             CriticalStrictness = 1.0f;
-        }
-
-        /// <summary>
-        /// Migrates old stone settings to new individual stone importance properties.
-        /// Called automatically when loading old save files.
-        /// </summary>
-        public void MigrateLegacyStoneSettings()
-        {
-            // If we have old stone selections but no new individual stone importances set,
-            // migrate them to the new format
-            if (RequiredStoneDefNames.Count > 0 &&
-                GraniteImportance == FilterImportance.Ignored &&
-                MarbleImportance == FilterImportance.Ignored &&
-                LimestoneImportance == FilterImportance.Ignored &&
-                SlateImportance == FilterImportance.Ignored &&
-                SandstoneImportance == FilterImportance.Ignored)
-            {
-                // Migrate: all selected stones get the same importance as the old StoneImportance
-                var targetImportance = StoneImportance;
-
-                if (RequiredStoneDefNames.Contains("Granite"))
-                    GraniteImportance = targetImportance;
-
-                if (RequiredStoneDefNames.Contains("Marble"))
-                    MarbleImportance = targetImportance;
-
-                if (RequiredStoneDefNames.Contains("Limestone"))
-                    LimestoneImportance = targetImportance;
-
-                if (RequiredStoneDefNames.Contains("Slate"))
-                    SlateImportance = targetImportance;
-
-                if (RequiredStoneDefNames.Contains("Sandstone"))
-                    SandstoneImportance = targetImportance;
-
-                Log.Message($"[LandingZone] Migrated {RequiredStoneDefNames.Count} legacy stone settings to individual filters");
-
-                // Clear legacy settings after migration
-                RequiredStoneDefNames.Clear();
-                StoneImportance = FilterImportance.Ignored;
-            }
         }
     }
 

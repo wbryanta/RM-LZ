@@ -18,61 +18,6 @@ namespace LandingZone.Core.UI
         public static readonly Color PartialFilterColor = new Color(0.7f, 0.7f, 1f); // Light blue
 
         /// <summary>
-        /// Draws a tri-state button (Off/Partial/On) for filters.
-        /// Returns the new state.
-        /// </summary>
-        public static FilterState DrawTriStateButton(Rect rect, string label, FilterState currentState, string tooltip = null)
-        {
-            var buttonRect = rect;
-
-            // Draw state indicator
-            var indicatorRect = new Rect(rect.x, rect.y, 20f, rect.height);
-            var labelRect = new Rect(rect.x + 24f, rect.y, rect.width - 24f, rect.height);
-
-            // Draw colored indicator
-            Color stateColor = currentState switch
-            {
-                FilterState.On => ActiveFilterColor,
-                FilterState.Partial => PreferredFilterColor,
-                FilterState.Off => InactiveFilterColor,
-                _ => Color.white
-            };
-
-            var prevColor = GUI.color;
-            GUI.color = stateColor;
-            Widgets.DrawBoxSolid(indicatorRect, stateColor);
-            GUI.color = prevColor;
-
-            // Draw button
-            string stateLabel = currentState switch
-            {
-                FilterState.On => "On",
-                FilterState.Partial => "Partial",
-                FilterState.Off => "Off",
-                _ => "?"
-            };
-
-            if (Widgets.ButtonText(labelRect, $"{label}: {stateLabel}"))
-            {
-                // Cycle through states: Off -> Partial -> On -> Off
-                return currentState switch
-                {
-                    FilterState.Off => FilterState.Partial,
-                    FilterState.Partial => FilterState.On,
-                    FilterState.On => FilterState.Off,
-                    _ => FilterState.Off
-                };
-            }
-
-            if (!string.IsNullOrEmpty(tooltip))
-            {
-                TooltipHandler.TipRegion(buttonRect, tooltip);
-            }
-
-            return currentState;
-        }
-
-        /// <summary>
         /// Draws an importance selector (Ignored/Preferred/Critical).
         /// Returns true if filter is active (not Ignored).
         /// </summary>

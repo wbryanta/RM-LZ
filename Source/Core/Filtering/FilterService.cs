@@ -36,7 +36,6 @@ namespace LandingZone.Core.Filtering
             _registry.Register(new Filters.BiomeFilter());
 
             // Temperature filters
-            _registry.Register(new Filters.TemperatureFilter()); // Legacy - uses AverageTemperatureRange
             _registry.Register(new Filters.AverageTemperatureFilter());
             _registry.Register(new Filters.MinimumTemperatureFilter());
             _registry.Register(new Filters.MaximumTemperatureFilter());
@@ -54,15 +53,6 @@ namespace LandingZone.Core.Filtering
             // Resource filters
             _registry.Register(new Filters.GrazeFilter());
             _registry.Register(new Filters.ForageableFoodFilter());
-
-            // Individual stone filters (one per stone type)
-            _registry.Register(new Filters.IndividualStoneFilter("Granite", "Granite"));
-            _registry.Register(new Filters.IndividualStoneFilter("Marble", "Marble"));
-            _registry.Register(new Filters.IndividualStoneFilter("Limestone", "Limestone"));
-            _registry.Register(new Filters.IndividualStoneFilter("Slate", "Slate"));
-            _registry.Register(new Filters.IndividualStoneFilter("Sandstone", "Sandstone"));
-
-            _registry.Register(new Filters.StoneCountFilter());
 
             // World features and landmarks (1.6+)
             _registry.Register(new Filters.WorldFeatureFilter());
@@ -89,13 +79,6 @@ namespace LandingZone.Core.Filtering
             int heavyPreferreds = heavyPredicates.Count(p => p.Importance == FilterImportance.Preferred);
             int totalHeavy = heavyCriticals + heavyPreferreds;
 
-            // Check if any individual stone filters are critical (these are the most expensive)
-            bool hasStoneFilter = filters.GraniteImportance == FilterImportance.Critical ||
-                                  filters.MarbleImportance == FilterImportance.Critical ||
-                                  filters.LimestoneImportance == FilterImportance.Critical ||
-                                  filters.SlateImportance == FilterImportance.Critical ||
-                                  filters.SandstoneImportance == FilterImportance.Critical;
-
             // Estimate processing time
             // Base: ~0.1s for cheap filters
             // Each heavy filter adds ~20-60 seconds depending on tile count
@@ -110,16 +93,8 @@ namespace LandingZone.Core.Filtering
                 int worldTileCount = Find.World?.grid?.TilesCount ?? 300000;
                 int chunkCount = Mathf.CeilToInt(worldTileCount / 500f);
 
-                if (hasStoneFilter)
-                {
-                    // Stone filters are the slowest (~2s per 500-tile chunk)
-                    estimatedSeconds += chunkCount * 2f;
-                }
-                else
-                {
-                    // Other heavy filters are faster (~0.5s per 500-tile chunk)
-                    estimatedSeconds += chunkCount * 0.5f * totalHeavy;
-                }
+                // Heavy filters are slower (~0.5s per 500-tile chunk)
+                estimatedSeconds += chunkCount * 0.5f * totalHeavy;
             }
 
             // Build warning message
@@ -138,12 +113,7 @@ namespace LandingZone.Core.Filtering
                 else
                     warningMessage += $"{seconds}s";
 
-                if (hasStoneFilter)
-                {
-                    warningMessage += "\n\nSpecific stone filtering is expensive.";
-                    warningMessage += "\nTip: Move 'Stones' to Preferred instead of Critical for faster results.";
-                }
-                else if (totalHeavy > 2)
+                if (totalHeavy > 2)
                 {
                     warningMessage += $"\n\n{totalHeavy} expensive filters are enabled.";
                     warningMessage += "\nConsider reducing Critical filters for faster searches.";
@@ -155,217 +125,19 @@ namespace LandingZone.Core.Filtering
             return (estimatedSeconds, warningMessage, shouldWarn);
         }
 
-        public IReadOnlyList<TileScore> Evaluate(GameState state)
-        {
-            var grid = Find.World?.grid;
-            if (grid == null)
-            {
-                _lastScores.Clear();
-                return _lastScores;
-            }
-
-            // Reset cache if world changed
-            var worldSeed = Find.World?.info?.seedString ?? string.Empty;
-            _tileCache.ResetIfWorldChanged(worldSeed);
-
-            _lastScores.Clear();
-
-            // Get filter settings
-            var filters = state.Preferences.Filters;
-            var strictness = filters.CriticalStrictness;
-            var maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
-
-            // NEW: K-of-N Two-Stage Evaluation
-            var (cheapPredicates, heavyPredicates) = _registry.GetAllPredicates(state);
-
-            // Count criticals and preferreds
-            int cheapCriticals = cheapPredicates.Count(p => p.Importance == FilterImportance.Critical);
-            int cheapPreferreds = cheapPredicates.Count(p => p.Importance == FilterImportance.Preferred);
-            int heavyCriticals = heavyPredicates.Count(p => p.Importance == FilterImportance.Critical);
-            int heavyPreferreds = heavyPredicates.Count(p => p.Importance == FilterImportance.Preferred);
-
-            int totalCriticals = cheapCriticals + heavyCriticals;
-            int totalPreferreds = cheapPreferreds + heavyPreferreds;
-
-            // Compute kappa for score weighting
-            float kappa = ScoringWeights.ComputeKappa(totalCriticals, totalPreferreds);
-
-            Log.Message($"[LandingZone] K-of-N Evaluation: {totalCriticals} critical ({cheapCriticals} cheap + {heavyCriticals} heavy), " +
-                       $"{totalPreferreds} preferred ({cheapPreferreds} cheap + {heavyPreferreds} heavy), " +
-                       $"strictness={strictness:F2}, κ={kappa:F3}");
-
-            // PRE-SCAN: Analyze critical selectivity and estimate match likelihood
-            if (totalCriticals > 0)
-            {
-                PerformLikelihoodAnalysis(cheapPredicates, heavyPredicates, state, grid.TilesCount, strictness);
-            }
-
-            // STAGE A: Cheap aggregate gate
-            var aggregator = new BitsetAggregator(
-                cheapPredicates,
-                heavyCriticals,
-                heavyPreferreds,
-                new FilterContext(state, _tileCache),
-                grid.TilesCount
-            );
-
-            var candidates = aggregator.GetCandidates(strictness, maxCandidates: 25000);
-
-            // Auto-relax: If 0 candidates and strictness is 1.0, try relaxing
-            if (candidates.Count == 0 && strictness >= 1.0f && totalCriticals >= 2)
-            {
-                Log.Warning("[LandingZone] Stage A: 0 candidates at strictness 1.0");
-                Log.Warning($"[LandingZone] Auto-relaxing to {totalCriticals - 1} of {totalCriticals} criticals...");
-
-                float relaxedStrictness = (totalCriticals - 1) / (float)totalCriticals;
-                candidates = aggregator.GetCandidates(relaxedStrictness, maxCandidates: 25000);
-
-                if (candidates.Count > 0)
-                {
-                    Log.Message($"[LandingZone] ✓ Found {candidates.Count} candidates at relaxed strictness {relaxedStrictness:F2}");
-                    strictness = relaxedStrictness; // Use relaxed strictness for Stage B
-                }
-                else
-                {
-                    Log.Error("[LandingZone] 🚨 Still 0 candidates even after auto-relax!");
-                    return _lastScores;
-                }
-            }
-            else if (candidates.Count == 0)
-            {
-                Log.Message("[LandingZone] Stage A: 0 candidates after cheap filtering");
-                return _lastScores;
-            }
-
-            // STAGE B: Heavy branch-and-bound scoring
-            var scorer = new BranchAndBoundScorer(
-                heavyPredicates,
-                totalCriticals,
-                totalPreferreds,
-                kappa,
-                strictness,
-                new FilterContext(state, _tileCache),
-                maxResults,
-                maxHeavyEvals: 2000
-            );
-
-            var results = scorer.Score(candidates);
-
-            _lastScores.Clear();
-            _lastScores.AddRange(results);
-
-            // Auto-relax: If 0 results from Stage B and we haven't already relaxed
-            if (_lastScores.Count == 0 && strictness >= 1.0f && totalCriticals >= 2)
-            {
-                Log.Warning("[LandingZone] Stage B: 0 results at strictness 1.0");
-                Log.Warning($"[LandingZone] Auto-relaxing to {totalCriticals - 1} of {totalCriticals} criticals and retrying...");
-
-                float relaxedStrictness = (totalCriticals - 1) / (float)totalCriticals;
-
-                // Re-run Stage A with relaxed strictness
-                var relaxedAggregator = new BitsetAggregator(
-                    cheapPredicates,
-                    heavyCriticals,
-                    heavyPreferreds,
-                    new FilterContext(state, _tileCache),
-                    grid.TilesCount
-                );
-
-                var relaxedCandidates = relaxedAggregator.GetCandidates(relaxedStrictness, maxCandidates: 25000);
-
-                if (relaxedCandidates.Count > 0)
-                {
-                    var relaxedScorer = new BranchAndBoundScorer(
-                        heavyPredicates,
-                        totalCriticals,
-                        totalPreferreds,
-                        kappa,
-                        relaxedStrictness,
-                        new FilterContext(state, _tileCache),
-                        maxResults,
-                        maxHeavyEvals: 2000
-                    );
-
-                    var relaxedResults = relaxedScorer.Score(relaxedCandidates);
-
-                    if (relaxedResults.Count > 0)
-                    {
-                        _lastScores.AddRange(relaxedResults);
-                        Log.Message($"[LandingZone] ✓ Found {_lastScores.Count} results at relaxed strictness {relaxedStrictness:F2}");
-                        Log.Message($"[LandingZone] 💡 No tiles matched all {totalCriticals} criticals. Showing tiles matching {totalCriticals - 1} of {totalCriticals}.");
-                    }
-                }
-            }
-
-            LandingZoneContext.LogMessage($"K-of-N evaluation: {_lastScores.Count} results from {candidates.Count} candidates (cache: {_tileCache.CachedCount})");
-            return _lastScores;
-        }
+        // NOTE: Synchronous Evaluate() method removed - dead code path never called in production.
+        // Production uses FilterEvaluationJob (async incremental evaluation) instead.
+        // See forensic analysis 2025-11-13 for details.
 
         // NOTE: BuildTileScore method removed - dead code from old scoring system before k-of-n architecture
+        // NOTE: Deprecated helper methods removed (ApplyRangeConstraint, ApplyBooleanPreference,
+        //       ApplyDiscretePreference, DistancePenalty, IsWithinRange) - only used by deleted Evaluate() method.
+        //       See forensic analysis 2025-11-13 for details.
 
-        private static bool ApplyRangeConstraint(float value, FloatRange range, FilterImportance importance, float tolerance, float penaltyScale, float breakdownScale, ref float score, out float normalizedScore)
-        {
-            normalizedScore = 1f;
-            if (importance == FilterImportance.Ignored)
-                return true;
-
-            bool within = IsWithinRange(value, range, tolerance);
-            if (importance == FilterImportance.Critical && !within)
-                return false;
-
-            var penalty = DistancePenalty(value, range, penaltyScale);
-            score -= penalty;
-            normalizedScore = Mathf.Clamp01(1f - penalty * breakdownScale);
-            return true;
-        }
-
-        private static bool ApplyBooleanPreference(bool actual, FilterImportance importance, float penalty, ref float score, out bool hasValue)
-        {
-            hasValue = actual;
-            if (importance == FilterImportance.Ignored)
-                return true;
-
-            if (importance == FilterImportance.Critical && !actual)
-                return false;
-
-            if (importance == FilterImportance.Preferred && !actual)
-            {
-                score -= penalty;
-            }
-
-            return true;
-        }
-
-        private static bool ApplyDiscretePreference(bool satisfied, FilterImportance importance, float penalty, ref float score)
-        {
-            if (importance == FilterImportance.Ignored)
-                return true;
-
-            if (importance == FilterImportance.Critical && !satisfied)
-                return false;
-
-            if (importance == FilterImportance.Preferred && !satisfied)
-            {
-                score -= penalty;
-            }
-
-            return true;
-        }
-
-        private static float DistancePenalty(float value, FloatRange range, float scale)
-        {
-            if (value >= range.min && value <= range.max)
-                return 0f;
-
-            var delta = value < range.min ? range.min - value : value - range.max;
-            return delta / Mathf.Max(scale, 0.0001f);
-        }
-
-        private static bool IsWithinRange(float value, FloatRange range, float tolerance)
-        {
-            return value >= range.min - tolerance && value <= range.max + tolerance;
-        }
-
+        /// <summary>
+        /// Inserts a candidate into top-N results list, maintaining heap invariant.
+        /// Used by FilterEvaluationJob for incremental result collection.
+        /// </summary>
         private static void InsertTopResult(List<TileScore> list, TileScore candidate, int limit)
         {
             if (list.Count < limit)
@@ -566,12 +338,8 @@ namespace LandingZone.Core.Filtering
                 if (filters.RainfallImportance == FilterImportance.Critical) criticals.Add($"Rainfall {filters.RainfallRange}");
                 if (filters.GrowingDaysImportance == FilterImportance.Critical) criticals.Add($"GrowingDays {filters.GrowingDaysRange}");
                 if (filters.CoastalImportance == FilterImportance.Critical) criticals.Add("Coastal");
-                if (filters.RiverImportance == FilterImportance.Critical) criticals.Add("River");
-                if (filters.RoadImportance == FilterImportance.Critical) criticals.Add("Road");
                 if (filters.LandmarkImportance == FilterImportance.Critical) criticals.Add("Landmark");
                 if (filters.GrazeImportance == FilterImportance.Critical) criticals.Add("Graze");
-                if (filters.StoneImportance == FilterImportance.Critical && filters.RequiredStoneDefNames.Count > 0)
-                    criticals.Add($"Stones: {string.Join(", ", filters.RequiredStoneDefNames)}");
 
                 if (criticals.Count > 0)
                     Log.Message($"[LandingZone] Critical filters: {string.Join(", ", criticals)}");
@@ -592,14 +360,9 @@ namespace LandingZone.Core.Filtering
                 if (filters.ElevationImportance == FilterImportance.Preferred) preferreds.Add("Elevation");
                 if (filters.CoastalImportance == FilterImportance.Preferred) preferreds.Add("Coastal");
                 if (filters.CoastalLakeImportance == FilterImportance.Preferred) preferreds.Add("CoastalLake");
-                if (filters.RiverImportance == FilterImportance.Preferred) preferreds.Add("River");
-                if (filters.RoadImportance == FilterImportance.Preferred) preferreds.Add("Road");
                 if (filters.LandmarkImportance == FilterImportance.Preferred) preferreds.Add("Landmark");
                 if (filters.GrazeImportance == FilterImportance.Preferred) preferreds.Add("Graze");
-                if (filters.StoneImportance == FilterImportance.Preferred) preferreds.Add("Stones");
                 if (filters.FeatureImportance == FilterImportance.Preferred) preferreds.Add("Feature");
-                if (filters.MapFeatureImportance == FilterImportance.Preferred) preferreds.Add("MapFeature");
-                if (filters.AdjacentBiomeImportance == FilterImportance.Preferred) preferreds.Add("AdjacentBiomes");
 
                 if (preferreds.Count > 0)
                     Log.Message($"[LandingZone] Preferred filters: {string.Join(", ", preferreds)}");

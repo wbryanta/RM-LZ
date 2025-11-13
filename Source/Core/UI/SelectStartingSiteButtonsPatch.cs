@@ -204,11 +204,10 @@ namespace LandingZone.Core.UI
 
             // Check if user has modified any filter values from defaults
             bool isCustom =
-                filters.TemperatureRange.min != 10f || filters.TemperatureRange.max != 32f ||
+                filters.AverageTemperatureRange.min != 10f || filters.AverageTemperatureRange.max != 32f ||
                 filters.RainfallRange.min != 1000f || filters.RainfallRange.max != 2200f ||
                 filters.GrowingDaysRange.min != 40f || filters.GrowingDaysRange.max != 60f ||
                 filters.CoastalImportance != LandingZone.Data.FilterImportance.Ignored ||
-                filters.RiverImportance != LandingZone.Data.FilterImportance.Critical ||
                 filters.LockedBiome != null ||
                 filters.RequiredFeatureDefName != null;
 

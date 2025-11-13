@@ -77,23 +77,6 @@ namespace LandingZone.Core.Filtering
             ValidateRangeFilter(filters.MovementDifficultyRange, "Movement Difficulty", issues);
             ValidateRangeFilter(filters.ElevationRange, "Elevation", issues);
 
-            // Validate stone count filter
-            if (filters.UseStoneCount)
-            {
-                ValidateRangeFilter(filters.StoneCountRange, "Stone Count", issues);
-
-                if (filters.RequiredStoneDefNames.Count == 0 && filters.StoneImportance != FilterImportance.Ignored)
-                {
-                    issues.Add(new ValidationIssue
-                    {
-                        Severity = IssueSeverity.Warning,
-                        FilterName = "Stone Types",
-                        Message = "Stone count filter is enabled but no stone types are selected.",
-                        Suggestion = "Select some stone types or disable the stone count filter."
-                    });
-                }
-            }
-
             // TODO: Update validation for IndividualImportanceContainer filters
             // ValidateMultiSelectFilter(filters.RiverTypes, "River Types", filters.RiverImportance, issues);
             // ValidateMultiSelectFilter(filters.RoadTypes, "Road Types", filters.RoadImportance, issues);
@@ -189,42 +172,6 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
-        /// Validates a multi-select filter container.
-        /// </summary>
-        private static void ValidateMultiSelectFilter<T>(
-            MultiSelectFilterContainer<T> container,
-            string filterName,
-            FilterImportance importance,
-            List<ValidationIssue> issues)
-        {
-            if (importance == FilterImportance.Ignored)
-                return; // Filter is disabled, no validation needed
-
-            if (!container.HasSelection)
-            {
-                issues.Add(new ValidationIssue
-                {
-                    Severity = importance == FilterImportance.Critical ? IssueSeverity.Error : IssueSeverity.Warning,
-                    FilterName = filterName,
-                    Message = "Filter is enabled but no items are selected.",
-                    Suggestion = importance == FilterImportance.Critical
-                        ? "Select at least one item or change importance to Preferred/Ignored."
-                        : "Select at least one item or disable this filter."
-                });
-            }
-            else if (container.LogicMode == FilterLogicMode.All && container.Count > 5)
-            {
-                issues.Add(new ValidationIssue
-                {
-                    Severity = IssueSeverity.Warning,
-                    FilterName = filterName,
-                    Message = $"AND logic with {container.Count} items may be too restrictive.",
-                    Suggestion = "Consider using OR logic or reducing the number of selected items."
-                });
-            }
-        }
-
-        /// <summary>
         /// Validates filter combinations that might be overly restrictive.
         /// </summary>
         private static void ValidateFilterCombinations(FilterSettings filters, List<ValidationIssue> issues)
@@ -236,9 +183,7 @@ namespace LandingZone.Core.Filtering
             if (filters.AverageTemperatureImportance == FilterImportance.Critical) criticalFilterCount++;
             if (filters.RainfallImportance == FilterImportance.Critical) criticalFilterCount++;
             if (filters.GrowingDaysImportance == FilterImportance.Critical) criticalFilterCount++;
-            if (filters.RiverImportance == FilterImportance.Critical) criticalFilterCount++;
             if (filters.CoastalImportance == FilterImportance.Critical) criticalFilterCount++;
-            if (filters.StoneImportance == FilterImportance.Critical) criticalFilterCount++;
 
             if (filters.AverageTemperatureImportance == FilterImportance.Preferred) preferredFilterCount++;
             if (filters.RainfallImportance == FilterImportance.Preferred) preferredFilterCount++;

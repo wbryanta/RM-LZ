@@ -91,19 +91,6 @@ namespace LandingZone.Core.UI
         private FilterImportance _forageableFoodImportance;
         private string? _forageableFoodDefName;
 
-        // Individual stone filters
-        private FilterImportance _graniteImportance;
-        private FilterImportance _marbleImportance;
-        private FilterImportance _limestoneImportance;
-        private FilterImportance _slateImportance;
-        private FilterImportance _sandstoneImportance;
-
-        // Legacy stone filters (for backward compatibility)
-        private FilterImportance _stoneImportance;
-        private bool _useStoneCount;
-        private FloatRange _stoneCountRange;
-        private readonly HashSet<string> _selectedStoneDefs = new();
-
         // World features
         private FilterImportance _featureImportance;
         // MapFeatures and AdjacentBiomes now use IndividualImportanceContainer (filters.MapFeatures, filters.AdjacentBiomes)
@@ -111,12 +98,10 @@ namespace LandingZone.Core.UI
         private string? _featureDefName;
 
         // UI state
-        private Vector2 _stoneScroll;
         private Vector2 _scrollPos;
         private float _contentHeight = 2400f;  // Fixed height large enough for all sections fully expanded
         private int _maxResults = FilterSettings.DefaultMaxResults;
         private bool _dirty;
-        private string _stoneSearchText = "";
         private static readonly Dictionary<string, bool> SectionExpanded = new Dictionary<string, bool>
         {
             { "Temperature", true },
@@ -225,18 +210,6 @@ namespace LandingZone.Core.UI
             // Resource filters
             _grazeImportance = filters.GrazeImportance;
 
-            // Individual stone filters
-            _graniteImportance = filters.GraniteImportance;
-            _marbleImportance = filters.MarbleImportance;
-            _limestoneImportance = filters.LimestoneImportance;
-            _slateImportance = filters.SlateImportance;
-            _sandstoneImportance = filters.SandstoneImportance;
-
-            // Legacy stone filters
-            _stoneImportance = filters.StoneImportance;
-            _useStoneCount = filters.UseStoneCount;
-            _stoneCountRange = filters.StoneCountRange;
-
             // World features
             _featureImportance = filters.FeatureImportance;
             _featureDefName = filters.RequiredFeatureDefName;
@@ -244,8 +217,6 @@ namespace LandingZone.Core.UI
             _landmarkImportance = filters.LandmarkImportance;
             foreach (var hill in filters.AllowedHilliness)
                 _selectedHilliness.Add(hill);
-            foreach (var stone in filters.RequiredStoneDefNames)
-                _selectedStoneDefs.Add(stone);
             if (_selectedHilliness.Count == 0)
             {
                 foreach (var hill in _hillinessOptions)
@@ -263,9 +234,80 @@ namespace LandingZone.Core.UI
 
         public override void DoWindowContents(Rect inRect)
         {
-            // Pattern from LandingZoneResultsWindow: pass inRect directly to BeginScrollView
-            var viewRect = new Rect(0f, 0f, inRect.width - ScrollbarWidth, _contentHeight);
-            Widgets.BeginScrollView(inRect, ref _scrollPos, viewRect);
+            var options = LandingZoneContext.State?.Preferences.Options ?? new LandingZoneOptions();
+            var currentMode = options.PreferencesUIMode;
+
+            // Mode toggle header (before scroll view)
+            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 40f);
+            DrawModeToggle(headerRect, ref currentMode);
+
+            // Save mode change if toggled
+            if (currentMode != options.PreferencesUIMode)
+            {
+                options.PreferencesUIMode = currentMode;
+                _dirty = true;
+            }
+
+            // Content area (below mode toggle)
+            var contentRect = new Rect(inRect.x, inRect.y + 50f, inRect.width, inRect.height - 50f);
+
+            // Render appropriate mode UI
+            if (currentMode == UIMode.Default)
+            {
+                // Default mode: Use new simplified UI
+                DrawDefaultModeContent(contentRect);
+            }
+            else
+            {
+                // Advanced mode: Use existing full UI (will be refactored in Phase 2B)
+                DrawAdvancedModeContent(contentRect);
+            }
+        }
+
+        private void DrawModeToggle(Rect rect, ref UIMode currentMode)
+        {
+            // Mode toggle buttons (Default | Advanced)
+            var buttonWidth = 120f;
+            var spacing = 10f;
+            var totalWidth = (buttonWidth * 2) + spacing;
+            var startX = rect.x + (rect.width - totalWidth) / 2f;
+
+            var defaultRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
+            var advancedRect = new Rect(startX + buttonWidth + spacing, rect.y + 5f, buttonWidth, 30f);
+
+            // Default button
+            var isDefault = currentMode == UIMode.Default;
+            if (Widgets.ButtonText(defaultRect, "Default", active: isDefault))
+            {
+                currentMode = UIMode.Default;
+            }
+
+            // Advanced button
+            var isAdvanced = currentMode == UIMode.Advanced;
+            if (Widgets.ButtonText(advancedRect, "Advanced", active: isAdvanced))
+            {
+                currentMode = UIMode.Advanced;
+            }
+        }
+
+        private void DrawDefaultModeContent(Rect contentRect)
+        {
+            // Use new DefaultModeUI renderer (stub for now, Phase 2A will implement)
+            var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
+
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 600f);
+            Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
+
+            DefaultModeUI.DrawContent(viewRect, preferences);
+
+            Widgets.EndScrollView();
+        }
+
+        private void DrawAdvancedModeContent(Rect contentRect)
+        {
+            // Existing full UI (will be replaced with AdvancedModeUI in Phase 2B)
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, _contentHeight);
+            Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
             var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
@@ -318,12 +360,22 @@ namespace LandingZone.Core.UI
                     Diagnostics.WorldDataDumper.DumpWorldData();
                 }
 
+                listing.Gap(4f);
+
+                if (listing.ButtonText("[DEV] Dump FULL World Cache"))
+                {
+                    Log.Message("[LandingZone] Dumping FULL world cache (this may take a while)...");
+                    Diagnostics.WorldDataDumper.DumpFullWorldCache();
+                }
+
                 listing.Gap(12f);
             }
 
             listing.End();
             Widgets.EndScrollView();
         }
+
+        // Original DoWindowContents code continues below (DrawSection, etc.)
 
         private void DrawSection(Listing_Standard listing, string key, System.Action<Listing_Standard> drawer)
         {
@@ -413,15 +465,7 @@ namespace LandingZone.Core.UI
             int count = 0;
             if (_grazeImportance != FilterImportance.Ignored) count++;
 
-            // Count individual stone filters
-            if (_graniteImportance != FilterImportance.Ignored) count++;
-            if (_marbleImportance != FilterImportance.Ignored) count++;
-            if (_limestoneImportance != FilterImportance.Ignored) count++;
-            if (_slateImportance != FilterImportance.Ignored) count++;
-            if (_sandstoneImportance != FilterImportance.Ignored) count++;
-
-            // Count stone count filter if enabled
-            if (_useStoneCount) count++;
+            // TODO: Add stone filter counting when rebuilt in Sprint 1.2
 
             return count;
         }
@@ -563,45 +607,9 @@ namespace LandingZone.Core.UI
 
             listing.GapLine(4f);
 
-            // Individual stone types
-            Text.Font = GameFont.Tiny;
-            listing.Label("Each stone type can be set individually as Ignored, Preferred, or Critical.");
-            Text.Font = GameFont.Small;
-            listing.Gap(2f);
-
-            DrawBooleanImportance(listing, "Granite", ref _graniteImportance,
-                "Strong and common - excellent for construction");
-            DrawBooleanImportance(listing, "Marble", ref _marbleImportance,
-                "Beautiful stone - great for sculptures");
-            DrawBooleanImportance(listing, "Limestone", ref _limestoneImportance,
-                "Good all-purpose stone");
-            DrawBooleanImportance(listing, "Slate", ref _slateImportance,
-                "Decent stone for construction");
-            DrawBooleanImportance(listing, "Sandstone", ref _sandstoneImportance,
-                "Weak stone but easy to work with");
-
-            listing.GapLine(4f);
-
-            // Stone count filter (alternative to individual selection)
-            Text.Font = GameFont.Tiny;
-            listing.Label("OR use stone count filter (ignores individual stone selections above):");
-            Text.Font = GameFont.Small;
-            listing.Gap(2f);
-
-            bool stoneCountBefore = _useStoneCount;
-            var toggleRect = listing.GetRect(24f);
-            var prevColor = GUI.color;
-            if (_useStoneCount)
-                GUI.color = UIHelpers.ActiveFilterColor;
-            Widgets.CheckboxLabeled(toggleRect, "Filter by stone count instead", ref _useStoneCount);
-            GUI.color = prevColor;
-            if (_useStoneCount != stoneCountBefore)
-                _dirty = true;
-
-            if (_useStoneCount)
-            {
-                DrawFloatRange(listing, "Number of stone types", ref _stoneCountRange, 1f, 6f);
-            }
+            // TODO Sprint 1.2: Rebuild stone filters using IndividualImportanceContainer pattern
+            // Stone UI temporarily removed during deprecated code cleanup
+            listing.Label("Stone filters - coming soon!");
         }
 
         private void DrawWorldFeaturesSection(Listing_Standard listing)
@@ -835,85 +843,11 @@ namespace LandingZone.Core.UI
             return "Any";
         }
 
+        // TODO Sprint 1.2: Rebuild stone selector UI using IndividualImportanceContainer pattern
+        // Method temporarily stubbed during deprecated code cleanup
         private void DrawStoneSelectors(Listing_Standard listing)
         {
-            // Add search box
-            _stoneSearchText = UIHelpers.DrawSearchBox(listing, _stoneSearchText, "Search stones...");
-
-            // Filter stones based on search text
-            var filteredStones = string.IsNullOrEmpty(_stoneSearchText)
-                ? _stoneOptions
-                : _stoneOptions.Where(s =>
-                    s.LabelCap.ToString().ToLower().Contains(_stoneSearchText.ToLower()) ||
-                    s.defName.ToLower().Contains(_stoneSearchText.ToLower())
-                ).ToList();
-
-            // Add All/None/Reset buttons
-            UIHelpers.DrawMultiSelectUtilityButtons(
-                listing,
-                onAll: () =>
-                {
-                    foreach (var stone in filteredStones)
-                    {
-                        if (!_selectedStoneDefs.Contains(stone.defName))
-                        {
-                            _selectedStoneDefs.Add(stone.defName);
-                            _dirty = true;
-                        }
-                    }
-                },
-                onNone: () =>
-                {
-                    foreach (var stone in filteredStones)
-                    {
-                        if (_selectedStoneDefs.Contains(stone.defName))
-                        {
-                            _selectedStoneDefs.Remove(stone.defName);
-                            _dirty = true;
-                        }
-                    }
-                },
-                onReset: () =>
-                {
-                    _selectedStoneDefs.Clear();
-                    _selectedStoneDefs.Add("Granite");
-                    _selectedStoneDefs.Add("Limestone");
-                    _selectedStoneDefs.Add("Sandstone");
-                    _dirty = true;
-                }
-            );
-
-            // Show count if filtering
-            if (!string.IsNullOrEmpty(_stoneSearchText))
-            {
-                Text.Font = GameFont.Tiny;
-                listing.Label($"Showing {filteredStones.Count} of {_stoneOptions.Count} stones");
-                Text.Font = GameFont.Small;
-            }
-
-            float height = Mathf.Min(6, filteredStones.Count) * 24f + 8f;
-            var container = listing.GetRect(height);
-            Widgets.DrawMenuSection(container);
-            var viewRect = new Rect(0f, 0f, container.width - 16f, filteredStones.Count * 24f);
-            Widgets.BeginScrollView(container, ref _stoneScroll, viewRect);
-            float curY = 0f;
-            foreach (var stone in filteredStones)
-            {
-                var row = new Rect(0f, curY, viewRect.width, 22f);
-                bool selected = _selectedStoneDefs.Contains(stone.defName);
-                bool before = selected;
-                Widgets.CheckboxLabeled(row, stone.LabelCap, ref selected);
-                if (before != selected)
-                {
-                    _dirty = true;
-                    if (selected)
-                        _selectedStoneDefs.Add(stone.defName);
-                    else
-                        _selectedStoneDefs.Remove(stone.defName);
-                }
-                curY += 22f;
-            }
-            Widgets.EndScrollView();
+            listing.Label("Stone selectors - coming soon!");
         }
 
         private void DrawHillinessOptions(Listing_Standard listing)
@@ -1079,17 +1013,6 @@ namespace LandingZone.Core.UI
             // Resource filters
             filters.GrazeImportance = _grazeImportance;
 
-            // Individual stone filters
-            filters.GraniteImportance = _graniteImportance;
-            filters.MarbleImportance = _marbleImportance;
-            filters.LimestoneImportance = _limestoneImportance;
-            filters.SlateImportance = _slateImportance;
-            filters.SandstoneImportance = _sandstoneImportance;
-
-            // Stone count filter
-            filters.UseStoneCount = _useStoneCount;
-            filters.StoneCountRange = _stoneCountRange;
-
             // World features
             filters.FeatureImportance = _featureImportance;
             filters.RequiredFeatureDefName = _featureDefName;
@@ -1151,18 +1074,6 @@ namespace LandingZone.Core.UI
             // Resource filters
             _grazeImportance = filters.GrazeImportance;
 
-            // Individual stone filters
-            _graniteImportance = filters.GraniteImportance;
-            _marbleImportance = filters.MarbleImportance;
-            _limestoneImportance = filters.LimestoneImportance;
-            _slateImportance = filters.SlateImportance;
-            _sandstoneImportance = filters.SandstoneImportance;
-
-            // Legacy stone filters
-            _stoneImportance = filters.StoneImportance;
-            _useStoneCount = filters.UseStoneCount;
-            _stoneCountRange = filters.StoneCountRange;
-
             // World features
             _featureImportance = filters.FeatureImportance;
             _featureDefName = filters.RequiredFeatureDefName;
@@ -1170,10 +1081,6 @@ namespace LandingZone.Core.UI
             _landmarkImportance = filters.LandmarkImportance;
 
             // Collections
-            _selectedStoneDefs.Clear();
-            foreach (var stone in filters.RequiredStoneDefNames)
-                _selectedStoneDefs.Add(stone);
-
             _selectedHilliness.Clear();
             foreach (var hill in filters.AllowedHilliness)
                 _selectedHilliness.Add(hill);

@@ -42,27 +42,28 @@ namespace LandingZone.Core.Diagnostics
                 sb.AppendLine("=".PadRight(80, '='));
                 sb.AppendLine();
 
-                // Sample tiles strategically: first few, random samples, and tiles with interesting properties
+                // Sample 10 random settleable tiles
                 var tilesToDump = new System.Collections.Generic.HashSet<int>();
+                var settleableTiles = new System.Collections.Generic.List<int>();
 
-                // First 10 settleable tiles
-                int settled = 0;
-                for (int i = 0; i < world.grid.TilesCount && settled < 10; i++)
+                // Build list of settleable tiles
+                for (int i = 0; i < world.grid.TilesCount; i++)
                 {
                     var tile = world.grid[i];
                     var biome = tile?.PrimaryBiome;
                     if (tile != null && biome != null && !biome.impassable && !world.Impassable(i))
                     {
-                        tilesToDump.Add(i);
-                        settled++;
+                        settleableTiles.Add(i);
                     }
                 }
 
-                // Random sample of 20 more tiles
+                // Sample 10 random from settleable
                 var rand = new Random();
-                for (int i = 0; i < 20; i++)
+                for (int i = 0; i < 10 && settleableTiles.Count > 0; i++)
                 {
-                    tilesToDump.Add(rand.Next(world.grid.TilesCount));
+                    var randomIndex = rand.Next(settleableTiles.Count);
+                    tilesToDump.Add(settleableTiles[randomIndex]);
+                    settleableTiles.RemoveAt(randomIndex);
                 }
 
                 sb.AppendLine($"Dumping {tilesToDump.Count} sample tiles:");
@@ -193,36 +194,124 @@ namespace LandingZone.Core.Diagnostics
                 }
             }
 
-            // Try to find map features and other properties using reflection
+            // Dump ALL tile fields and properties (comprehensive)
             try
             {
                 var tileType = tile.GetType();
 
-                // Dump ALL properties to see what's available
-                var props = tileType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                // Get ALL fields - public, private, internal
+                var allFields = tileType.GetFields(
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
 
-                sb.AppendLine("All Tile Properties (FULL DUMP - NO FILTERING):");
-                foreach (var prop in props)
+                foreach (var field in allFields)
+                {
+                    try
+                    {
+                        var value = field.GetValue(tile);
+                        sb.AppendLine($"  {field.Name}: {DumpValue(value)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  {field.Name}: <error: {ex.Message}>");
+                    }
+                }
+
+                // Get ALL properties - public, private, internal
+                var allProps = tileType.GetProperties(
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                foreach (var prop in allProps)
                 {
                     try
                     {
                         var value = prop.GetValue(tile);
-                        if (value != null)
-                        {
-                            var valueStr = FormatValue(value);
-                            // SHOW EVERYTHING - no filtering to find hidden temperature properties
-                            sb.AppendLine($"  {prop.Name}: {valueStr}");
-                        }
+                        sb.AppendLine($"  {prop.Name}: {DumpValue(value)}");
                     }
-                    catch { /* Skip properties that throw */ }
+                    catch (Exception ex)
+                    {
+                        sb.AppendLine($"  {prop.Name}: <error: {ex.Message}>");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"Error inspecting tile properties: {ex.Message}");
+                sb.AppendLine($"Error inspecting tile: {ex.Message}");
             }
 
             sb.AppendLine();
+        }
+
+        /// <summary>
+        /// Dumps a value with full detail - unwraps collections, shows actual data.
+        /// </summary>
+        private static string DumpValue(object value, int depth = 0)
+        {
+            if (value == null) return "null";
+            if (depth > 3) return value.ToString(); // Prevent infinite recursion
+
+            var type = value.GetType();
+
+            // Primitives and strings
+            if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal))
+                return value.ToString();
+
+            // Enums
+            if (type.IsEnum)
+                return value.ToString();
+
+            // Collections - unwrap and show contents
+            if (value is System.Collections.IEnumerable enumerable && !(value is string))
+            {
+                var items = new System.Collections.Generic.List<string>();
+                int count = 0;
+                foreach (var item in enumerable)
+                {
+                    if (count >= 20) // Limit to first 20 items to avoid huge output
+                    {
+                        items.Add($"... ({count} more)");
+                        break;
+                    }
+                    items.Add(DumpValue(item, depth + 1));
+                    count++;
+                }
+
+                if (items.Count == 0)
+                    return "[]";
+
+                return $"[{string.Join(", ", items)}]";
+            }
+
+            // Defs - show defName
+            if (value is Verse.Def def)
+                return $"{def.defName}";
+
+            // RimWorld specific types
+            if (type.FullName?.Contains("RimWorld") == true || type.FullName?.Contains("Verse") == true)
+            {
+                // Try to get a meaningful string representation
+                var nameField = type.GetField("name", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (nameField != null)
+                {
+                    var nameValue = nameField.GetValue(value);
+                    if (nameValue != null)
+                        return $"{type.Name}({nameValue})";
+                }
+
+                var defNameProp = type.GetProperty("defName", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (defNameProp != null)
+                {
+                    var defNameValue = defNameProp.GetValue(value);
+                    if (defNameValue != null)
+                        return $"{type.Name}({defNameValue})";
+                }
+            }
+
+            // Default ToString()
+            return value.ToString();
         }
 
         private static string FormatValue(object value)
@@ -275,6 +364,107 @@ namespace LandingZone.Core.Diagnostics
             }
 
             return value.ToString();
+        }
+
+        /// <summary>
+        /// Dumps the ENTIRE world cache - all tiles, all properties, 100% raw data.
+        /// This will be a very large file (~295k tiles).
+        /// </summary>
+        public static void DumpFullWorldCache()
+        {
+            try
+            {
+                var world = Find.World;
+                if (world?.grid == null)
+                {
+                    Log.Error("[LandingZone] WorldDataDumper: World or grid is null");
+                    return;
+                }
+
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                var filePath = Path.Combine(GenFilePaths.ConfigFolderPath, $"LandingZone_FullCache_{timestamp}.txt");
+
+                var sb = new StringBuilder();
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine($"LandingZone FULL WORLD CACHE DUMP - {timestamp}");
+                sb.AppendLine($"World: {world.info.name}");
+                sb.AppendLine($"Seed: {world.info.seedString}");
+                sb.AppendLine($"Total Tiles: {world.grid.TilesCount}");
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine();
+
+                // Dump EVERY tile in the world
+                for (int tileId = 0; tileId < world.grid.TilesCount; tileId++)
+                {
+                    var tile = world.grid[tileId];
+                    if (tile == null) continue;
+
+                    sb.AppendLine($"TILE {tileId}");
+
+                    // Dump EVERYTHING - all fields (public, private, internal) and properties
+                    var tileType = tile.GetType();
+
+                    // Get ALL fields - public, private, internal, everything
+                    var allFields = tileType.GetFields(
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    foreach (var field in allFields)
+                    {
+                        try
+                        {
+                            var value = field.GetValue(tile);
+                            sb.AppendLine($"  {field.Name}: {DumpValue(value)}");
+                        }
+                        catch (Exception ex)
+                        {
+                            sb.AppendLine($"  {field.Name}: <error: {ex.Message}>");
+                        }
+                    }
+
+                    // Get ALL properties - public, private, internal
+                    var allProps = tileType.GetProperties(
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    foreach (var prop in allProps)
+                    {
+                        try
+                        {
+                            var value = prop.GetValue(tile);
+                            sb.AppendLine($"  {prop.Name}: {DumpValue(value)}");
+                        }
+                        catch (Exception ex)
+                        {
+                            sb.AppendLine($"  {prop.Name}: <error: {ex.Message}>");
+                        }
+                    }
+
+                    sb.AppendLine();
+
+                    // Write to file every 1000 tiles to avoid memory issues
+                    if (tileId % 1000 == 0)
+                    {
+                        File.AppendAllText(filePath, sb.ToString());
+                        sb.Clear();
+                    }
+                }
+
+                // Write any remaining data
+                if (sb.Length > 0)
+                {
+                    File.AppendAllText(filePath, sb.ToString());
+                }
+
+                Log.Message($"[LandingZone] Full world cache dumped to: {filePath}");
+                Messages.Message($"LandingZone: Full cache dumped to {Path.GetFileName(filePath)}", MessageTypeDefOf.SilentInput, false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LandingZone] WorldDataDumper full cache error: {ex}");
+            }
         }
     }
 }

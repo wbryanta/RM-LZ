@@ -371,7 +371,7 @@ namespace LandingZone.Core.UI
             string tempText = LandingZoneMod.UseFahrenheit
                 ? $"{GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit):F1}°F ({GenTemperature.CelsiusTo(tempRange.min, TemperatureDisplayMode.Fahrenheit):F0}°F to {GenTemperature.CelsiusTo(tempRange.max, TemperatureDisplayMode.Fahrenheit):F0}°F)"
                 : $"{tempRange.avg:F1}°C ({tempRange.min:F0}°C to {tempRange.max:F0}°C)";
-            GUI.color = GetMetricMatchColor(tile.temperature, filters.TemperatureRange, filters.TemperatureImportance);
+            GUI.color = GetMetricMatchColor(tile.temperature, filters.AverageTemperatureRange, filters.AverageTemperatureImportance);
             var tempRect = new Rect(x, y, Text.CalcSize(tempText).x, rect.height);
             Widgets.Label(tempRect, tempText);
             x += tempRect.width;
@@ -410,15 +410,15 @@ namespace LandingZone.Core.UI
             var failures = new List<(string text, Color color)>();
 
             // Check temperature
-            if (filters.TemperatureImportance != FilterImportance.Ignored)
+            if (filters.AverageTemperatureImportance != FilterImportance.Ignored)
             {
-                if (tile.temperature < filters.TemperatureRange.min || tile.temperature > filters.TemperatureRange.max)
+                if (tile.temperature < filters.AverageTemperatureRange.min || tile.temperature > filters.AverageTemperatureRange.max)
                 {
                     var tempRange = GetSeasonalTempRange(tileId);
                     string tempText = LandingZoneMod.UseFahrenheit
-                        ? $"Temp: {GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit):F1}°F (wanted {GenTemperature.CelsiusTo(filters.TemperatureRange.min, TemperatureDisplayMode.Fahrenheit):F0}-{GenTemperature.CelsiusTo(filters.TemperatureRange.max, TemperatureDisplayMode.Fahrenheit):F0}°F)"
-                        : $"Temp: {tempRange.avg:F1}°C (wanted {filters.TemperatureRange.min:F0}-{filters.TemperatureRange.max:F0}°C)";
-                    Color color = filters.TemperatureImportance == FilterImportance.Critical
+                        ? $"Temp: {GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit):F1}°F (wanted {GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, TemperatureDisplayMode.Fahrenheit):F0}-{GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, TemperatureDisplayMode.Fahrenheit):F0}°F)"
+                        : $"Temp: {tempRange.avg:F1}°C (wanted {filters.AverageTemperatureRange.min:F0}-{filters.AverageTemperatureRange.max:F0}°C)";
+                    Color color = filters.AverageTemperatureImportance == FilterImportance.Critical
                         ? new Color(1f, 0.27f, 0.27f) // Bright red #ff4444
                         : new Color(1f, 0.67f, 0.27f); // Orange-yellow #ffaa44
                     failures.Add((tempText, color));
@@ -462,17 +462,6 @@ namespace LandingZone.Core.UI
                         : new Color(1f, 0.67f, 0.27f);
                     failures.Add((forageText, color));
                 }
-            }
-
-            // Check river
-            bool hasRiver = tile is RimWorld.Planet.SurfaceTile surface && surface.Rivers != null && surface.Rivers.Count > 0;
-            if (filters.RiverImportance != FilterImportance.Ignored && !hasRiver)
-            {
-                string riverText = "River: none (required)";
-                Color color = filters.RiverImportance == FilterImportance.Critical
-                    ? new Color(1f, 0.27f, 0.27f)
-                    : new Color(1f, 0.67f, 0.27f);
-                failures.Add((riverText, color));
             }
 
             // Check coastal

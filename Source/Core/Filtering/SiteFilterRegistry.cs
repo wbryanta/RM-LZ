@@ -118,8 +118,6 @@ namespace LandingZone.Core.Filtering
 
                 // Resource filters
                 "graze" => settings.GrazeImportance,
-                "specific_stones" => settings.StoneImportance,
-                "stone_count" => settings.UseStoneCount ? settings.StoneImportance : FilterImportance.Ignored,
 
                 // World features
                 "world_feature" => settings.FeatureImportance,

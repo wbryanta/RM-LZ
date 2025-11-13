@@ -20,11 +20,14 @@ namespace LandingZone.Core.Highlighting
 
         public static HighlightService Create(FilterService filters) => new HighlightService(filters);
 
-        public IReadOnlyList<TileScore> Update(GameState state, IReadOnlyList<TileScore>? cachedScores = null)
+        /// <summary>
+        /// Updates highlight overlay with evaluation results.
+        /// Note: cachedScores is always provided in production (never null).
+        /// </summary>
+        public IReadOnlyList<TileScore> Update(GameState state, IReadOnlyList<TileScore> cachedScores)
         {
-            var results = cachedScores ?? _filters.Evaluate(state);
             _scores.Clear();
-            _scores.AddRange(results);
+            _scores.AddRange(cachedScores);
             _topMatches.Clear();
             var limit = Mathf.Clamp(state.Preferences.Filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
             var topCount = Mathf.Min(limit, _scores.Count);
