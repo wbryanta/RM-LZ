@@ -17,8 +17,12 @@ namespace LandingZone.Core.Filtering.Filters
             if (importance != FilterImportance.Critical)
                 return inputTiles;
 
-            var snapshot = context.State.WorldSnapshot;
-            return inputTiles.Where(id => snapshot.TryGetInfo(id, out var info) && info.IsCoastal);
+            var worldGrid = Find.World.grid;
+            return inputTiles.Where(id =>
+            {
+                var tile = worldGrid[id];
+                return tile != null && tile.IsCoastal;
+            });
         }
 
         public string Describe(FilterContext context)

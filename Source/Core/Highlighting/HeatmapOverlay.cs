@@ -14,20 +14,21 @@ namespace LandingZone.Core.Highlighting
             if (scores.Count == 0)
                 return _buffer;
 
-            var maxScore = scores[0].Score;
-            var minScore = scores[scores.Count - 1].Score;
-            var range = maxScore - minScore;
-            if (range <= 0.0001f)
-                range = 1f;
-
             foreach (var tile in scores)
             {
-                var normalized = (tile.Score - minScore) / range;
-                var color = Color.Lerp(Color.yellow, Color.green, normalized);
+                var color = GetScoreTierColor(tile.Score);
                 _buffer.Add(new TileColor(tile.TileId, color));
             }
 
             return _buffer;
+        }
+
+        private static Color GetScoreTierColor(float score)
+        {
+            if (score >= 0.90f) return new Color(0.3f, 0.9f, 0.3f); // Excellent - bright green
+            if (score >= 0.75f) return new Color(0.3f, 0.85f, 0.9f); // Good - cyan
+            if (score >= 0.60f) return new Color(0.95f, 0.9f, 0.3f); // Acceptable - yellow
+            return new Color(1.0f, 0.6f, 0.2f); // Poor - orange
         }
     }
 

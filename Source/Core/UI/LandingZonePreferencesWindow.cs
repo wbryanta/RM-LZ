@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using LandingZone.Core.Filtering.Filters;
 using LandingZone.Data;
 using RimWorld;
 using RimWorld.Planet;
@@ -53,38 +54,77 @@ namespace LandingZone.Core.UI
             Other
         }
 
-        private FloatRange _temperature;
+        // Temperature filters (separate for average, min, max)
+        private FloatRange _avgTemperature;
+        private FloatRange _minTemperature;
+        private FloatRange _maxTemperature;
+        private FilterImportance _avgTemperatureImportance;
+        private FilterImportance _minTemperatureImportance;
+        private FilterImportance _maxTemperatureImportance;
+
+        // Climate filters
         private FloatRange _rainfall;
         private FloatRange _growingDays;
-        private FloatRange _pollution;
-        private FloatRange _forage;
-        private FloatRange _movement;
-        private FilterImportance _temperatureImportance;
         private FilterImportance _rainfallImportance;
         private FilterImportance _growingDaysImportance;
+
+        // Environment filters
+        private FloatRange _pollution;
+        private FloatRange _forage;
         private FilterImportance _pollutionImportance;
         private FilterImportance _forageImportance;
+
+        // Terrain filters
+        private FloatRange _movement;
+        private FloatRange _elevation;
         private FilterImportance _movementImportance;
-        private FilterImportance _coastalImportance;
-        private FilterImportance _riverImportance;
-        private FilterImportance _grazeImportance;
-        private FilterImportance _featureImportance;
-        private FilterImportance _stoneImportance;
-        private string? _featureDefName;
-        private readonly HashSet<string> _selectedStoneDefs = new();
+        private FilterImportance _elevationImportance;
         private readonly HashSet<Hilliness> _selectedHilliness = new();
+
+        // Geography filters
+        private FilterImportance _coastalImportance;
+        // Rivers and Roads now use IndividualImportanceContainer (filters.Rivers, filters.Roads)
+        private FilterImportance _coastalLakeImportance;
+
+        // Resource filters
+        private FilterImportance _grazeImportance;
+        private FilterImportance _forageableFoodImportance;
+        private string? _forageableFoodDefName;
+
+        // Individual stone filters
+        private FilterImportance _graniteImportance;
+        private FilterImportance _marbleImportance;
+        private FilterImportance _limestoneImportance;
+        private FilterImportance _slateImportance;
+        private FilterImportance _sandstoneImportance;
+
+        // Legacy stone filters (for backward compatibility)
+        private FilterImportance _stoneImportance;
+        private bool _useStoneCount;
+        private FloatRange _stoneCountRange;
+        private readonly HashSet<string> _selectedStoneDefs = new();
+
+        // World features
+        private FilterImportance _featureImportance;
+        // MapFeatures and AdjacentBiomes now use IndividualImportanceContainer (filters.MapFeatures, filters.AdjacentBiomes)
+        private FilterImportance _landmarkImportance;
+        private string? _featureDefName;
+
+        // UI state
         private Vector2 _stoneScroll;
         private Vector2 _scrollPos;
-        private float _contentHeight = 600f;
+        private float _contentHeight = 2400f;  // Fixed height large enough for all sections fully expanded
         private int _maxResults = FilterSettings.DefaultMaxResults;
         private bool _dirty;
+        private string _stoneSearchText = "";
         private static readonly Dictionary<string, bool> SectionExpanded = new Dictionary<string, bool>
         {
-            { "Climate", true },
-            { "Pollution", true },
-            { "Terrain", true },
-            { "Hydrology", true },
-            { "Features & resources", false },
+            { "Temperature", true },
+            { "Climate & Environment", true },
+            { "Terrain & Hilliness", true },
+            { "Geography & Hydrology", true },
+            { "Resources & Grazing", false },
+            { "World Features", false },
             { "Results", true }
         };
 
@@ -125,30 +165,83 @@ namespace LandingZone.Core.UI
                 bucket.Sort((a, b) => string.Compare(a.Label, b.Label, System.StringComparison.OrdinalIgnoreCase));
             }
 
+            // Filter to only the 5 valid world-gen stone types
+            // These are the only stones that appear naturally during world generation
+            var validStoneDefNames = new HashSet<string>
+            {
+                "Sandstone",
+                "Marble",
+                "Granite",
+                "Slate",
+                "Limestone"
+            };
+
             _stoneOptions = DefDatabase<ThingDef>.AllDefsListForReading
-                .Where(def => def?.building?.isNaturalRock ?? false)
+                .Where(def =>
+                {
+                    if (def?.building?.isNaturalRock != true)
+                        return false;
+
+                    // Only include the 5 valid world-gen stones
+                    return validStoneDefNames.Contains(def.defName);
+                })
                 .OrderBy(def => def.label ?? def.defName ?? string.Empty)
                 .ToList();
 
             var filters = LandingZoneContext.State?.Preferences.Filters ?? new FilterSettings();
-            _temperature = filters.TemperatureRange;
+            // Temperature filters
+            _avgTemperature = filters.AverageTemperatureRange;
+            _minTemperature = filters.MinimumTemperatureRange;
+            _maxTemperature = filters.MaximumTemperatureRange;
+            _avgTemperatureImportance = filters.AverageTemperatureImportance;
+            _minTemperatureImportance = filters.MinimumTemperatureImportance;
+            _maxTemperatureImportance = filters.MaximumTemperatureImportance;
+
+            // Climate filters
             _rainfall = filters.RainfallRange;
             _growingDays = filters.GrowingDaysRange;
-            _pollution = filters.PollutionRange;
-            _forage = filters.ForageabilityRange;
-            _movement = filters.MovementDifficultyRange;
-            _temperatureImportance = filters.TemperatureImportance;
             _rainfallImportance = filters.RainfallImportance;
             _growingDaysImportance = filters.GrowingDaysImportance;
+
+            // Environment filters
+            _pollution = filters.PollutionRange;
+            _forage = filters.ForageabilityRange;
             _pollutionImportance = filters.PollutionImportance;
             _forageImportance = filters.ForageImportance;
+            _forageableFoodDefName = filters.ForageableFoodDefName;
+            _forageableFoodImportance = filters.ForageableFoodImportance;
+
+            // Terrain filters
+            _movement = filters.MovementDifficultyRange;
             _movementImportance = filters.MovementDifficultyImportance;
+            _elevation = filters.ElevationRange;
+            _elevationImportance = filters.ElevationImportance;
+
+            // Geography filters
             _coastalImportance = filters.CoastalImportance;
-            _riverImportance = filters.RiverImportance;
+            _coastalLakeImportance = filters.CoastalLakeImportance;
+            // Rivers and Roads now use IndividualImportanceContainer directly from filters
+
+            // Resource filters
             _grazeImportance = filters.GrazeImportance;
-            _featureImportance = filters.FeatureImportance;
+
+            // Individual stone filters
+            _graniteImportance = filters.GraniteImportance;
+            _marbleImportance = filters.MarbleImportance;
+            _limestoneImportance = filters.LimestoneImportance;
+            _slateImportance = filters.SlateImportance;
+            _sandstoneImportance = filters.SandstoneImportance;
+
+            // Legacy stone filters
             _stoneImportance = filters.StoneImportance;
+            _useStoneCount = filters.UseStoneCount;
+            _stoneCountRange = filters.StoneCountRange;
+
+            // World features
+            _featureImportance = filters.FeatureImportance;
             _featureDefName = filters.RequiredFeatureDefName;
+            // MapFeatures and AdjacentBiomes now use IndividualImportanceContainer directly from filters
+            _landmarkImportance = filters.LandmarkImportance;
             foreach (var hill in filters.AllowedHilliness)
                 _selectedHilliness.Add(hill);
             foreach (var stone in filters.RequiredStoneDefNames)
@@ -170,9 +263,9 @@ namespace LandingZone.Core.UI
 
         public override void DoWindowContents(Rect inRect)
         {
-            var outRect = inRect.AtZero().ContractedBy(WindowPadding);
-            var viewRect = new Rect(0f, 0f, outRect.width - ScrollbarWidth, Mathf.Max(_contentHeight, outRect.height + 1f));
-            Widgets.BeginScrollView(outRect, ref _scrollPos, viewRect, true);
+            // Pattern from LandingZoneResultsWindow: pass inRect directly to BeginScrollView
+            var viewRect = new Rect(0f, 0f, inRect.width - ScrollbarWidth, _contentHeight);
+            Widgets.BeginScrollView(inRect, ref _scrollPos, viewRect);
             var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
@@ -181,11 +274,13 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
             listing.GapLine();
 
-            DrawSection(listing, "Climate", DrawClimateSection);
-            DrawSection(listing, "Pollution", DrawPollutionSection);
-            DrawSection(listing, "Terrain", DrawTerrainSection);
-            DrawSection(listing, "Hydrology", DrawHydrologySection);
-            DrawSection(listing, "Features & resources", DrawFeaturesSection);
+            // Reorganized sections with active filter counts
+            DrawSection(listing, "Temperature", DrawTemperatureSection);
+            DrawSection(listing, "Climate & Environment", DrawClimateEnvironmentSection);
+            DrawSection(listing, "Terrain & Hilliness", DrawTerrainSection);
+            DrawSection(listing, "Geography & Hydrology", DrawGeographySection);
+            DrawSection(listing, "Resources & Grazing", DrawResourcesSection);
+            DrawSection(listing, "World Features", DrawWorldFeaturesSection);
             DrawSection(listing, "Results", DrawResultsSection);
 
             listing.Gap();
@@ -200,9 +295,33 @@ namespace LandingZone.Core.UI
                 PersistFilters();
             }
 
-            float usedHeight = listing.CurHeight;
+            // Dev mode: Performance test button
+            if (Prefs.DevMode)
+            {
+                listing.GapLine(12f);
+                Text.Font = GameFont.Small;
+                listing.Label("=== DEVELOPER TOOLS ===");
+                listing.Gap(4f);
+
+                if (listing.ButtonText("[DEV] Run Performance Test"))
+                {
+                    Log.Message("[LandingZone] Running performance test...");
+                    Diagnostics.FilterPerformanceTest.RunPerformanceTest();
+                    Messages.Message("[LandingZone] Performance test complete - check Player.log", MessageTypeDefOf.NeutralEvent, false);
+                }
+
+                listing.Gap(4f);
+
+                if (listing.ButtonText("[DEV] Dump World Tile Data"))
+                {
+                    Log.Message("[LandingZone] Dumping world tile data...");
+                    Diagnostics.WorldDataDumper.DumpWorldData();
+                }
+
+                listing.Gap(12f);
+            }
+
             listing.End();
-            _contentHeight = Mathf.Max(usedHeight + 12f, outRect.height + 1f);
             Widgets.EndScrollView();
         }
 
@@ -211,13 +330,18 @@ namespace LandingZone.Core.UI
             if (!SectionExpanded.TryGetValue(key, out var expanded))
                 expanded = true;
 
-            var headerRect = listing.GetRect(24f);
-            string arrow = expanded ? "\u25BC" : "\u25B6";
-            if (Widgets.ButtonText(headerRect, $"{arrow} {key}"))
+            int activeCount = GetActiveSectionFilterCount(key);
+
+            var headerRect = listing.GetRect(26f);
+            UIHelpers.DrawSectionHeaderWithBadge(headerRect, key, activeCount, expanded);
+
+            // Make it clickable to toggle
+            if (Widgets.ButtonInvisible(headerRect))
             {
                 expanded = !expanded;
+                SectionExpanded[key] = expanded;
             }
-            SectionExpanded[key] = expanded;
+
             listing.Gap(2f);
             if (!expanded)
                 return;
@@ -229,49 +353,346 @@ namespace LandingZone.Core.UI
             listing.GapLine();
         }
 
-        private void DrawClimateSection(Listing_Standard listing)
+        private int GetActiveSectionFilterCount(string sectionKey)
         {
-            DrawTemperatureRange(listing);
-            DrawRangeWithImportance(listing, "Rainfall (mm)", ref _rainfall, ref _rainfallImportance, 0f, 4000f);
-            DrawRangeWithImportance(listing, "Growing days", ref _growingDays, ref _growingDaysImportance, 0f, 60f);
+            return sectionKey switch
+            {
+                "Temperature" => CountTemperatureFilters(),
+                "Climate & Environment" => CountClimateFilters(),
+                "Terrain & Hilliness" => CountTerrainFilters(),
+                "Geography & Hydrology" => CountGeographyFilters(),
+                "Resources & Grazing" => CountResourceFilters(),
+                "World Features" => CountWorldFeatureFilters(),
+                _ => 0
+            };
         }
 
-        private void DrawPollutionSection(Listing_Standard listing)
+        private int CountTemperatureFilters()
         {
-            DrawRangeWithImportance(listing, "Pollution (%)", ref _pollution, ref _pollutionImportance, 0f, 1f, percent: true);
-            DrawRangeWithImportance(listing, "Forageability (%)", ref _forage, ref _forageImportance, 0f, 1f, percent: true);
+            int count = 0;
+            if (_avgTemperatureImportance != FilterImportance.Ignored) count++;
+            if (_minTemperatureImportance != FilterImportance.Ignored) count++;
+            if (_maxTemperatureImportance != FilterImportance.Ignored) count++;
+            return count;
+        }
+
+        private int CountClimateFilters()
+        {
+            int count = 0;
+            if (_rainfallImportance != FilterImportance.Ignored) count++;
+            if (_growingDaysImportance != FilterImportance.Ignored) count++;
+            if (_pollutionImportance != FilterImportance.Ignored) count++;
+            if (_forageImportance != FilterImportance.Ignored) count++;
+            return count;
+        }
+
+        private int CountTerrainFilters()
+        {
+            int count = 0;
+            if (_movementImportance != FilterImportance.Ignored) count++;
+            if (_elevationImportance != FilterImportance.Ignored) count++;
+            if (_selectedHilliness.Count != _hillinessOptions.Length) count++; // Count if not all selected
+            return count;
+        }
+
+        private int CountGeographyFilters()
+        {
+            int count = 0;
+            var filters = LandingZoneContext.State?.Preferences?.Filters;
+            if (filters == null) return count;
+
+            if (_coastalImportance != FilterImportance.Ignored) count++;
+            if (_coastalLakeImportance != FilterImportance.Ignored) count++;
+            if (filters.Rivers.HasAnyImportance) count++;
+            if (filters.Roads.HasAnyImportance) count++;
+            return count;
+        }
+
+        private int CountResourceFilters()
+        {
+            int count = 0;
+            if (_grazeImportance != FilterImportance.Ignored) count++;
+
+            // Count individual stone filters
+            if (_graniteImportance != FilterImportance.Ignored) count++;
+            if (_marbleImportance != FilterImportance.Ignored) count++;
+            if (_limestoneImportance != FilterImportance.Ignored) count++;
+            if (_slateImportance != FilterImportance.Ignored) count++;
+            if (_sandstoneImportance != FilterImportance.Ignored) count++;
+
+            // Count stone count filter if enabled
+            if (_useStoneCount) count++;
+
+            return count;
+        }
+
+        private int CountWorldFeatureFilters()
+        {
+            int count = 0;
+            var filters = LandingZoneContext.State?.Preferences?.Filters;
+            if (filters == null) return count;
+
+            if (_featureImportance != FilterImportance.Ignored && !string.IsNullOrEmpty(_featureDefName)) count++;
+            if (filters.MapFeatures.HasAnyImportance) count++;
+            if (filters.AdjacentBiomes.HasAnyImportance) count++;
+            if (_landmarkImportance != FilterImportance.Ignored) count++;
+            return count;
+        }
+
+        private void DrawTemperatureSection(Listing_Standard listing)
+        {
+            Text.Font = GameFont.Tiny;
+            listing.Label("Control temperature ranges separately for maximum flexibility.");
+            Text.Font = GameFont.Small;
+            listing.Gap(4f);
+
+            DrawTemperatureRange(listing, "Average temperature", ref _avgTemperature, ref _avgTemperatureImportance,
+                "Year-round average temperature");
+            DrawTemperatureRange(listing, "Winter minimum", ref _minTemperature, ref _minTemperatureImportance,
+                "Coldest temperature in winter - affects survival");
+            DrawTemperatureRange(listing, "Summer maximum", ref _maxTemperature, ref _maxTemperatureImportance,
+                "Hottest temperature in summer - affects heat stroke risk");
+        }
+
+        private void DrawClimateEnvironmentSection(Listing_Standard listing)
+        {
+            DrawRangeWithImportance(listing, "Rainfall (mm)", ref _rainfall, ref _rainfallImportance, 0f, 4000f,
+                tooltip: "Annual rainfall - affects plant growth and water availability");
+            DrawRangeWithImportance(listing, "Growing days", ref _growingDays, ref _growingDaysImportance, 0f, 60f,
+                tooltip: "Days per year warm enough for crops - critical for farming");
+            listing.GapLine(4f);
+            DrawRangeWithImportance(listing, "Pollution (%)", ref _pollution, ref _pollutionImportance, 0f, 1f, percent: true,
+                tooltip: "Environmental pollution level - affects colonist health");
+            DrawRangeWithImportance(listing, "Forageability (%)", ref _forage, ref _forageImportance, 0f, 1f, percent: true,
+                tooltip: "Wild food availability - affects survival without farming");
         }
 
         private void DrawTerrainSection(Listing_Standard listing)
         {
-            DrawRangeWithImportance(listing, "Movement difficulty", ref _movement, ref _movementImportance, 0f, 5f);
+            DrawRangeWithImportance(listing, "Movement difficulty", ref _movement, ref _movementImportance, 0f, 5f,
+                tooltip: "Terrain traversal difficulty - affects caravan speed");
+
+            // Elevation
+            DrawRangeWithImportance(listing, "Elevation (meters)", ref _elevation, ref _elevationImportance, -500f, 5000f,
+                tooltip: "Height above sea level - affects temperature and accessibility");
+
+            listing.GapLine(4f);
+
             DrawHillinessOptions(listing);
         }
 
-        private void DrawHydrologySection(Listing_Standard listing)
+        private void DrawGeographySection(Listing_Standard listing)
         {
-            DrawBooleanImportance(listing, "Coastal tiles", ref _coastalImportance);
-            DrawBooleanImportance(listing, "Rivers", ref _riverImportance);
-            DrawBooleanImportance(listing, "Graze now", ref _grazeImportance);
-        }
+            DrawBooleanImportance(listing, "Ocean coastal", ref _coastalImportance,
+                "Adjacent to ocean - enables fishing and naval defense");
 
-        private void DrawFeaturesSection(Listing_Standard listing)
-        {
-            bool featureActive = DrawImportanceHeader(listing, "World feature", ref _featureImportance);
-            if (!featureActive)
+            // Coastal lake
+            DrawBooleanImportance(listing, "Lake coastal", ref _coastalLakeImportance,
+                "Adjacent to freshwater lake - scenic and strategic");
+
+            listing.GapLine(6f);
+
+            // Rivers - individual importance
+            Text.Font = GameFont.Small;
+            listing.Label("Rivers (individual importance per type):");
+            Text.Font = GameFont.Tiny;
+            listing.Label("Each river type can be Ignored, Preferred, or Critical.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            var riverTypes = RiverFilter.GetAllRiverTypes().ToList();
+            if (riverTypes.Any())
             {
-                listing.Label("Any special features");
+                var filters = LandingZoneContext.State?.Preferences?.Filters;
+                if (filters != null)
+                {
+                    UIHelpers.DrawIndividualImportanceUtilityButtons(listing, filters.Rivers, riverTypes.Select(r => r.defName), 300f);
+                    UIHelpers.DrawIndividualImportanceList(
+                        listing,
+                        filters.Rivers,
+                        riverTypes.Select(r => r.defName),
+                        defName => riverTypes.First(r => r.defName == defName).LabelCap.ToString(),
+                        28f,
+                        200f);
+                    _dirty = true;
+                }
+            }
+            else
+            {
+                listing.Label("No river types available");
             }
 
-            foreach (var (category, title) in FeatureGroups)
+            listing.GapLine(6f);
+
+            // Roads - individual importance
+            Text.Font = GameFont.Small;
+            listing.Label("Roads (individual importance per type):");
+            Text.Font = GameFont.Tiny;
+            listing.Label("Each road type can be Ignored, Preferred, or Critical.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            var roadTypes = RoadFilter.GetAllRoadTypes().ToList();
+            if (roadTypes.Any())
             {
-                DrawFeatureGroup(listing, category, title);
+                var filters = LandingZoneContext.State?.Preferences?.Filters;
+                if (filters != null)
+                {
+                    UIHelpers.DrawIndividualImportanceUtilityButtons(listing, filters.Roads, roadTypes.Select(r => r.defName), 300f);
+                    UIHelpers.DrawIndividualImportanceList(
+                        listing,
+                        filters.Roads,
+                        roadTypes.Select(r => r.defName),
+                        defName => roadTypes.First(r => r.defName == defName).LabelCap.ToString(),
+                        28f,
+                        200f);
+                    _dirty = true;
+                }
             }
-            listing.Gap(6f);
-            DrawImportanceHeader(listing, "Stone mix", ref _stoneImportance);
-            listing.Label("Select the stone types you want available.");
-            DrawStoneSelectors(listing);
+            else
+            {
+                listing.Label("No road types available");
+            }
         }
+
+        private void DrawResourcesSection(Listing_Standard listing)
+        {
+            // Graze
+            DrawBooleanImportance(listing, "Animals can graze", ref _grazeImportance,
+                "Whether animals can eat virtual plants in current season");
+
+            listing.GapLine(4f);
+
+            // Individual stone types
+            Text.Font = GameFont.Tiny;
+            listing.Label("Each stone type can be set individually as Ignored, Preferred, or Critical.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            DrawBooleanImportance(listing, "Granite", ref _graniteImportance,
+                "Strong and common - excellent for construction");
+            DrawBooleanImportance(listing, "Marble", ref _marbleImportance,
+                "Beautiful stone - great for sculptures");
+            DrawBooleanImportance(listing, "Limestone", ref _limestoneImportance,
+                "Good all-purpose stone");
+            DrawBooleanImportance(listing, "Slate", ref _slateImportance,
+                "Decent stone for construction");
+            DrawBooleanImportance(listing, "Sandstone", ref _sandstoneImportance,
+                "Weak stone but easy to work with");
+
+            listing.GapLine(4f);
+
+            // Stone count filter (alternative to individual selection)
+            Text.Font = GameFont.Tiny;
+            listing.Label("OR use stone count filter (ignores individual stone selections above):");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            bool stoneCountBefore = _useStoneCount;
+            var toggleRect = listing.GetRect(24f);
+            var prevColor = GUI.color;
+            if (_useStoneCount)
+                GUI.color = UIHelpers.ActiveFilterColor;
+            Widgets.CheckboxLabeled(toggleRect, "Filter by stone count instead", ref _useStoneCount);
+            GUI.color = prevColor;
+            if (_useStoneCount != stoneCountBefore)
+                _dirty = true;
+
+            if (_useStoneCount)
+            {
+                DrawFloatRange(listing, "Number of stone types", ref _stoneCountRange, 1f, 6f);
+            }
+        }
+
+        private void DrawWorldFeaturesSection(Listing_Standard listing)
+        {
+            Text.Font = GameFont.Tiny;
+            listing.Label("World-scale features like geothermal vents and ancient complexes.");
+            Text.Font = GameFont.Small;
+            listing.Gap(4f);
+
+            DrawBooleanImportance(listing, "World feature", ref _featureImportance,
+                "Special map features like geothermal vents, ruins, and ancient sites");
+
+            if (_featureImportance != FilterImportance.Ignored)
+            {
+                foreach (var (category, title) in FeatureGroups)
+                {
+                    DrawFeatureGroup(listing, category, title);
+                }
+            }
+
+            listing.GapLine(6f);
+
+            // Landmark filter
+            DrawBooleanImportance(listing, "Has landmark", ref _landmarkImportance,
+                "Tile has a proper named landmark (e.g., 'Mount Erebus', 'Lake Victoria')");
+
+            listing.GapLine(6f);
+
+            // Map Features - individual importance (RimWorld 1.6+)
+            Text.Font = GameFont.Small;
+            listing.Label("Map Features (actual world generation data):");
+            Text.Font = GameFont.Tiny;
+            listing.Label("Tile Mutators from world generation: Caves, Ruins, Mountain, MixedBiome, etc. Uses actual game data, not estimates.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            var mapFeatures = MapFeatureFilter.GetAllMapFeatureTypes().ToList();
+            if (mapFeatures.Any())
+            {
+                var filters = LandingZoneContext.State?.Preferences?.Filters;
+                if (filters != null)
+                {
+                    UIHelpers.DrawIndividualImportanceUtilityButtons(listing, filters.MapFeatures, mapFeatures, 300f);
+                    UIHelpers.DrawIndividualImportanceList(
+                        listing,
+                        filters.MapFeatures,
+                        mapFeatures,
+                        feature => feature,  // Feature names are already display-ready
+                        28f,
+                        200f);
+                    _dirty = true;
+                }
+            }
+            else
+            {
+                listing.Label("No map features discovered yet - generate a world first");
+            }
+
+            listing.GapLine(6f);
+
+            // Adjacent Biomes - individual importance
+            Text.Font = GameFont.Small;
+            listing.Label("Adjacent Biomes (individual importance per type):");
+            Text.Font = GameFont.Tiny;
+            listing.Label("Find tiles bordering specific biome types.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            var biomeTypes = AdjacentBiomesFilter.GetAllBiomeTypes().ToList();
+            if (biomeTypes.Any())
+            {
+                var filters = LandingZoneContext.State?.Preferences?.Filters;
+                if (filters != null)
+                {
+                    UIHelpers.DrawIndividualImportanceUtilityButtons(listing, filters.AdjacentBiomes, biomeTypes.Select(b => b.defName), 300f);
+                    UIHelpers.DrawIndividualImportanceList(
+                        listing,
+                        filters.AdjacentBiomes,
+                        biomeTypes.Select(b => b.defName),
+                        defName => biomeTypes.First(b => b.defName == defName).LabelCap.ToString(),
+                        28f,
+                        200f);
+                    _dirty = true;
+                }
+            }
+            else
+            {
+                listing.Label("No biome types available");
+            }
+        }
+
 
         private void DrawResultsSection(Listing_Standard listing)
         {
@@ -299,45 +720,62 @@ namespace LandingZone.Core.UI
                 _dirty = true;
             }
         }
-        private void DrawRangeWithImportance(Listing_Standard listing, string label, ref FloatRange range, ref FilterImportance importance, float min, float max, bool percent = false)
+        private void DrawRangeWithImportance(Listing_Standard listing, string label, ref FloatRange range, ref FilterImportance importance, float min, float max, bool percent = false, string tooltip = null)
         {
-            if (!DrawImportanceHeader(listing, label, ref importance))
+            var headerRect = listing.GetRect(24f);
+            bool active = UIHelpers.DrawImportanceSelector(headerRect, label, ref importance, tooltip);
+
+            if (!active)
             {
                 listing.Label("Any value");
                 listing.Gap(4f);
                 return;
             }
 
+            if (active)
+            {
+                _dirty = true;
+            }
+
             DrawFloatRange(listing, label, ref range, min, max, percent);
             listing.Gap(4f);
         }
 
-        private void DrawBooleanImportance(Listing_Standard listing, string label, ref FilterImportance importance)
+        private void DrawBooleanImportance(Listing_Standard listing, string label, ref FilterImportance importance, string tooltip = null)
         {
-            DrawImportanceHeader(listing, label, ref importance);
+            var headerRect = listing.GetRect(24f);
+            FilterImportance before = importance;
+            UIHelpers.DrawImportanceSelector(headerRect, label, ref importance, tooltip);
+            if (importance != before)
+                _dirty = true;
             listing.Gap(4f);
         }
 
-        private void DrawTemperatureRange(Listing_Standard listing)
+        private void DrawTemperatureRange(Listing_Standard listing, string labelPrefix, ref FloatRange temperatureRange, ref FilterImportance importance, string tooltip = null)
         {
-            string label = LandingZoneMod.UseFahrenheit ? "Temperature (°F)" : "Temperature (°C)";
-            if (!DrawImportanceHeader(listing, label, ref _temperatureImportance))
+            string unit = LandingZoneMod.UseFahrenheit ? "°F" : "°C";
+            string fullLabel = $"{labelPrefix} ({unit})";
+
+            var headerRect = listing.GetRect(24f);
+            bool active = UIHelpers.DrawImportanceSelector(headerRect, fullLabel, ref importance, tooltip);
+
+            if (!active)
             {
                 listing.Label("Any temperature");
                 listing.Gap(4f);
                 return;
             }
 
-            var displayRange = new FloatRange(ToDisplayTemp(_temperature.min), ToDisplayTemp(_temperature.max));
+            var displayRange = new FloatRange(ToDisplayTemp(temperatureRange.min), ToDisplayTemp(temperatureRange.max));
             var sliderMin = ToDisplayTemp(-60f);
             var sliderMax = ToDisplayTemp(60f);
             listing.Label($"{displayRange.min:F1} - {displayRange.max:F1}");
             var rect = listing.GetRect(24f);
             var before = displayRange;
-            Widgets.FloatRange(rect, GetHashCode() ^ 2191, ref displayRange, sliderMin, sliderMax);
+            Widgets.FloatRange(rect, GetHashCode() ^ labelPrefix.GetHashCode(), ref displayRange, sliderMin, sliderMax);
             if (!Mathf.Approximately(before.min, displayRange.min) || !Mathf.Approximately(before.max, displayRange.max))
             {
-                _temperature = new FloatRange(FromDisplayTemp(displayRange.min), FromDisplayTemp(displayRange.max));
+                temperatureRange = new FloatRange(FromDisplayTemp(displayRange.min), FromDisplayTemp(displayRange.max));
                 _dirty = true;
             }
             listing.Gap(4f);
@@ -399,13 +837,67 @@ namespace LandingZone.Core.UI
 
         private void DrawStoneSelectors(Listing_Standard listing)
         {
-            float height = Mathf.Min(6, _stoneOptions.Count) * 24f + 8f;
+            // Add search box
+            _stoneSearchText = UIHelpers.DrawSearchBox(listing, _stoneSearchText, "Search stones...");
+
+            // Filter stones based on search text
+            var filteredStones = string.IsNullOrEmpty(_stoneSearchText)
+                ? _stoneOptions
+                : _stoneOptions.Where(s =>
+                    s.LabelCap.ToString().ToLower().Contains(_stoneSearchText.ToLower()) ||
+                    s.defName.ToLower().Contains(_stoneSearchText.ToLower())
+                ).ToList();
+
+            // Add All/None/Reset buttons
+            UIHelpers.DrawMultiSelectUtilityButtons(
+                listing,
+                onAll: () =>
+                {
+                    foreach (var stone in filteredStones)
+                    {
+                        if (!_selectedStoneDefs.Contains(stone.defName))
+                        {
+                            _selectedStoneDefs.Add(stone.defName);
+                            _dirty = true;
+                        }
+                    }
+                },
+                onNone: () =>
+                {
+                    foreach (var stone in filteredStones)
+                    {
+                        if (_selectedStoneDefs.Contains(stone.defName))
+                        {
+                            _selectedStoneDefs.Remove(stone.defName);
+                            _dirty = true;
+                        }
+                    }
+                },
+                onReset: () =>
+                {
+                    _selectedStoneDefs.Clear();
+                    _selectedStoneDefs.Add("Granite");
+                    _selectedStoneDefs.Add("Limestone");
+                    _selectedStoneDefs.Add("Sandstone");
+                    _dirty = true;
+                }
+            );
+
+            // Show count if filtering
+            if (!string.IsNullOrEmpty(_stoneSearchText))
+            {
+                Text.Font = GameFont.Tiny;
+                listing.Label($"Showing {filteredStones.Count} of {_stoneOptions.Count} stones");
+                Text.Font = GameFont.Small;
+            }
+
+            float height = Mathf.Min(6, filteredStones.Count) * 24f + 8f;
             var container = listing.GetRect(height);
             Widgets.DrawMenuSection(container);
-            var viewRect = new Rect(0f, 0f, container.width - 16f, _stoneOptions.Count * 24f);
+            var viewRect = new Rect(0f, 0f, container.width - 16f, filteredStones.Count * 24f);
             Widgets.BeginScrollView(container, ref _stoneScroll, viewRect);
             float curY = 0f;
-            foreach (var stone in _stoneOptions)
+            foreach (var stone in filteredStones)
             {
                 var row = new Rect(0f, curY, viewRect.width, 22f);
                 bool selected = _selectedStoneDefs.Contains(stone.defName);
@@ -426,6 +918,43 @@ namespace LandingZone.Core.UI
 
         private void DrawHillinessOptions(Listing_Standard listing)
         {
+            Text.Font = GameFont.Tiny;
+            listing.Label("Allowed terrain hilliness levels - tiles must match one of the selected types.");
+            Text.Font = GameFont.Small;
+            listing.Gap(2f);
+
+            // Add utility buttons
+            UIHelpers.DrawMultiSelectUtilityButtons(
+                listing,
+                onAll: () =>
+                {
+                    foreach (var hill in _hillinessOptions)
+                    {
+                        if (!_selectedHilliness.Contains(hill))
+                        {
+                            _selectedHilliness.Add(hill);
+                            _dirty = true;
+                        }
+                    }
+                },
+                onNone: () =>
+                {
+                    if (_selectedHilliness.Count > 0)
+                    {
+                        _selectedHilliness.Clear();
+                        _dirty = true;
+                    }
+                },
+                onReset: () =>
+                {
+                    _selectedHilliness.Clear();
+                    _selectedHilliness.Add(Hilliness.SmallHills);
+                    _selectedHilliness.Add(Hilliness.LargeHills);
+                    _selectedHilliness.Add(Hilliness.Mountainous);
+                    _dirty = true;
+                }
+            );
+
             var gridRect = listing.GetRect(60f);
             Widgets.DrawMenuSection(gridRect);
             var inner = gridRect.ContractedBy(4f);
@@ -438,7 +967,15 @@ namespace LandingZone.Core.UI
                 var row = new Rect(curX, curY, colWidth - 10f, 22f);
                 bool selected = _selectedHilliness.Contains(hill);
                 bool before = selected;
+
+                // Color code selected items
+                var prevColor = GUI.color;
+                if (selected)
+                    GUI.color = UIHelpers.ActiveFilterColor;
+
                 Widgets.CheckboxLabeled(row, label, ref selected);
+                GUI.color = prevColor;
+
                 if (before != selected)
                 {
                     _dirty = true;
@@ -466,9 +1003,24 @@ namespace LandingZone.Core.UI
             var prevFont = Text.Font;
             Text.Font = GameFont.Tiny;
             string status;
-            if (LandingZoneContext.IsEvaluating)
+
+            // Show tile cache status if precomputing
+            if (LandingZoneContext.IsTileCachePrecomputing)
             {
-                status = $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%";
+                int percent = (int)(LandingZoneContext.TileCacheProgress * 100f);
+                status = $"Analyzing world... {percent}% ({LandingZoneContext.TileCacheProcessedTiles:N0}/{LandingZoneContext.TileCacheTotalTiles:N0} tiles)";
+            }
+            else if (LandingZoneContext.IsEvaluating)
+            {
+                string phaseDesc = LandingZoneContext.CurrentPhaseDescription;
+                if (!string.IsNullOrEmpty(phaseDesc))
+                {
+                    status = $"{(LandingZoneContext.EvaluationProgress * 100f):F0}% - {phaseDesc}";
+                }
+                else
+                {
+                    status = $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%";
+                }
             }
             else if (LandingZoneContext.LastEvaluationCount > 0)
             {
@@ -491,30 +1043,65 @@ namespace LandingZone.Core.UI
             if (filters == null)
                 return;
 
-            filters.TemperatureRange = _temperature;
+            // Temperature filters
+            filters.AverageTemperatureRange = _avgTemperature;
+            filters.MinimumTemperatureRange = _minTemperature;
+            filters.MaximumTemperatureRange = _maxTemperature;
+            filters.AverageTemperatureImportance = _avgTemperatureImportance;
+            filters.MinimumTemperatureImportance = _minTemperatureImportance;
+            filters.MaximumTemperatureImportance = _maxTemperatureImportance;
+
+            // Climate filters
             filters.RainfallRange = _rainfall;
             filters.GrowingDaysRange = _growingDays;
-            filters.PollutionRange = _pollution;
-            filters.ForageabilityRange = _forage;
-            filters.MovementDifficultyRange = _movement;
-            filters.TemperatureImportance = _temperatureImportance;
             filters.RainfallImportance = _rainfallImportance;
             filters.GrowingDaysImportance = _growingDaysImportance;
+
+            // Environment filters
+            filters.PollutionRange = _pollution;
+            filters.ForageabilityRange = _forage;
             filters.PollutionImportance = _pollutionImportance;
             filters.ForageImportance = _forageImportance;
+            filters.ForageableFoodDefName = _forageableFoodDefName;
+            filters.ForageableFoodImportance = _forageableFoodImportance;
+
+            // Terrain filters
+            filters.MovementDifficultyRange = _movement;
             filters.MovementDifficultyImportance = _movementImportance;
+            filters.ElevationRange = _elevation;
+            filters.ElevationImportance = _elevationImportance;
+
+            // Geography filters
             filters.CoastalImportance = _coastalImportance;
-            filters.RiverImportance = _riverImportance;
+            filters.CoastalLakeImportance = _coastalLakeImportance;
+            // Rivers and Roads IndividualImportanceContainer is modified directly via UI
+
+            // Resource filters
             filters.GrazeImportance = _grazeImportance;
-            filters.FeatureImportance = string.IsNullOrEmpty(_featureDefName) ? FilterImportance.Ignored : _featureImportance;
+
+            // Individual stone filters
+            filters.GraniteImportance = _graniteImportance;
+            filters.MarbleImportance = _marbleImportance;
+            filters.LimestoneImportance = _limestoneImportance;
+            filters.SlateImportance = _slateImportance;
+            filters.SandstoneImportance = _sandstoneImportance;
+
+            // Stone count filter
+            filters.UseStoneCount = _useStoneCount;
+            filters.StoneCountRange = _stoneCountRange;
+
+            // World features
+            filters.FeatureImportance = _featureImportance;
             filters.RequiredFeatureDefName = _featureDefName;
-            filters.StoneImportance = _selectedStoneDefs.Count == 0 ? FilterImportance.Ignored : _stoneImportance;
-            filters.RequiredStoneDefNames.Clear();
-            foreach (var stone in _selectedStoneDefs)
-                filters.RequiredStoneDefNames.Add(stone);
+            // MapFeatures and AdjacentBiomes IndividualImportanceContainer is modified directly via UI
+            filters.LandmarkImportance = _landmarkImportance;
+
+            // Terrain constraints
             filters.AllowedHilliness.Clear();
             foreach (var hill in _selectedHilliness)
                 filters.AllowedHilliness.Add(hill);
+
+            // Results
             filters.MaxResults = Mathf.Clamp(_maxResults, 1, FilterSettings.MaxResultsLimit);
 
             _dirty = false;
@@ -527,27 +1114,66 @@ namespace LandingZone.Core.UI
                 return;
 
             filters.Reset();
-            _temperature = filters.TemperatureRange;
+
+            // Temperature filters
+            _avgTemperature = filters.AverageTemperatureRange;
+            _minTemperature = filters.MinimumTemperatureRange;
+            _maxTemperature = filters.MaximumTemperatureRange;
+            _avgTemperatureImportance = filters.AverageTemperatureImportance;
+            _minTemperatureImportance = filters.MinimumTemperatureImportance;
+            _maxTemperatureImportance = filters.MaximumTemperatureImportance;
+
+            // Climate filters
             _rainfall = filters.RainfallRange;
             _growingDays = filters.GrowingDaysRange;
-            _pollution = filters.PollutionRange;
-            _forage = filters.ForageabilityRange;
-            _movement = filters.MovementDifficultyRange;
-            _temperatureImportance = filters.TemperatureImportance;
             _rainfallImportance = filters.RainfallImportance;
             _growingDaysImportance = filters.GrowingDaysImportance;
+
+            // Environment filters
+            _pollution = filters.PollutionRange;
+            _forage = filters.ForageabilityRange;
             _pollutionImportance = filters.PollutionImportance;
             _forageImportance = filters.ForageImportance;
+            _forageableFoodDefName = filters.ForageableFoodDefName;
+            _forageableFoodImportance = filters.ForageableFoodImportance;
+
+            // Terrain filters
+            _movement = filters.MovementDifficultyRange;
             _movementImportance = filters.MovementDifficultyImportance;
+            _elevation = filters.ElevationRange;
+            _elevationImportance = filters.ElevationImportance;
+
+            // Geography filters
             _coastalImportance = filters.CoastalImportance;
-            _riverImportance = filters.RiverImportance;
+            _coastalLakeImportance = filters.CoastalLakeImportance;
+            // Rivers and Roads now use IndividualImportanceContainer directly from filters
+
+            // Resource filters
             _grazeImportance = filters.GrazeImportance;
-            _featureImportance = filters.FeatureImportance;
+
+            // Individual stone filters
+            _graniteImportance = filters.GraniteImportance;
+            _marbleImportance = filters.MarbleImportance;
+            _limestoneImportance = filters.LimestoneImportance;
+            _slateImportance = filters.SlateImportance;
+            _sandstoneImportance = filters.SandstoneImportance;
+
+            // Legacy stone filters
             _stoneImportance = filters.StoneImportance;
+            _useStoneCount = filters.UseStoneCount;
+            _stoneCountRange = filters.StoneCountRange;
+
+            // World features
+            _featureImportance = filters.FeatureImportance;
             _featureDefName = filters.RequiredFeatureDefName;
+            // MapFeatures and AdjacentBiomes now use IndividualImportanceContainer directly from filters
+            _landmarkImportance = filters.LandmarkImportance;
+
+            // Collections
             _selectedStoneDefs.Clear();
             foreach (var stone in filters.RequiredStoneDefNames)
                 _selectedStoneDefs.Add(stone);
+
             _selectedHilliness.Clear();
             foreach (var hill in filters.AllowedHilliness)
                 _selectedHilliness.Add(hill);
@@ -556,6 +1182,8 @@ namespace LandingZone.Core.UI
                 foreach (var hill in _hillinessOptions)
                     _selectedHilliness.Add(hill);
             }
+
+            // Results
             _maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
             _dirty = true;
         }
@@ -639,12 +1267,21 @@ namespace LandingZone.Core.UI
         private static FeatureCategory ClassifyFeature(FeatureDef def)
         {
             var text = $"{def.defName} {def.label}".ToLowerInvariant();
+
+            // Resource nodes
             if (ContainsAny(text, "lump", "ore", "mine", "precious", "deposit"))
                 return FeatureCategory.Resource;
-            if (ContainsAny(text, "ruin", "vault", "site", "complex", "platform", "launch", "outpost", "base", "structure"))
+
+            // Points of interest (man-made or special sites)
+            if (ContainsAny(text, "ruin", "vault", "site", "complex", "platform", "launch", "outpost", "base", "structure", "ancient"))
                 return FeatureCategory.PointOfInterest;
-            if (ContainsAny(text, "canyon", "crater", "valley", "oasis", "lake", "river", "coast", "swamp", "cave", "volcano", "mountain", "plateau"))
+
+            // Geological features (natural terrain features)
+            if (ContainsAny(text, "canyon", "crater", "valley", "oasis", "lake", "river", "coast", "swamp", "cave",
+                "volcano", "mountain", "plateau", "fjord", "island", "headwater", "grove", "biome", "foggy",
+                "animal", "life", "willow", "thermal", "spring", "geyser"))
                 return FeatureCategory.Geological;
+
             return FeatureCategory.Other;
         }
 

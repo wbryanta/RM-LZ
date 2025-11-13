@@ -7,14 +7,16 @@ namespace LandingZone.Data
         public static GameState CreateDefault()
         {
             var defCache = new DefCache();
-            var snapshot = new WorldSnapshot();
             var preferences = new UserPreferences();
             var profile = BestSiteProfile.CreateDefault();
 
-            // Load definitions immediately; world snapshot will be refreshed once the world exists.
+            // Load definitions immediately
             defCache.Refresh();
 
-            return new GameState(defCache, snapshot, preferences, profile);
+            // Migrate legacy stone settings to new individual stone importance properties
+            preferences.Filters.MigrateLegacyStoneSettings();
+
+            return new GameState(defCache, preferences, profile);
         }
     }
 }

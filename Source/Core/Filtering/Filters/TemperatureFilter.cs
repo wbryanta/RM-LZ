@@ -12,8 +12,12 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var range = context.State.Preferences.Filters.TemperatureRange;
-            var snapshot = context.State.WorldSnapshot;
-            return inputTiles.Where(id => snapshot.TryGetInfo(id, out var info) && info.Temperature >= range.min && info.Temperature <= range.max);
+            var worldGrid = Find.World.grid;
+            return inputTiles.Where(id =>
+            {
+                var tile = worldGrid[id];
+                return tile != null && tile.temperature >= range.min && tile.temperature <= range.max;
+            });
         }
 
         public string Describe(FilterContext context)

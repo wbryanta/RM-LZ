@@ -57,7 +57,7 @@ namespace LandingZone
             LandingZoneContext.RefreshDefinitions();
             if (Find.World != null)
             {
-                LandingZoneContext.RefreshWorldSnapshot(force: true);
+                LandingZoneContext.RefreshWorldCache(force: true);
                 if (Instance.Settings.AutoRunSearchOnWorldLoad)
                 {
                     LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Auto, focusOnComplete: false);

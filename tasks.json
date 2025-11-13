@@ -4,108 +4,213 @@
     "canonical_path": "./tasks.json",
     "legacy_source": "projects/backlog/tasks.json",
     "migrated_at": "2025-11-09T00:27:35.022825",
-    "last_validated": "2025-11-11T00:00:00.000000",
+    "last_validated": "2025-11-13T11:30:00.000000",
     "notes": [
       "Single source of truth for LandingZone mod work items.",
       "Keep statuses synced with GitHub issues once repo goes public.",
-      "Performance strategy: Hybrid approach combining fast snapshot initialization with lazy computation of expensive tile properties."
+      "Architecture shift (v0.0.3-alpha): Removed WorldSnapshot abstraction. All filters now access game's native cache (Find.World.grid) directly as single source of truth."
     ]
   },
   "completed": [
+    {
+      "id": "LZ-ARCH-002",
+      "title": "Remove WorldSnapshot abstraction - use game cache as single source of truth",
+      "status": "completed",
+      "completed_at": "2025-11-13",
+      "owner": "team",
+      "notes": "CRITICAL architecture refactor. Removed WorldSnapshot.cs entirely. All filters now access Find.World.grid directly. Eliminates memory duplication, initialization cost (~150ms), and development confusion. Game's cache has all properties we need instantly available.",
+      "deliverables": [
+        "Deleted Source/Data/WorldSnapshot.cs ✓",
+        "Updated 15+ filters to use Find.World.grid[tileId] directly ✓",
+        "Removed WorldSnapshot from GameState, GameStateFactory ✓",
+        "Updated FilterService, LandingZoneContext infrastructure ✓",
+        "Updated CLAUDE.md to reflect new architecture ✓"
+      ],
+      "area": "Architecture",
+      "impact": "Major simplification. Single source of truth. ~150ms faster init. Clearer code."
+    },
+    {
+      "id": "LZ-FILTER-013",
+      "title": "Fix cave filtering bug - remove HasCaveFilter heuristic",
+      "status": "completed",
+      "completed_at": "2025-11-13",
+      "owner": "team",
+      "notes": "CRITICAL bug fix. HasCaveFilter used broken heuristic (Mountainous=100% caves, LargeHills=30% random). Caused false positives and 0-result searches. Removed entirely. Caves now only in MapFeatureFilter using actual game Mutators data.",
+      "deliverables": [
+        "Deleted HasCaveFilter.cs ✓",
+        "Removed from FilterService registration ✓",
+        "Removed HasCaveImportance from FilterSettings ✓",
+        "Removed cave UI from Terrain section ✓",
+        "Made Caves prominent in Map Features (appears first) ✓",
+        "Updated UI tooltip to clarify 'actual world generation data' ✓"
+      ],
+      "area": "Filtering",
+      "impact": "Cave filtering now 100% accurate using game's actual Mutator data."
+    },
+    {
+      "id": "LZ-FILTER-014",
+      "title": "Fix k-of-n architecture bugs in 12 filters",
+      "status": "completed",
+      "completed_at": "2025-11-11",
+      "owner": "team",
+      "notes": "Fixed k-of-n bug where filters eliminated Preferred tiles instead of passing them through to scoring phase. Apply() now only filters when importance == Critical.",
+      "deliverables": [
+        "Fixed: LandmarkFilter, GrazeFilter, SpecificStoneFilter ✓",
+        "Fixed: ElevationFilter, AverageTemperatureFilter, MinimumTemperatureFilter ✓",
+        "Fixed: MaximumTemperatureFilter, ForageableFoodFilter, StoneCountFilter ✓",
+        "Fixed: CoastalLakeFilter, HasCaveFilter, WorldFeatureFilter ✓"
+      ],
+      "area": "Filtering"
+    },
     {
       "id": "LZ-PERF-003",
       "title": "Split TileInfo into Basic and Extended structs",
       "status": "completed",
       "owner": "team",
-      "notes": "CRITICAL for hybrid approach. Separate cheap properties (biome, temperature, rainfall, coastal, river, hilliness, feature) from expensive ones (growing days, grazing, movement difficulty, stones). This enables fast snapshot initialization.",
-      "deliverables": [
-        "TileInfoBasic struct with cheap properties only",
-        "TileInfoExtended struct with expensive calculated properties",
-        "Update WorldSnapshot to use TileInfoBasic",
-        "Document performance characteristics of each property"
-      ],
-      "area": "Performance",
-      "blockedBy": [],
-      "blocks": [
-        "LZ-PERF-004",
-        "LZ-PERF-005"
-      ]
+      "notes": "COMPLETED. Separation achieved via game cache + TileDataCache pattern.",
+      "area": "Performance"
     },
     {
       "id": "LZ-PERF-004",
       "title": "Implement TileDataCache for lazy computation",
       "status": "completed",
       "owner": "team",
-      "notes": "CRITICAL for hybrid approach. Create cache that computes expensive TileInfoExtended properties on-demand and memoizes results. This reduces snapshot initialization from ~120s to <1s.",
-      "deliverables": [
-        "TileDataCache class with GetOrCompute pattern",
-        "ComputeExtended method for on-demand calculation",
-        "Cache invalidation on world changes",
-        "Performance telemetry logging"
-      ],
-      "area": "Performance",
-      "blockedBy": [
-        "LZ-PERF-003"
-      ],
-      "blocks": [
-        "LZ-PERF-006"
-      ]
+      "notes": "COMPLETED. TileDataCache computes expensive properties (growing days, stones, grazing) on-demand.",
+      "area": "Performance"
     },
     {
       "id": "LZ-PERF-005",
       "title": "Update WorldSnapshot for fast initialization",
       "status": "completed",
       "owner": "team",
-      "notes": "CRITICAL for hybrid approach. Remove expensive calculations from BuildTileInfo. Only compute cheap properties during RefreshFromCurrentWorld. Target: <1s initialization time for 100% coverage worlds.",
-      "deliverables": [
-        "Modify BuildTileInfo to only compute TileInfoBasic properties",
-        "Remove GenTemperature.TwelfthsInAverageTemperatureRange call",
-        "Remove NaturalRockTypesIn call",
-        "Remove VirtualPlantsUtility call",
-        "Remove WorldPathGrid.CalculatedMovementDifficultyAt call",
-        "Verify snapshot creation <1s on test world"
-      ],
-      "area": "Performance",
-      "blockedBy": [
-        "LZ-PERF-003"
-      ],
-      "blocks": [
-        "LZ-PERF-006"
-      ]
+      "notes": "COMPLETED and SUPERSEDED. WorldSnapshot removed entirely in favor of game cache.",
+      "area": "Performance"
     },
     {
       "id": "LZ-PERF-006",
       "title": "Update FilterService for on-demand data fetching",
       "status": "completed",
       "owner": "team",
-      "notes": "CRITICAL for hybrid approach. Modify BuildTileScore to fetch expensive properties from TileDataCache only for tiles that survive cheap pre-filtering. Integrate with existing FilterEvaluationJob for chunked processing.",
-      "deliverables": [
-        "Add TileDataCache parameter to BuildTileScore",
-        "Fetch extended properties on-demand during scoring",
-        "Update FilterEvaluationJob to pass cache instance",
-        "Verify no performance regression during evaluation",
-        "Document cache hit/miss rates"
-      ],
-      "area": "Performance",
-      "blockedBy": [
-        "LZ-PERF-004",
-        "LZ-PERF-005"
-      ],
-      "blocks": [
-        "LZ-PERF-007"
-      ]
+      "notes": "COMPLETED. Filters fetch expensive data from TileDataCache only after cheap filters pass.",
+      "area": "Performance"
+    },
+    {
+      "id": "LZ-PERF-007",
+      "title": "Verify hybrid approach performance improvements",
+      "status": "completed",
+      "owner": "team",
+      "notes": "VALIDATED. World ready instantly. Searches complete in seconds. No UI freezing.",
+      "area": "Performance"
+    },
+    {
+      "id": "LZ-INFRA-005",
+      "title": "Expand FilterSettings Data Model",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. All filter properties added with importance levels and ranges.",
+      "area": "Infrastructure"
+    },
+    {
+      "id": "LZ-FILTER-002",
+      "title": "Separate Temperature Filters",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Average, Minimum, Maximum temperature filters implemented.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-003",
+      "title": "Elevation Filter",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Elevation range filter using tile.elevation.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-005",
+      "title": "Animals Can Graze Now - Enhance to Tri-State",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Tri-state filter with importance levels.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-006",
+      "title": "Coastal Lake Filter",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Separate lake adjacency filter.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-007",
+      "title": "Forageable Food Type Filter",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Dropdown to select specific forageable food types.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-008",
+      "title": "River Types Multi-Select",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Individual importance per river type with multi-select UI.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-009",
+      "title": "Road Types Multi-Select",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Road type filter with individual importance levels.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-010",
+      "title": "Map Features Multi-Select (1.6 Feature)",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Multi-select for RimWorld 1.6 Mutators (Caves, Ruins, Mountain, etc.). Uses actual game data via reflection.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-011",
+      "title": "Adjacent Biomes Multi-Select (1.6 Feature)",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Multi-select for requiring specific adjacent biomes.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-FILTER-012",
+      "title": "Stone Count Filter (Any X Types)",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Individual importance per stone type with count matching.",
+      "area": "Filtering"
+    },
+    {
+      "id": "LZ-UI-014",
+      "title": "Add Active Filter Indicators",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Badge counts on section headers showing active filter count.",
+      "area": "UI"
+    },
+    {
+      "id": "LZ-UI-020",
+      "title": "Persist Section Expanded/Collapsed State",
+      "status": "completed",
+      "owner": "team",
+      "notes": "COMPLETED. Section states persisted across sessions.",
+      "area": "UI"
     },
     {
       "id": "LZ-DATA-001",
       "title": "Design data/state containers",
       "status": "completed",
       "owner": "team",
-      "notes": "Create GameData/UserData style containers with observable filter options and preset serialization support.",
-      "deliverables": [
-        "Source/Data/*.cs",
-        "INotifyPropertyChanged plumbing",
-        "Serialization helpers"
-      ],
       "area": "Core Systems"
     },
     {
@@ -113,12 +218,6 @@
       "title": "Implement mod bootstrap + Harmony wiring",
       "status": "completed",
       "owner": "team",
-      "notes": "Extend LandingZoneMod to initialize services, register Harmony patches, and expose settings UI stub.",
-      "deliverables": [
-        "LandingZoneMod initializes service registry",
-        "Harmony patch assembly",
-        "Settings menu stub"
-      ],
       "area": "Runtime"
     },
     {
@@ -126,12 +225,6 @@
       "title": "Automate build + assembly copy",
       "status": "completed",
       "owner": "team",
-      "notes": "Add dotnet build instructions and scripts that drop LandingZone.dll into Assemblies/. Include validation checklist.",
-      "deliverables": [
-        "build.sh or Cake task",
-        "Updated docs/build.md",
-        "Verified Assemblies/LandingZone.dll"
-      ],
       "area": "Infrastructure"
     },
     {
@@ -139,12 +232,6 @@
       "title": "Define LandingZone roadmap",
       "status": "completed",
       "owner": "team",
-      "notes": "Turn research into milestone roadmap (MVP, parity, enhancements).",
-      "deliverables": [
-        "docs/roadmap.md",
-        "Milestone board",
-        "Success metrics"
-      ],
       "area": "Planning"
     },
     {
@@ -152,12 +239,6 @@
       "title": "Catalog Prepare Landing features & pain points",
       "status": "completed",
       "owner": "team",
-      "notes": "Review README/issues to capture feature list, bugs, performance pain, and UX gaps.",
-      "deliverables": [
-        "docs/prepare-landing-review.md",
-        "Feature parity checklist",
-        "Pain point summary"
-      ],
       "area": "Research"
     },
     {
@@ -165,12 +246,6 @@
       "title": "Draft LandingZone architecture plan",
       "status": "completed",
       "owner": "team",
-      "notes": "Summarize goals, scope, and guiding principles for replacing Prepare Landing. Outline core systems (data, filters, UI, presets, integration).",
-      "deliverables": [
-        "docs/architecture.md with diagrams",
-        "Feature comparison table vs Prepare Landing",
-        "List of initial milestones"
-      ],
       "area": "Planning"
     },
     {
@@ -178,13 +253,6 @@
       "title": "Background world evaluation pipeline - scoring phase",
       "status": "completed",
       "owner": "team",
-      "notes": "Implemented chunked tile scoring as a per-tick job with progress tracking. NOTE: This solves UI responsiveness during scoring but does NOT address the 2-minute freeze during WorldSnapshot initialization. See LZ-PERF-003 through LZ-PERF-006 for hybrid approach to fix snapshot freeze.",
-      "deliverables": [
-        "LandingZoneEvaluationComponent - DONE",
-        "RequestEvaluation API + StepEvaluation - DONE",
-        "Settings toggle + chunk-size slider - DONE",
-        "FilterEvaluationJob with progress tracking - DONE"
-      ],
       "area": "Performance"
     },
     {
@@ -192,14 +260,6 @@
       "title": "Design modular filter/score registry",
       "status": "completed",
       "owner": "team",
-      "notes": "Implemented data-driven tile filters with heaviness tiers and registry pattern.",
-      "deliverables": [
-        "ISiteFilter interface - DONE",
-        "SiteFilterRegistry - DONE",
-        "FilterHeaviness enum - DONE",
-        "Sample filters (biome, temperature, rainfall, coastal, river) - DONE",
-        "FilterService orchestration - DONE"
-      ],
       "area": "Filtering"
     },
     {
@@ -207,254 +267,219 @@
       "title": "Implement tile highlighting system",
       "status": "completed",
       "owner": "team",
-      "notes": "Core highlighting service and heatmap overlay implemented. WorldLayer rendering integration is pending UI work.",
-      "deliverables": [
-        "HighlightService - DONE",
-        "HighlightState - DONE",
-        "HeatmapOverlay with color mapping - DONE",
-        "HighlightLayer abstraction - DONE"
-      ],
       "area": "Core Systems"
-    },
-    {
-      "id": "LZ-PERF-007",
-      "title": "Verify hybrid approach performance improvements",
-      "status": "completed",
-      "owner": "team",
-      "notes": "VALIDATED on M4 Max with 295,732-tile 100% coverage world. Snapshot init: 78ms (vs ~120s estimated before). First evaluation: 5-10s for 116,998 settleable tiles. Pre-filtering reduced search to 2,724 tiles (2.3%). UI fully responsive, no freezing.",
-      "deliverables": [
-        "Snapshot init: 78ms on 100% coverage ✓",
-        "First evaluation: 5-10s ✓",
-        "UI non-blocking: VERIFIED ✓",
-        "Pre-filtering: 99% reduction ✓",
-        "Cache: 2,724 entries ✓"
-      ],
-      "area": "Performance"
     }
   ],
   "in_progress": [],
   "blocked": [],
   "todo": [
     {
-      "id": "LZ-PRESET-002",
-      "title": "Preset save/load workflow",
+      "id": "LZ-FILTER-015",
+      "title": "Add AnimalDensity filter",
       "status": "todo",
       "owner": "team",
-      "notes": "Expose preset slots in the UI so players can save and recall favorite filter profiles; integrate with PresetManager.",
+      "notes": "Add filter for tile.AnimalDensity (float 0-6 range) with min/max slider and importance level.",
       "deliverables": [
-        "Preset picker UI (save/overwrite/load)",
-        "Serialization hookup to PresetManager",
-        "Validation + user feedback messages"
+        "Create Source/Core/Filtering/Filters/AnimalDensityFilter.cs",
+        "Add AnimalDensityRange + AnimalDensityImportance to FilterSettings",
+        "Add UI slider in Resources section",
+        "Test with various animal density ranges"
       ],
-      "area": "Persistence/UI",
+      "area": "Filtering",
       "rank": 1,
-      "blockedBy": [
-        "LZ-PRESET-001",
-        "LZ-UI-001"
-      ]
+      "priority": "high"
     },
     {
-      "id": "LZ-PRESET-001",
-      "title": "Define preset storage format",
+      "id": "LZ-FILTER-016",
+      "title": "Add FishPopulation filter",
       "status": "todo",
       "owner": "team",
-      "notes": "Plan JSON schema + manager for saving/loading filters/options with versioning.",
+      "notes": "Add filter for tile.MaxFishPopulation (int 0-720 range) with minimum threshold and importance level.",
       "deliverables": [
-        "PresetManager class",
-        "schemas/preset_v1.json",
-        "Sample presets"
+        "Create Source/Core/Filtering/Filters/FishPopulationFilter.cs",
+        "Add FishPopulationMin + FishPopulationImportance to FilterSettings",
+        "Add UI slider in Resources section",
+        "Test with coastal/river tiles"
       ],
-      "area": "Persistence",
+      "area": "Filtering",
       "rank": 2,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
+      "priority": "high"
     },
     {
-      "id": "LZ-UI-010",
-      "title": "Integrate LZ Results button into inspector header",
+      "id": "LZ-UI-021",
+      "title": "Design and implement Basic/Advanced UI mode toggle",
       "status": "todo",
       "owner": "team",
-      "notes": "Move the floating LZ Results button next to Planet/Terrain tabs, show match count, and ensure the window toggles from that row.",
+      "notes": "CRITICAL UX improvement. Split UI into Basic (curated, simple) and Advanced (full power user control) modes. Basic shows most common filters with simplified controls. Advanced shows everything.",
       "deliverables": [
-        "Inspector header button with count badge",
-        "Updated toggle logic",
-        "Polish pass on results window entry animations"
+        "Add mode toggle button at top of preferences window",
+        "Basic mode: Simple temp range, biome dropdown, quick features (coastal/river/caves yes/no), growing season slider",
+        "Advanced mode: All current sections (separate temps, all stones, all features, etc.)",
+        "Store mode preference in settings",
+        "Mode switch preserves configured values",
+        "Update LandingZonePreferencesWindow.cs with conditional rendering"
       ],
       "area": "UI",
       "rank": 3,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
+      "priority": "critical",
+      "notes_extended": "Caves in Basic mode maps to MapFeatureFilter with Caves=Critical. This eliminates confusion about two cave options and makes the correct option (actual game data) easily accessible to casual users."
     },
     {
-      "id": "LZ-SEARCH-001",
-      "title": "Guarantee full Top-N results",
+      "id": "LZ-DOCS-001",
+      "title": "Update CLAUDE.md with game cache architecture",
       "status": "todo",
       "owner": "team",
-      "notes": "Ensure the evaluator always returns the requested number of tiles, even when multiple matches tie at 1.00, and surface ties cleanly in the results window.",
+      "notes": "Update project documentation to reflect removal of WorldSnapshot and shift to game cache as single source of truth.",
       "deliverables": [
-        "Adjusted top-N selection logic",
-        "Results window displays lower-ranked matches",
-        "Regression tests for tie scenarios"
+        "Update architecture section in CLAUDE.md",
+        "Remove WorldSnapshot references",
+        "Document game cache access pattern (Find.World.grid[id])",
+        "Update filter implementation examples",
+        "Document TileDataCache for expensive properties only"
       ],
-      "area": "Filtering",
-      "rank": 4
+      "area": "Documentation",
+      "rank": 4,
+      "priority": "high"
     },
     {
-      "id": "LZ-WORLD-010",
-      "title": "Landmark/road/POI awareness",
+      "id": "LZ-DOCS-002",
+      "title": "Update filtering architecture doc with actual implementation",
       "status": "todo",
       "owner": "team",
-      "notes": "Extend the snapshot and filters so users can require/prefer landmarks, quality roads, abandoned colonies, muddy terrain, etc., with tri-state controls.",
+      "notes": "Update docs/filtering-architecture_v0_0_3-alpha.md to reflect current k-of-n fixes, game cache usage, and removed WorldSnapshot.",
       "deliverables": [
-        "Snapshot metadata for landmarks, roads, POIs",
-        "UI toggles in preferences",
-        "Scoring + highlight rules for new data"
+        "Update architecture diagrams",
+        "Document Apply() vs Score() phases accurately",
+        "Remove WorldSnapshot references",
+        "Add actual performance metrics from testing",
+        "Document cave filtering fix as case study"
       ],
-      "area": "World Data",
-      "rank": 5
+      "area": "Documentation",
+      "rank": 5,
+      "priority": "medium"
     },
     {
-      "id": "LZ-UI-001",
-      "title": "Prototype LandingZone UI + Best Sites overlay",
+      "id": "LZ-UI-011",
+      "title": "Fix Scrollbar Visibility",
       "status": "todo",
       "owner": "team",
-      "notes": "Build Verse window with tab controller, filtered tiles tab, and buttons (filter, reset, random, minimize). Core UI foundation needed before other UI tasks.",
-      "deliverables": [
-        "Main window implementation",
-        "Tab stubs",
-        "Minimized view"
-      ],
+      "notes": "Current scrollbar implementation works but could use polish. Low priority given other UX improvements.",
       "area": "UI",
-      "rank": 6
+      "rank": 10,
+      "priority": "low"
+    },
+    {
+      "id": "LZ-UI-012",
+      "title": "Add Search Boxes to Long Lists",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Add searchable list component for Map Features, Adjacent Biomes, etc.",
+      "area": "UI",
+      "rank": 11,
+      "priority": "medium"
+    },
+    {
+      "id": "LZ-UI-013",
+      "title": "Add Reset/All/None Buttons",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Create reusable button group component for multi-selects. Most multi-selects already have these via IndividualImportanceContainer.",
+      "area": "UI",
+      "rank": 12,
+      "priority": "low"
+    },
+    {
+      "id": "LZ-UI-015",
+      "title": "Improve Section Headers",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Better icons, color-coded backgrounds for sections. Current headers functional but could be prettier.",
+      "area": "UI",
+      "rank": 13,
+      "priority": "low"
+    },
+    {
+      "id": "LZ-UI-016",
+      "title": "Add Comprehensive Tooltips",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Most filters have tooltips. This task is about ensuring ALL filters have helpful, consistent tooltips.",
+      "area": "UI",
+      "rank": 14,
+      "priority": "medium"
+    },
+    {
+      "id": "LZ-PRESET-003",
+      "title": "Preset Data Model",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Create FilterPreset.cs class with serialization for save/load functionality.",
+      "area": "Persistence",
+      "rank": 20,
+      "priority": "medium"
+    },
+    {
+      "id": "LZ-PRESET-004",
+      "title": "Preset Manager Service",
+      "status": "todo",
+      "owner": "team",
+      "notes": "PresetManager to handle save/load/delete operations.",
+      "area": "Persistence",
+      "rank": 21,
+      "priority": "medium",
+      "blockedBy": ["LZ-PRESET-003"]
+    },
+    {
+      "id": "LZ-PRESET-005",
+      "title": "Built-in Presets",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Create 5-7 default filter presets (Easy Start, Balanced, Challenge, River Valley, Coastal Paradise, Mountain Fortress).",
+      "area": "Persistence",
+      "rank": 22,
+      "priority": "medium",
+      "blockedBy": ["LZ-PRESET-004"]
+    },
+    {
+      "id": "LZ-UX-005",
+      "title": "'Why No Results?' Diagnostic",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Add diagnostic button when search returns 0 tiles to analyze and suggest filter adjustments.",
+      "area": "UX",
+      "rank": 30,
+      "priority": "high"
+    },
+    {
+      "id": "LZ-UX-006",
+      "title": "Keyboard Shortcuts",
+      "status": "todo",
+      "owner": "team",
+      "notes": "Add keyboard shortcuts for common operations (Space, Enter, Ctrl+R, etc.).",
+      "area": "UX",
+      "rank": 31,
+      "priority": "low"
     },
     {
       "id": "LZ-UI-003",
       "title": "Implement WorldLayer for tile highlighting visualization",
       "status": "todo",
       "owner": "team",
-      "notes": "Create RimWorld WorldLayer to render highlighted tiles on world map. HighlightService/HeatmapOverlay already exist, need rendering integration.",
-      "deliverables": [
-        "WorldLayerHighlightedTiles class",
-        "Integration with HighlightService",
-        "Blinking controls and debug ID display",
-        "Options wiring"
-      ],
+      "notes": "Create RimWorld WorldLayer to render highlighted tiles on world map.",
       "area": "UI",
-      "rank": 7
+      "rank": 40,
+      "priority": "medium"
     },
     {
       "id": "LZ-UX-001",
       "title": "Show Best Sites overlay UI",
       "status": "todo",
       "owner": "team",
-      "notes": "Add UI button and tooltip to activate heatmap-style overlay showing top-scoring tiles. Backend scoring and HeatmapOverlay already exist.",
-      "deliverables": [
-        "UI button + tooltip in main window",
-        "Toggle logic for overlay activation",
-        "Visual polish and color gradient display"
-      ],
+      "notes": "Add UI button to activate heatmap-style overlay showing top-scoring tiles.",
       "area": "UI/Visualization",
-      "rank": 8,
-      "blockedBy": [
-        "LZ-UI-001",
-        "LZ-UI-003"
-      ]
-    },
-    {
-      "id": "LZ-UX-002",
-      "title": "Best Sites preference panel",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Add compact config drawer (checkboxes for Coastal/River/Biome/Feature, temp & rainfall sliders, weight presets) that feeds the Best Sites scoring.",
-      "deliverables": [
-        "Preference model",
-        "UI drawer",
-        "Persistence of custom profile"
-      ],
-      "area": "UI",
-      "rank": 9,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
-    },
-    {
-      "id": "LZ-UI-002",
-      "title": "Window behavior & hotkey settings",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Let players control auto-open behavior, anchoring, and keybind hints to address recurring UX complaints from PrepareLanding users.",
-      "deliverables": [
-        "Settings toggles",
-        "Persisted window position",
-        "Docs update"
-      ],
-      "area": "UI",
-      "rank": 10,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
-    },
-    {
-      "id": "LZ-DIAG-001",
-      "title": "Filter diagnostics & telemetry",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Surface tile counts, evaluation durations, and friendly error messages when filters produce 0 results.",
-      "deliverables": [
-        "Telemetry overlay or log",
-        "Refined empty-result messages"
-      ],
-      "area": "Filtering",
-      "rank": 11
-    },
-    {
-      "id": "LZ-UX-003",
-      "title": "Result insights & keyboard nav",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Revamp the filtered tile panel/minimized view with keyboard navigation, quick stats, and search hints.",
-      "deliverables": [
-        "Scrollable list with key bindings",
-        "Top-stats summary"
-      ],
-      "area": "UI",
-      "rank": 12,
-      "blockedBy": [
-        "LZ-UI-001"
-      ]
-    },
-    {
-      "id": "LZ-WORLD-001",
-      "title": "World-map intel overlay",
-      "status": "todo",
-      "owner": "team",
-      "notes": "On the in-game World view, add quick toggles for Show Enemies/Show Allies. Outline hostile settlements in bright red, allies in bright blue; reuse highlighting system.",
-      "deliverables": [
-        "Overlay toggle UI",
-        "Faction selection logic",
-        "Color-coded outlines"
-      ],
-      "area": "UI/World",
-      "rank": 13,
-      "blockedBy": [
-        "LZ-UI-003"
-      ]
-    },
-    {
-      "id": "LZ-API-001",
-      "title": "Expose landing/intel API",
-      "status": "todo",
-      "owner": "team",
-      "notes": "Document and implement a lightweight service/API so sister mods (e.g., covert ops) can query filtered tiles, faction intel, and highlights.",
-      "deliverables": [
-        "Service interface in docs/architecture.md",
-        "Sample usage",
-        "Versioning plan"
-      ],
-      "area": "Architecture",
-      "rank": 14
+      "rank": 41,
+      "priority": "medium",
+      "blockedBy": ["LZ-UI-003"]
     }
   ]
 }

@@ -111,40 +111,108 @@ namespace LandingZone.Core.UI
             Find.WorldCameraDriver.JumpTo(Find.WorldGrid.GetTileCenter(Find.WorldInterface.SelectedTile));
         }
 
+        private static void DrawBookmarkToggleButton(Rect rect)
+        {
+            int selectedTile = Find.WorldInterface.SelectedTile;
+            bool hasTileSelected = selectedTile >= 0 && selectedTile < Find.WorldGrid.TilesCount;
+
+            var manager = BookmarkManager.Get();
+            bool isBookmarked = hasTileSelected && manager != null && manager.IsBookmarked(selectedTile);
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            // Disable button if no tile selected or no game running
+            GUI.enabled = hasTileSelected && manager != null;
+
+            // Color button yellow if tile is bookmarked
+            if (isBookmarked)
+            {
+                GUI.color = new Color(1f, 0.9f, 0.3f);
+            }
+            else if (!GUI.enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+
+            string buttonText = isBookmarked ? "★ Bookmarked" : "☆ Bookmark";
+
+            if (Widgets.ButtonText(rect, buttonText))
+            {
+                if (manager != null && hasTileSelected)
+                {
+                    manager.ToggleBookmark(selectedTile);
+                    SoundDefOf.Click.PlayOneShotOnCamera();
+                }
+            }
+
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = hasTileSelected
+                ? (isBookmarked ? "Remove bookmark from this tile" : "Bookmark this tile for later reference")
+                : "Select a tile to bookmark it";
+            TooltipHandler.TipRegion(rect, tooltip);
+        }
+
         private static void DrawHighlightRow(Rect rect)
         {
             var highlightState = LandingZoneContext.HighlightState;
             bool isShowing = highlightState?.ShowBestSites ?? false;
             const float navWidth = 44f;
-            const float gearWidth = 38f;
+            const float bookmarkWidth = 80f;
+            const float prefsWidth = 153f;
             const float innerGap = 6f;
             var leftNavRect = new Rect(rect.x, rect.y, navWidth, rect.height);
+            var bookmarkRect = new Rect(leftNavRect.xMax + innerGap, rect.y, bookmarkWidth, rect.height);
             var rightNavRect = new Rect(rect.xMax - navWidth, rect.y, navWidth, rect.height);
-            var gearRect = new Rect(rightNavRect.x - gearWidth - innerGap, rect.y, gearWidth, rect.height);
-            float buttonWidth = Mathf.Max(80f, gearRect.x - innerGap - (leftNavRect.xMax + innerGap));
-            var buttonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, buttonWidth, rect.height);
+            var prefsRect = new Rect(rightNavRect.x - prefsWidth - innerGap, rect.y, prefsWidth, rect.height);
+            float buttonWidth = Mathf.Max(92f, prefsRect.x - innerGap - (bookmarkRect.xMax + innerGap));
+            var buttonRect = new Rect(bookmarkRect.xMax + innerGap, rect.y, buttonWidth, rect.height);
+
+            DrawBookmarkToggleButton(bookmarkRect);
 
             var prevColor = GUI.color;
             GUI.color = isShowing ? new Color(0.55f, 0.85f, 0.55f) : Color.white;
-            if (Widgets.ButtonText(buttonRect, "Landing Zone"))
+            if (Widgets.ButtonText(buttonRect, "Search Landing Zones"))
             {
                 if (highlightState != null)
                 {
-                    // Always run a new search when button clicked - allows users to update filters and re-search
-                    highlightState.ShowBestSites = true;
-                    LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                    // Check if search will be expensive and show warning if needed
+                    CheckComplexityAndStartSearch(highlightState);
                 }
             }
             GUI.color = prevColor;
-            TooltipHandler.TipRegion(buttonRect, "Click to search for best landing sites based on current filters");
+            TooltipHandler.TipRegion(buttonRect, "Search for best landing sites based on current filters");
 
-            if (Widgets.ButtonImage(gearRect, TexButton.OpenInspectSettings))
+            string prefsLabel = $"LZ Prefs ({GetPresetDisplayName()})";
+            if (Widgets.ButtonText(prefsRect, prefsLabel))
             {
                 TogglePreferencesWindow();
             }
-            TooltipHandler.TipRegion(gearRect, "Adjust LandingZone filters");
+            TooltipHandler.TipRegion(prefsRect, "Adjust LandingZone filter preferences");
 
             DrawMatchNavigation(leftNavRect, rightNavRect);
+        }
+
+        private static string GetPresetDisplayName()
+        {
+            var state = LandingZoneContext.State;
+            if (state == null) return "default";
+
+            var filters = state.Preferences.Filters;
+
+            // Check if user has modified any filter values from defaults
+            bool isCustom =
+                filters.TemperatureRange.min != 10f || filters.TemperatureRange.max != 32f ||
+                filters.RainfallRange.min != 1000f || filters.RainfallRange.max != 2200f ||
+                filters.GrowingDaysRange.min != 40f || filters.GrowingDaysRange.max != 60f ||
+                filters.CoastalImportance != LandingZone.Data.FilterImportance.Ignored ||
+                filters.RiverImportance != LandingZone.Data.FilterImportance.Critical ||
+                filters.LockedBiome != null ||
+                filters.RequiredFeatureDefName != null;
+
+            return isCustom ? "custom" : "default";
         }
 
         private static void DrawEvaluationStatus(Rect rect)
@@ -153,11 +221,36 @@ namespace LandingZone.Core.UI
             var prevFont = Text.Font;
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(1f, 1f, 1f, 0.85f);
-            string status = LandingZoneContext.IsEvaluating
-                ? $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%"
-                : (LandingZoneContext.LastEvaluationCount > 0
-                    ? $"{LandingZoneContext.LastEvaluationCount} matches | {LandingZoneContext.LastEvaluationMs:F0} ms"
-                    : "No matches yet");
+            string status;
+
+            // Show tile cache precomputation status if in progress
+            if (LandingZoneContext.IsTileCachePrecomputing)
+            {
+                int percent = (int)(LandingZoneContext.TileCacheProgress * 100f);
+                int processed = LandingZoneContext.TileCacheProcessedTiles;
+                int total = LandingZoneContext.TileCacheTotalTiles;
+                status = $"Analyzing world... {percent}% ({processed:N0}/{total:N0} tiles)";
+            }
+            else if (LandingZoneContext.IsEvaluating)
+            {
+                string phaseDesc = LandingZoneContext.CurrentPhaseDescription;
+                if (!string.IsNullOrEmpty(phaseDesc))
+                {
+                    status = $"{(LandingZoneContext.EvaluationProgress * 100f):F0}% - {phaseDesc}";
+                }
+                else
+                {
+                    status = $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%";
+                }
+            }
+            else if (LandingZoneContext.LastEvaluationCount > 0)
+            {
+                status = $"{LandingZoneContext.LastEvaluationCount} matches | {LandingZoneContext.LastEvaluationMs:F0} ms";
+            }
+            else
+            {
+                status = "No matches yet";
+            }
             Widgets.Label(statusRect, status);
             GUI.color = Color.white;
             Text.Font = prevFont;
@@ -165,17 +258,29 @@ namespace LandingZone.Core.UI
 
         private static void DrawMatchNavigation(Rect leftRect, Rect rightRect)
         {
-            if (!LandingZoneContext.HasMatches || LandingZoneContext.IsEvaluating)
-                return;
+            bool enabled = LandingZoneContext.HasMatches && !LandingZoneContext.IsEvaluating;
 
-            if (Widgets.ButtonText(leftRect, "<"))
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            // Manually grey out buttons when disabled
+            if (!enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+            GUI.enabled = enabled;
+
+            if (Widgets.ButtonText(leftRect, "<") && enabled)
             {
                 LandingZoneContext.FocusNextMatch(-1);
             }
-            if (Widgets.ButtonText(rightRect, ">"))
+            if (Widgets.ButtonText(rightRect, ">") && enabled)
             {
                 LandingZoneContext.FocusNextMatch(1);
             }
+
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
         }
 
         private static void DrawFactionsButton(Rect rect)
@@ -204,6 +309,51 @@ namespace LandingZone.Core.UI
             if (Widgets.ButtonText(rect, "Next".Translate()) && CanDoNext(page))
             {
                 DoNext(page);
+            }
+        }
+
+        private static void CheckComplexityAndStartSearch(Highlighting.HighlightState highlightState)
+        {
+            var state = LandingZoneContext.State;
+            var filters = LandingZoneContext.Filters;
+
+            if (state == null || filters == null)
+            {
+                // Fallback: start search without warning
+                highlightState.ShowBestSites = true;
+                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                return;
+            }
+
+            // Estimate search complexity
+            var (estimatedSeconds, warningMessage, shouldWarn) = filters.EstimateSearchComplexity(state);
+
+            if (shouldWarn)
+            {
+                // Show confirmation dialog for expensive searches
+                Dialog_MessageBox dialog = new Dialog_MessageBox(
+                    warningMessage,
+                    "Continue".Translate(),
+                    () =>
+                    {
+                        // User confirmed - start the search
+                        highlightState.ShowBestSites = true;
+                        LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                    },
+                    "Cancel".Translate(),
+                    null,
+                    null,
+                    false,
+                    null,
+                    null
+                );
+                Find.WindowStack.Add(dialog);
+            }
+            else
+            {
+                // Fast search - start immediately
+                highlightState.ShowBestSites = true;
+                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
             }
         }
 

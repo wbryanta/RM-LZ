@@ -16,8 +16,12 @@ namespace LandingZone.Core.Filtering.Filters
             if (targetBiome == null)
                 return inputTiles;
 
-            var snapshot = context.State.WorldSnapshot;
-            return inputTiles.Where(id => snapshot.TryGetInfo(id, out var info) && info.Biome == targetBiome);
+            var worldGrid = Find.World.grid;
+            return inputTiles.Where(id =>
+            {
+                var tile = worldGrid[id];
+                return tile?.PrimaryBiome == targetBiome;
+            });
         }
 
         public string Describe(FilterContext context)

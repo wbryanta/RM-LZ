@@ -88,13 +88,19 @@ namespace LandingZone.Data
             var pollution = tile.pollution;
             var forageability = biome?.forageability ?? 0f;
 
+            // EXPENSIVE: Min/max temperature calculation
+            var minTemp = GenTemperature.MinTemperatureAtTile(tileId);
+            var maxTemp = GenTemperature.MaxTemperatureAtTile(tileId);
+
             return new TileInfoExtended(
                 growingDays,
                 stoneDefNames,
                 canGrazeNow,
                 movementDifficulty,
                 pollution,
-                forageability
+                forageability,
+                minTemp,
+                maxTemp
             );
         }
     }
@@ -111,7 +117,9 @@ namespace LandingZone.Data
             bool canGrazeNow,
             float movementDifficulty,
             float pollution,
-            float forageability)
+            float forageability,
+            float minTemperature,
+            float maxTemperature)
         {
             GrowingDays = growingDays;
             StoneDefNames = stoneDefNames;
@@ -119,6 +127,8 @@ namespace LandingZone.Data
             MovementDifficulty = movementDifficulty;
             Pollution = pollution;
             Forageability = forageability;
+            MinTemperature = minTemperature;
+            MaxTemperature = maxTemperature;
         }
 
         public float GrowingDays { get; }
@@ -127,5 +137,7 @@ namespace LandingZone.Data
         public float MovementDifficulty { get; }
         public float Pollution { get; }
         public float Forageability { get; }
+        public float MinTemperature { get; }
+        public float MaxTemperature { get; }
     }
 }

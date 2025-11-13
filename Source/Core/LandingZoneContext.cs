@@ -44,7 +44,7 @@ namespace LandingZone.Core
         public static IReadOnlyList<TileScore> LatestResults { get; private set; } = System.Array.Empty<TileScore>();
         public static float EvaluationProgress { get; private set; }
 
-        public static bool RefreshWorldSnapshot(bool force = false)
+        public static bool RefreshWorldCache(bool force = false)
         {
             if (State == null)
                 return false;
@@ -59,25 +59,24 @@ namespace LandingZone.Core
 
             var info = world.info;
             var seed = info?.seedString ?? string.Empty;
-            var coverage = info?.planetCoverage ?? 0f;
-            if (!force
-                && State.WorldSnapshot.TotalTileCount > 0
-                && State.WorldSnapshot.SeedString == seed
-                && Mathf.Approximately(State.WorldSnapshot.PlanetCoverage, coverage))
-            {
-                return false;
-            }
-
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            State.WorldSnapshot.RefreshFromCurrentWorld();
-            sw.Stop();
-            LogMessage($"World snapshot initialized in {sw.ElapsedMilliseconds}ms - tiles: {State.WorldSnapshot.TotalTileCount}, settleable: {State.WorldSnapshot.SettleableTileCount}");
 
             // Clear tile cache when world changes
             if (Filters != null)
             {
                 Filters.TileCache.ResetIfWorldChanged(seed);
             }
+
+            // Count settleable tiles from game cache
+            int settleable = 0;
+            for (int i = 0; i < grid.TilesCount; i++)
+            {
+                var tile = grid[i];
+                var biome = tile?.PrimaryBiome;
+                if (biome != null && !biome.impassable && !world.Impassable(i))
+                    settleable++;
+            }
+
+            LogMessage($"World cache ready - tiles: {grid.TilesCount}, settleable: {settleable}");
 
             return true;
         }
@@ -87,33 +86,26 @@ namespace LandingZone.Core
             State?.DefCache.Refresh();
         }
 
-        private static void EnsureSnapshotReady()
+        private static void EnsureCacheReady()
         {
-            if (State == null)
-                return;
-
-            var world = Find.World;
-            if (world == null || world.grid == null)
-                return;
-
-            if (State.WorldSnapshot.TotalTileCount == 0)
+            // No longer needed - game's cache is always ready
+            // Just ensure Filters TileCache is cleared if world changed
+            if (Filters != null && Find.World?.info != null)
             {
-                RefreshWorldSnapshot(force: true);
-                return;
-            }
-
-            var info = world.info;
-            var seed = info?.seedString ?? string.Empty;
-            var coverage = info?.planetCoverage ?? 0f;
-            if (State.WorldSnapshot.SeedString != seed || !Mathf.Approximately(State.WorldSnapshot.PlanetCoverage, coverage))
-            {
-                RefreshWorldSnapshot(force: true);
+                Filters.TileCache.ResetIfWorldChanged(Find.World.info.seedString ?? string.Empty);
             }
         }
 
         public static bool IsEvaluating { get; private set; }
         public static float LastEvaluationMs { get; private set; }
         public static int LastEvaluationCount { get; private set; }
+        public static string CurrentPhaseDescription { get; private set; } = "";
+
+        // Tile cache precomputation
+        public static bool IsTileCachePrecomputing { get; private set; }
+        public static float TileCacheProgress { get; private set; }
+        public static int TileCacheTotalTiles { get; private set; }
+        public static int TileCacheProcessedTiles { get; private set; }
 
         public static void LogMessage(string message)
         {
@@ -133,7 +125,7 @@ namespace LandingZone.Core
                 return false;
 
             EnsureEvaluationComponent();
-            EnsureSnapshotReady();
+            EnsureCacheReady();
             if (_activeJob != null)
             {
                 _focusAfterEvaluation |= focusOnComplete;
@@ -176,9 +168,10 @@ namespace LandingZone.Core
             else
             {
                 EvaluationProgress = _activeJob.Progress;
+                CurrentPhaseDescription = _activeJob.CurrentPhaseDescription;
                 if (Find.TickManager.TicksGame % 500 == 0)
                 {
-                    LogMessage($"Search progress {(EvaluationProgress * 100f):F1}% ({_activeJob.ProcessedTiles}/{_activeJob.TotalTiles} tiles).");
+                    LogMessage($"Search progress {(EvaluationProgress * 100f):F1}% - {CurrentPhaseDescription}");
                 }
             }
         }
@@ -310,6 +303,47 @@ namespace LandingZone.Core
             if (game.GetComponent<LandingZoneEvaluationComponent>() == null)
             {
                 game.components.Add(new LandingZoneEvaluationComponent(game));
+            }
+        }
+
+        /// <summary>
+        /// Starts tile cache precomputation for all tiles in the world.
+        /// This is called automatically on world load.
+        /// </summary>
+        public static void StartTileCachePrecomputation()
+        {
+            var game = Current.Game;
+            if (game == null || Filters == null)
+                return;
+
+            // Get or create the precomputation component
+            var component = game.GetComponent<TileCachePrecomputationComponent>();
+            if (component == null)
+            {
+                component = new TileCachePrecomputationComponent(game);
+                game.components.Add(component);
+            }
+
+            // Start precomputation
+            component.StartPrecomputation(Filters.TileCache);
+            IsTileCachePrecomputing = true;
+            TileCacheTotalTiles = Find.WorldGrid?.TilesCount ?? 0;
+            LogMessage($"Started background tile cache precomputation for {TileCacheTotalTiles} tiles");
+        }
+
+        /// <summary>
+        /// Updates tile cache precomputation status.
+        /// Called by TileCachePrecomputationComponent.
+        /// </summary>
+        internal static void UpdateTileCacheStatus(float progress, int processedTiles, bool completed)
+        {
+            TileCacheProgress = progress;
+            TileCacheProcessedTiles = processedTiles;
+
+            if (completed && IsTileCachePrecomputing)
+            {
+                IsTileCachePrecomputing = false;
+                LogMessage($"Tile cache precomputation complete: {processedTiles} tiles cached");
             }
         }
     }
