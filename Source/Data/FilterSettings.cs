@@ -66,6 +66,10 @@ namespace LandingZone.Data
         public FloatRange FishPopulationRange { get; set; } = new FloatRange(0f, 900f);
         public FilterImportance FishPopulationImportance { get; set; } = FilterImportance.Ignored;
 
+        // Plant density factor (0.0-1.3 range from cache dump)
+        public FloatRange PlantDensityRange { get; set; } = new FloatRange(0f, 1.3f);
+        public FilterImportance PlantDensityImportance { get; set; } = FilterImportance.Ignored;
+
         // === TERRAIN & GEOGRAPHY FILTERS ===
 
         // Movement difficulty
@@ -183,6 +187,9 @@ namespace LandingZone.Data
 
             FishPopulationRange = new FloatRange(0f, 900f);
             FishPopulationImportance = FilterImportance.Ignored;
+
+            PlantDensityRange = new FloatRange(0f, 1.3f);
+            PlantDensityImportance = FilterImportance.Ignored;
 
             // Terrain & Geography
             MovementDifficultyRange = new FloatRange(0f, 2f);
