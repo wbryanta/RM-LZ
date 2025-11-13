@@ -229,7 +229,8 @@ namespace LandingZone.Core.UI
 
         public override void PreClose()
         {
-            PersistFilters();
+            // Both Default and Advanced modes modify FilterSettings directly - no persistence needed
+            // Old legacy code persisted local variables which would overwrite direct modifications
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -305,36 +306,40 @@ namespace LandingZone.Core.UI
 
         private void DrawAdvancedModeContent(Rect contentRect)
         {
-            // Existing full UI (will be replaced with AdvancedModeUI in Phase 2B)
-            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, _contentHeight);
+            // Use new AdvancedModeUI renderer (Phase 2B implementation)
+            var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
+
+            // Calculate height needed for content + buttons
+            var buttonAreaHeight = Prefs.DevMode ? 200f : 80f;
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1800f + buttonAreaHeight);
+
             Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
+
             var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
-            Text.Font = GameFont.Medium;
-            listing.Label("LandingZone Filters");
-            Text.Font = GameFont.Small;
+            // Render Advanced mode filters
+            var filterRect = new Rect(0f, 0f, viewRect.width, 1800f);
+            AdvancedModeUI.DrawContent(filterRect, preferences);
+
+            // Skip past the filter content
+            listing.GetRect(1800f);
+
+            listing.Gap(20f);
             listing.GapLine();
 
-            // Reorganized sections with active filter counts
-            DrawSection(listing, "Temperature", DrawTemperatureSection);
-            DrawSection(listing, "Climate & Environment", DrawClimateEnvironmentSection);
-            DrawSection(listing, "Terrain & Hilliness", DrawTerrainSection);
-            DrawSection(listing, "Geography & Hydrology", DrawGeographySection);
-            DrawSection(listing, "Resources & Grazing", DrawResourcesSection);
-            DrawSection(listing, "World Features", DrawWorldFeaturesSection);
-            DrawSection(listing, "Results", DrawResultsSection);
-
-            listing.Gap();
-            if (listing.ButtonText("Save filters"))
-            {
-                PersistFilters();
-            }
+            // Control buttons
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listing.Label("Changes are saved automatically");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            listing.Gap(4f);
 
             if (listing.ButtonText("Reset to defaults"))
             {
-                ResetFilters();
-                PersistFilters();
+                preferences.Filters.Reset();
+                Messages.Message("Filters reset to defaults", MessageTypeDefOf.NeutralEvent, false);
             }
 
             // Dev mode: Performance test button
