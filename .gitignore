@@ -19,6 +19,7 @@ Managed/*
 # Generated or internal files
 tasks.html
 scripts/tasks_api.py
+scripts/analyze_world_cache.py
 scripts/__pycache__/
 docs/rimworld-modding-context.md
 __pycache__/
