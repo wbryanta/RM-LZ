@@ -73,9 +73,20 @@ namespace LandingZone.Core.Filtering
 
             // Step 4: Compute upper bounds and create candidates
             var candidates = new List<CandidateTile>(maxCandidates);
+            var world = Find.World;
+            var worldGrid = world?.grid;
 
             for (int tileId = 0; tileId < _tileCount; tileId++)
             {
+                // Filter out unsettleable tiles (ocean, impassable biomes)
+                if (worldGrid != null)
+                {
+                    var tile = worldGrid[tileId];
+                    var biome = tile?.PrimaryBiome;
+                    if (biome == null || biome.impassable || world.Impassable(tileId))
+                        continue;
+                }
+
                 // Upper bound: assume this tile matches ALL heavy predicates
                 float critScoreUB = (totalCriticals == 0) ? 1f :
                     (_critCheapCount[tileId] + _heavyCriticalCount) / (float)totalCriticals;
