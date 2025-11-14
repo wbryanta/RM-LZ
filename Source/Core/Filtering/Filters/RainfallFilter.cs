@@ -26,5 +26,15 @@ namespace LandingZone.Core.Filtering.Filters
             var range = context.State.Preferences.Filters.RainfallRange;
             return $"Rainfall between {range.min:F0} and {range.max:F0}";
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var range = context.State.Preferences.Filters.RainfallRange;
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            // Trapezoid membership: perfect inside range, linear falloff outside
+            return MembershipFunctions.Trapezoid(tile.rainfall, range.min, range.max);
+        }
     }
 }

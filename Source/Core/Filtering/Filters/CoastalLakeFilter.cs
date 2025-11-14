@@ -62,5 +62,12 @@ namespace LandingZone.Core.Filtering.Filters
             // For now, always return false (disabled) until we can properly detect lakes
             return false;
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            // Binary membership: 1.0 if adjacent to lake, 0.0 if not
+            bool isLakeside = TileIsAdjacentToLake(tileId);
+            return MembershipFunctions.Binary(isLakeside);
+        }
     }
 }

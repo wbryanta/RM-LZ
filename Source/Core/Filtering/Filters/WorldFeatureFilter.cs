@@ -98,5 +98,28 @@ namespace LandingZone.Core.Filtering.Filters
 
             return tileFeatureMap;
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var filters = context.State.Preferences.Filters;
+            var requiredFeatureDefName = filters.RequiredFeatureDefName;
+
+            // Build feature lookup
+            var tileFeatureMap = BuildTileFeatureLookup();
+
+            // If no feature on this tile, no membership
+            if (!tileFeatureMap.TryGetValue(tileId, out var featureDefName))
+                return 0.0f;
+
+            // If specific feature required, check for exact match
+            if (!string.IsNullOrEmpty(requiredFeatureDefName))
+            {
+                bool matches = featureDefName == requiredFeatureDefName;
+                return MembershipFunctions.Binary(matches);
+            }
+
+            // If no specific feature required, any feature is good
+            return 1.0f;
+        }
     }
 }

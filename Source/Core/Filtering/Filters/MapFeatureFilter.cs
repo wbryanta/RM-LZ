@@ -127,5 +127,28 @@ namespace LandingZone.Core.Filtering.Filters
             // Sort with Caves first (most commonly used), then alphabetically
             return featureTypes.OrderBy(f => f == "Caves" ? "0" : f);
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var mapFeatures = context.State.Preferences.Filters.MapFeatures;
+
+            // If no features configured, no membership
+            if (!mapFeatures.HasAnyImportance)
+                return 0.0f;
+
+            var tileFeatures = GetTileMapFeatures(tileId).ToList();
+            if (!tileFeatures.Any())
+                return 0.0f; // No features on this tile
+
+            // Check if ANY of this tile's features are selected (have any importance)
+            foreach (var feature in tileFeatures)
+            {
+                var importance = mapFeatures.GetImportance(feature);
+                if (importance != FilterImportance.Ignored)
+                    return 1.0f; // At least one selected feature present
+            }
+
+            return 0.0f;
+        }
     }
 }

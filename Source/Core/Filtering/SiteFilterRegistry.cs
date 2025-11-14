@@ -85,7 +85,7 @@ namespace LandingZone.Core.Filtering
         /// <summary>
         /// Maps filter IDs to their importance settings in FilterSettings.
         /// </summary>
-        private static FilterImportance GetFilterImportance(string filterId, FilterSettings settings)
+        internal static FilterImportance GetFilterImportance(string filterId, FilterSettings settings)
         {
             return filterId switch
             {

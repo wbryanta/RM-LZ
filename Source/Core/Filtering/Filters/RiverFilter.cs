@@ -92,5 +92,26 @@ namespace LandingZone.Core.Filtering.Filters
                 .Where(r => r.degradeThreshold > 0) // Filter out "no river"
                 .OrderBy(r => r.degradeThreshold); // Order by size (stream -> river -> huge river)
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var rivers = context.State.Preferences.Filters.Rivers;
+
+            // If no rivers configured, no membership
+            if (!rivers.HasAnyImportance)
+                return 0.0f;
+
+            var riverDef = GetTileRiverDef(tileId);
+            if (riverDef == null)
+                return 0.0f; // No river on this tile
+
+            // Check if this river type is selected (has any importance)
+            var importance = rivers.GetImportance(riverDef.defName);
+            if (importance == FilterImportance.Ignored)
+                return 0.0f;
+
+            // Binary membership: 1.0 if ANY selected river present, 0.0 if not
+            return 1.0f;
+        }
     }
 }

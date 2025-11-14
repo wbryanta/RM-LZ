@@ -154,5 +154,30 @@ namespace LandingZone.Core.Filtering.Filters
             Log.Message($"[LandingZone] LandmarkFilter: Checked {tilesChecked} tiles, found {tilesWithLandmarks} with landmarks, {reflectionErrors} errors");
             return landmarkTiles;
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            // Binary membership: 1.0 if has landmark, 0.0 if not
+            bool hasLandmark = false;
+
+            try
+            {
+                var landmarkProp = tile.GetType().GetProperty("Landmark");
+                if (landmarkProp != null)
+                {
+                    var landmark = landmarkProp.GetValue(tile);
+                    hasLandmark = landmark != null;
+                }
+            }
+            catch
+            {
+                // If reflection fails, no landmark
+            }
+
+            return MembershipFunctions.Binary(hasLandmark);
+        }
     }
 }

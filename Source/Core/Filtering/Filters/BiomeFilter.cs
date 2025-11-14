@@ -28,5 +28,21 @@ namespace LandingZone.Core.Filtering.Filters
         {
             return context.State.Preferences.Filters.LockedBiome?.LabelCap ?? "Any biome";
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var targetBiome = context.State.Preferences.Filters.LockedBiome;
+
+            // If no biome locked, no membership constraint
+            if (targetBiome == null)
+                return 1.0f;
+
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            // Binary membership: 1.0 if biome matches, 0.0 if not
+            bool matches = tile.PrimaryBiome == targetBiome;
+            return MembershipFunctions.Binary(matches);
+        }
     }
 }

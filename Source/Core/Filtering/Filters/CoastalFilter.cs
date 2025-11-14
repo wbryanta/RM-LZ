@@ -35,5 +35,14 @@ namespace LandingZone.Core.Filtering.Filters
                 _ => "Coastal ignored"
             };
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            // Binary membership: 1.0 if coastal, 0.0 if not
+            return MembershipFunctions.Binary(tile.IsCoastal);
+        }
     }
 }

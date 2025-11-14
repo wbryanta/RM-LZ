@@ -47,5 +47,14 @@ namespace LandingZone.Core.Filtering.Filters
             string importanceLabel = filters.ElevationImportance == FilterImportance.Critical ? " (required)" : " (preferred)";
             return $"Elevation {range.min:F0}m - {range.max:F0}m{importanceLabel}";
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var range = context.State.Preferences.Filters.ElevationRange;
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            return MembershipFunctions.Trapezoid(tile.elevation, range.min, range.max);
+        }
     }
 }

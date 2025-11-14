@@ -10,12 +10,20 @@ namespace LandingZone.Data
         public bool HighlightMatches { get; set; } = true;
         public UIMode PreferencesUIMode { get; set; } = UIMode.Default;
 
+        /// <summary>
+        /// Enable new membership-based scoring system (fuzzy preferences).
+        /// Default: true (enabled for testing/validation).
+        /// Set to false to revert to legacy k-of-n binary scoring.
+        /// </summary>
+        public bool UseNewScoring { get; set; } = true;
+
         public void Reset()
         {
             AutoOpenWindow = true;
             LiveFiltering = true;
             HighlightMatches = true;
             PreferencesUIMode = UIMode.Default;
+            UseNewScoring = true;
         }
     }
 

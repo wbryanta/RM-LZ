@@ -112,5 +112,28 @@ namespace LandingZone.Core.Filtering.Filters
                 .Where(b => b.implemented && b.canBuildBase)
                 .OrderBy(b => b.label);
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var adjacentBiomes = context.State.Preferences.Filters.AdjacentBiomes;
+
+            // If no adjacent biomes configured, no membership
+            if (!adjacentBiomes.HasAnyImportance)
+                return 0.0f;
+
+            var neighborBiomes = GetAdjacentBiomeDefNames(tileId).ToList();
+            if (!neighborBiomes.Any())
+                return 0.0f; // No adjacent biomes found
+
+            // Check if ANY of this tile's adjacent biomes are selected (have any importance)
+            foreach (var biome in neighborBiomes)
+            {
+                var importance = adjacentBiomes.GetImportance(biome);
+                if (importance != FilterImportance.Ignored)
+                    return 1.0f; // At least one selected adjacent biome present
+            }
+
+            return 0.0f;
+        }
     }
 }

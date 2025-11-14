@@ -108,5 +108,22 @@ namespace LandingZone.Core.Filtering.Filters
 
             return foods.OrderBy(f => f.label);
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var filters = context.State.Preferences.Filters;
+            var requiredFoodDef = filters.ForageableFoodDefName;
+
+            // If no specific food required, use general forageability from cache
+            if (string.IsNullOrEmpty(requiredFoodDef))
+                return 0.0f;
+
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            // Binary membership: 1.0 if tile has the required forageable food, 0.0 if not
+            bool hasFood = TileHasForageableFood(tileId, tile.PrimaryBiome, requiredFoodDef);
+            return MembershipFunctions.Binary(hasFood);
+        }
     }
 }

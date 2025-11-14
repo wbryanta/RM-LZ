@@ -90,5 +90,28 @@ namespace LandingZone.Core.Filtering.Filters
                 .Where(r => r.priority > 0) // Filter out "no road"
                 .OrderBy(r => r.priority); // Order by priority (dirt road -> stone road -> asphalt road)
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var roads = context.State.Preferences.Filters.Roads;
+
+            // If no roads configured, no membership
+            if (!roads.HasAnyImportance)
+                return 0.0f;
+
+            var roadDefs = GetTileRoadDefs(tileId);
+            if (roadDefs == null || !roadDefs.Any())
+                return 0.0f; // No roads on this tile
+
+            // Check if ANY of this tile's roads are selected (have any importance)
+            foreach (var roadDef in roadDefs)
+            {
+                var importance = roads.GetImportance(roadDef.defName);
+                if (importance != FilterImportance.Ignored)
+                    return 1.0f; // At least one selected road present
+            }
+
+            return 0.0f;
+        }
     }
 }

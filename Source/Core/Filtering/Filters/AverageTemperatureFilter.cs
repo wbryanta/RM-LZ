@@ -45,5 +45,14 @@ namespace LandingZone.Core.Filtering.Filters
             string importanceLabel = filters.AverageTemperatureImportance == FilterImportance.Critical ? " (required)" : " (preferred)";
             return $"Average temp {range.min:F0}°C - {range.max:F0}°C{importanceLabel}";
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var range = context.State.Preferences.Filters.AverageTemperatureRange;
+            var tile = Find.World.grid[tileId];
+            if (tile == null) return 0.0f;
+
+            return MembershipFunctions.Trapezoid(tile.temperature, range.min, range.max);
+        }
     }
 }

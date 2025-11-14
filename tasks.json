@@ -7,14 +7,17 @@
     "notes": [
       "Clean slate rebuild for 0.1.0-beta release.",
       "Architecture validated: A- grade (90% aligned with vision).",
-      "Core systems complete: game cache SSOT, k-of-n filtering, lazy evaluation.",
-      "Focus: Polish existing systems, add missing filters, improve UX."
+      "Core systems complete: game cache SSOT, lazy evaluation, two-phase filtering.",
+      "Scoring evolution: Replacing binary k-of-n with continuous membership functions.",
+      "Focus: Membership scoring (6.5 days), polish UI, add missing filters."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
       "Two-phase filtering: Apply (hard Critical) → Score (soft Preferred)",
       "Lazy evaluation: expensive data only computed for survivors",
       "IndividualImportanceContainer: per-item importance (Granite=Critical, Marble=Preferred)",
+      "Membership scoring: Fuzzy preferences (trapezoid falloff) replace binary cutoffs",
+      "Score transparency: Users can inspect per-filter memberships and penalty impacts",
       "Quality over shortcuts: proper solutions, not hacks"
     ]
   },
@@ -25,6 +28,8 @@
       "critical_path": [
         "Stone filters completion",
         "Basic/Advanced UI mode",
+        "Membership scoring implementation (5.5 days)",
+        "Mutator quality scoring",
         "New filters (Animal/Fish)",
         "Filter validation updates",
         "Documentation cleanup"
@@ -72,6 +77,85 @@
         ],
         "blockers": [],
         "area": "UI/UX",
+        "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-SCORING-001",
+        "title": "Core membership layer for continuous scoring",
+        "priority": "P0 - Critical",
+        "estimate": "2 days",
+        "owner": "team",
+        "description": "Add continuous membership evaluation [0,1] to replace binary pass/fail. Implements trapezoid falloff for fuzzy preferences.",
+        "deliverables": [
+          "Add float Membership(int tileId, FilterContext context) to ISiteFilter interface",
+          "Implement trapezoid membership for 10 numeric filters (Rainfall, GrowingDays, Temperature ranges, etc.)",
+          "Implement distance-based membership for ordinal filters (Hilliness categories)",
+          "Implement binary 0/1 membership for boolean filters (Coastal, HasCave, etc.)",
+          "Keep existing Apply() method (parallel implementation for validation)",
+          "Document membership formulas in code comments (trapezoid: μ = 1/(1+d), margins: d^±_i = 0.3·range)"
+        ],
+        "blockers": [],
+        "area": "Scoring",
+        "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-SCORING-002",
+        "title": "Weighted aggregation system",
+        "priority": "P0 - Critical",
+        "estimate": "1.5 days",
+        "owner": "team",
+        "description": "Replace count-based aggregation with weighted membership sums. Core of new scoring architecture.",
+        "deliverables": [
+          "Add filter ranking properties to FilterSettings (auto-derive from declaration order initially)",
+          "Create MembershipAggregator (parallel to BitsetAggregator for now)",
+          "Add methods to ScoringWeights: ComputeGroupScore(memberships[], weights[]), ComputeWorstCritical(memberships[]), ComputePenalty(worstCrit, α_pen, γ_pen), ComputeGlobalWeights(n_C, n_P, critBase, prefBase, λ_mut)",
+          "Update FilterContext to provide membership access alongside bitsets",
+          "Replace int[] counts with float[] weighted sums"
+        ],
+        "blockers": ["LZ-SCORING-001"],
+        "area": "Scoring",
+        "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-SCORING-003",
+        "title": "Replace scoring formula with membership aggregation",
+        "priority": "P0 - Critical",
+        "estimate": "1 day",
+        "owner": "team",
+        "description": "Integrate membership scoring into FilterEvaluationJob. Implements user-modifying-mathed-math.md formula.",
+        "deliverables": [
+          "Update FilterService.FilterEvaluationJob.Step() with membership scoring",
+          "Compute S_C = Σ(w_i·μ_i)/Σ(w_i) for criticals (weighted average)",
+          "Compute S_P = Σ(w_j·μ_j)/Σ(w_j) for preferreds (weighted average)",
+          "Compute W_C = min{μ_i | i ∈ Critical} (worst critical miss)",
+          "Apply penalty: P_C = α_pen + (1-α_pen)·W_C^γ_pen",
+          "Compute global weights λ_C, λ_P based on counts (critBase=4, prefBase=1)",
+          "Final score: S = P_C · (λ_C·S_C + λ_P·S_P)",
+          "Add feature flag UseNewScoring to LandingZoneOptions (default: true)",
+          "Set default parameters: α_pen=0.1, γ_pen=2.0"
+        ],
+        "blockers": ["LZ-SCORING-002"],
+        "area": "Scoring",
+        "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-SCORING-004",
+        "title": "Membership scoring testing and validation",
+        "priority": "P0 - Critical",
+        "estimate": "1 day",
+        "owner": "team",
+        "description": "Validate new membership scoring against k-of-n baseline. Ensure quality improvement is measurable.",
+        "deliverables": [
+          "Run same world/filters through both k-of-n and membership systems",
+          "Compare top-20 results: score distributions, rank correlations",
+          "Performance profiling: memory usage (float[] vs BitArray), scoring speed",
+          "Edge case testing: no criticals, no preferreds, extreme ranges, over-constrained filters",
+          "Document findings in docs/SCORING_VALIDATION.md",
+          "Verify: membership handles 'near miss' gracefully (599mm vs 600mm min)",
+          "Verify: penalty term punishes worst critical appropriately"
+        ],
+        "blockers": ["LZ-SCORING-003"],
+        "area": "Scoring",
         "milestone": "0.1.0-beta"
       }
     ],
@@ -151,6 +235,25 @@
         ],
         "blockers": [],
         "area": "Documentation",
+        "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-SCORING-005",
+        "title": "Mutator quality-of-life scoring",
+        "priority": "P1 - High",
+        "estimate": "1 day",
+        "owner": "team",
+        "description": "Add intrinsic quality scoring from tile mutators. Geothermal vents are objectively good even if user didn't filter for them.",
+        "deliverables": [
+          "Create MutatorQualityRatings.cs with quality map (-10 to +10)",
+          "Rate 83 mutators: +10 (Geothermal, HotSprings, FertileLands), 0 (neutral), -10 (ToxicLake, AncientInfestedSettlement, Pollution_Increased)",
+          "Implement ComputeMutatorScore(mutators[]): Q_raw = Σ(quality_k), S_mut = 0.5·(1 + tanh(β·Q_raw)) where β≈0.25",
+          "Integrate S_mut into final score via λ_mut weight (default 0.1)",
+          "Test: Verify tile with geothermal ranks higher than identical tile without",
+          "Use canonical mutator list from game cache analysis SSoT file"
+        ],
+        "blockers": ["LZ-SCORING-003"],
+        "area": "Scoring",
         "milestone": "0.1.0-beta"
       }
     ],
@@ -239,6 +342,45 @@
         "blockers": [],
         "area": "UX",
         "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-SCORING-UI-001",
+        "title": "Mod settings for scoring parameters",
+        "priority": "P2 - Medium",
+        "estimate": "3-4 hours",
+        "owner": "team",
+        "description": "Expose tuning knobs in RimWorld Mod Settings menu. Complex math stays under the hood, but power users get control.",
+        "deliverables": [
+          "Add slider for α_pen (penalty floor): range 0.0-0.3, default 0.1, tooltip 'How much score survives worst critical miss'",
+          "Add slider for γ_pen (penalty sharpness): range 1.0-4.0, default 2.0, tooltip 'How harshly worst critical is punished'",
+          "Add slider for λ_mut (mutator weight): range 0.0-0.3, default 0.1, tooltip 'How much mutators influence score'",
+          "Add slider for fuzzy margin multiplier: range 0.5-2.0, default 1.0, tooltip 'Widens/narrows acceptable range for numeric filters'",
+          "Changes apply immediately to next search",
+          "Add 'Reset to defaults' button"
+        ],
+        "blockers": ["LZ-SCORING-003"],
+        "area": "UI/UX",
+        "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-SCORING-UI-002",
+        "title": "Score breakdown transparency UI",
+        "priority": "P2 - Medium",
+        "estimate": "4-5 hours",
+        "owner": "team",
+        "description": "Show per-filter memberships in results window. Users can see exactly why a tile scored high/low.",
+        "deliverables": [
+          "Add expandable 'Score Details' section to tile info panel in results window",
+          "Show critical filters with membership: 'Temperature: 0.9 ★★★★☆' (5-star visualization)",
+          "Show preferred filters with membership and contribution to score",
+          "Highlight worst critical: 'Growing season: 0.3 ⚠️ (penalty applied: -40%)'",
+          "Show mutator score contribution: 'Mutators: +0.05 (Geothermal +10, Polluted -5)'",
+          "Display final score formula with actual values: 'Score = 0.6 × (0.51×0.82 + 0.39×0.68 + 0.1×0.55) = 0.73'",
+          "Collapsible by default, expand on click"
+        ],
+        "blockers": ["LZ-SCORING-003"],
+        "area": "UI/UX",
+        "milestone": "0.2.0"
       }
     ],
     "p3_low": [
@@ -319,24 +461,24 @@
     ],
     "future": [
       {
-        "id": "LZ-SCORING-KOFN",
-        "title": "Implement k-of-n normalized scoring",
+        "id": "LZ-SCORING-UI-003",
+        "title": "Drag-and-drop filter ranking UI",
         "priority": "Future",
         "estimate": "6-8 hours",
         "owner": "team",
-        "description": "Replace fixed penalty scoring with k-of-n normalized scoring system from filter-scoring_architecture.md. Current scoring works well, this is optimization.",
-        "rationale": "Current system uses fixed penalties (-0.15 for Critical miss, -0.03 for Preferred miss). k-of-n would normalize scores across different filter counts for better ranking.",
+        "description": "UI for explicit filter priority ordering. Users drag filters to reorder, weights auto-update.",
         "deliverables": [
-          "Implement S_final = kappa * S_critical + (1-kappa) * S_preferred",
-          "Add CriticalStrictness slider (0.6-1.0 range) to allow k-of-n critical matching",
-          "Add TileScoreBreakdown tracking for transparency",
-          "Test with various filter combinations",
-          "Document scoring algorithm in comments"
+          "Create reorderable list widget for critical filters",
+          "Create reorderable list widget for preferred filters",
+          "Add visual rank indicators (1st, 2nd, 3rd...)",
+          "Weights auto-update on reorder: w_i = (n - r_i + 1)/n (linear decay)",
+          "Save rank order in FilterSettings per filter",
+          "Show weight preview as user drags: 'This filter will be 2.5× more important than bottom-ranked'",
+          "Add 'Reset to default order' button"
         ],
-        "blockers": [],
-        "area": "Scoring",
-        "milestone": "0.3.0",
-        "notes": "Nice-to-have optimization, not critical for 0.1.0-beta"
+        "blockers": ["LZ-SCORING-003"],
+        "area": "UI/UX",
+        "milestone": "0.3.0"
       },
       {
         "id": "LZ-MUTATOR-CATEGORIES",

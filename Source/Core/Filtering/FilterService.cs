@@ -260,6 +260,12 @@ namespace LandingZone.Core.Filtering
             private float _minInHeap;
             private float _currentStrictness; // Mutable strictness for auto-relax
 
+            // For membership scoring
+            private readonly List<ISiteFilter> _criticalFilters;
+            private readonly List<ISiteFilter> _preferredFilters;
+            private readonly float[] _criticalWeights;
+            private readonly float[] _preferredWeights;
+
             internal FilterEvaluationJob(FilterService owner, GameState state)
             {
                 _owner = owner;
@@ -292,6 +298,26 @@ namespace LandingZone.Core.Filtering
                 _totalPreferreds = cheapPreferreds + _heavyPreferreds.Count;
                 _kappa = ScoringWeights.ComputeKappa(_totalCriticals, _totalPreferreds);
                 _context = new FilterContext(state, owner._tileCache);
+
+                // Initialize membership scoring data structures
+                _criticalFilters = new List<ISiteFilter>();
+                _preferredFilters = new List<ISiteFilter>();
+
+                foreach (var filter in owner._registry.Filters)
+                {
+                    var importance = SiteFilterRegistry.GetFilterImportance(filter.Id, filters);
+
+                    if (importance == FilterImportance.Critical)
+                        _criticalFilters.Add(filter);
+                    else if (importance == FilterImportance.Preferred)
+                        _preferredFilters.Add(filter);
+                }
+
+                // For now, use equal weights (rank-based weighting comes in future UI)
+                _criticalWeights = Enumerable.Repeat(1f, _criticalFilters.Count).ToArray();
+                _preferredWeights = Enumerable.Repeat(1f, _preferredFilters.Count).ToArray();
+
+                Log.Message($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
 
                 var aggregator = new BitsetAggregator(
                     cheapPredicates,
@@ -399,28 +425,50 @@ namespace LandingZone.Core.Filtering
                     if (_best.Count >= _maxResults && candidate.UpperBound <= _minInHeap)
                         continue;
 
-                    // Check heavy predicates using cached bitsets
-                    int critHeavyMatches = CountMatches(_heavyCriticals, candidate.TileId);
-                    int prefHeavyMatches = CountMatches(_heavyPreferreds, candidate.TileId);
+                    float critScore, prefScore, penalty, finalScore;
 
-                    // Compute final scores
-                    int totalCritMatches = candidate.CritCheapMatches + critHeavyMatches;
-                    int totalPrefMatches = candidate.PrefCheapMatches + prefHeavyMatches;
-
-                    float critScore = ScoringWeights.NormalizeCriticalScore(totalCritMatches, _totalCriticals);
-                    float prefScore = ScoringWeights.NormalizePreferredScore(totalPrefMatches, _totalPreferreds);
-
-                    // Check strictness threshold
-                    if (critScore < _currentStrictness)
+                    // Check feature flag for scoring system
+                    if (_state.Preferences.Options.UseNewScoring)
                     {
-                        Log.Message($"[LandingZone] Tile {candidate.TileId}: Failed strictness check " +
-                                   $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
-                        continue;
+                        // NEW: Membership-based scoring
+                        (critScore, prefScore, penalty, finalScore) = ComputeMembershipScoreForTile(candidate.TileId);
+
+                        // Strictness check: critical score must meet threshold
+                        if (critScore < _currentStrictness)
+                        {
+                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
+                                       $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
+                            continue;
+                        }
+
+                        Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
+                                   $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
                     }
+                    else
+                    {
+                        // OLD: k-of-n binary scoring (legacy path)
+                        int critHeavyMatches = CountMatches(_heavyCriticals, candidate.TileId);
+                        int prefHeavyMatches = CountMatches(_heavyPreferreds, candidate.TileId);
 
-                    float finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
+                        int totalCritMatches = candidate.CritCheapMatches + critHeavyMatches;
+                        int totalPrefMatches = candidate.PrefCheapMatches + prefHeavyMatches;
 
-                    Log.Message($"[LandingZone] Tile {candidate.TileId}: critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
+                        critScore = ScoringWeights.NormalizeCriticalScore(totalCritMatches, _totalCriticals);
+                        prefScore = ScoringWeights.NormalizePreferredScore(totalPrefMatches, _totalPreferreds);
+
+                        // Strictness check
+                        if (critScore < _currentStrictness)
+                        {
+                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
+                                       $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
+                            continue;
+                        }
+
+                        finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
+                        penalty = 1.0f; // No penalty in k-of-n
+
+                        Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
+                    }
 
                     // Simplified breakdown for now
                     var breakdown = new MatchBreakdown(
@@ -498,6 +546,63 @@ namespace LandingZone.Core.Filtering
                         matches++;
                 }
                 return matches;
+            }
+
+            /// <summary>
+            /// Computes membership-based score for a tile using continuous fuzzy logic.
+            /// </summary>
+            private (float critScore, float prefScore, float penalty, float finalScore) ComputeMembershipScoreForTile(int tileId)
+            {
+                // Collect membership scores
+                float[] critMemberships = new float[_criticalFilters.Count];
+                for (int i = 0; i < _criticalFilters.Count; i++)
+                {
+                    critMemberships[i] = _criticalFilters[i].Membership(tileId, _context);
+                }
+
+                float[] prefMemberships = new float[_preferredFilters.Count];
+                for (int i = 0; i < _preferredFilters.Count; i++)
+                {
+                    prefMemberships[i] = _preferredFilters[i].Membership(tileId, _context);
+                }
+
+                // Compute group scores (weighted averages)
+                float critScore = ScoringWeights.ComputeGroupScore(critMemberships, _criticalWeights);
+                float prefScore = ScoringWeights.ComputeGroupScore(prefMemberships, _preferredWeights);
+
+                // Compute worst critical for penalty
+                float worstCrit = ScoringWeights.ComputeWorstCritical(critMemberships);
+
+                // Default penalty parameters (will be exposed in mod settings later)
+                const float alphaPen = 0.1f;  // 10% floor
+                const float gammaPen = 2.0f;  // Quadratic punishment
+                float penalty = ScoringWeights.ComputePenalty(worstCrit, alphaPen, gammaPen);
+
+                // Compute global weights
+                const float critBase = 4.0f;
+                const float prefBase = 1.0f;
+                const float mutatorWeight = 0.0f; // Mutator scoring comes in LZ-SCORING-005
+                var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
+                    _criticalFilters.Count,
+                    _preferredFilters.Count,
+                    critBase,
+                    prefBase,
+                    mutatorWeight
+                );
+
+                // Compute final membership score
+                float mutatorScore = 0.5f; // Neutral baseline until LZ-SCORING-005
+                float finalScore = ScoringWeights.ComputeMembershipScore(
+                    critScore,
+                    prefScore,
+                    mutatorScore,
+                    penalty,
+                    lambdaC,
+                    lambdaP,
+                    lambdaMut
+                );
+
+                return (critScore, prefScore, penalty, finalScore);
             }
 
             public float Progress

@@ -55,5 +55,12 @@ namespace LandingZone.Core.Filtering.Filters
             var planetTile = new PlanetTile(tileId, world.grid.Surface);
             return VirtualPlantsUtility.EnvironmentAllowsEatingVirtualPlantsNowAt(planetTile);
         }
+
+        public float Membership(int tileId, FilterContext context)
+        {
+            var extended = context.TileCache.GetOrCompute(tileId);
+            // Binary membership: 1.0 if can graze, 0.0 if not
+            return MembershipFunctions.Binary(extended.CanGrazeNow);
+        }
     }
 }
