@@ -38,68 +38,7 @@
       ]
     }
   },
-  "in_progress": [
-    {
-      "id": "LZ-FIX-TEMPERATURE-CF",
-      "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
-      "priority": "P1 - High",
-      "estimate": "1-2 hours",
-      "owner": "team",
-      "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
-      "deliverables": [
-        "Read RimWorld's Prefs.TemperatureMode setting",
-        "Update DefaultModeUI.cs temperature slider labels to show correct unit",
-        "Convert slider values on-the-fly for display (storage stays Celsius)",
-        "Update tooltips to match displayed unit",
-        "Test with all 3 temperature modes (C/F/K)",
-        "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
-      ],
-      "blockers": [],
-      "area": "UI",
-      "milestone": "0.1.1-beta",
-      "status": "in_progress"
-    },
-    {
-      "id": "LZ-FIX-BASIC-ROADS-RIVERS",
-      "title": "Add Rivers & Roads toggles to Basic interface",
-      "priority": "P1 - High",
-      "estimate": "1-2 hours",
-      "owner": "team",
-      "description": "Add simplified Rivers/Roads filters to Basic mode. Toggles enable ALL types (not per-type selection like Advanced mode).",
-      "deliverables": [
-        "Add 'Rivers (Any)' tri-state toggle to DefaultModeUI.cs",
-        "Add 'Roads (Any)' tri-state toggle to DefaultModeUI.cs",
-        "When set to Preferred/Critical, enable ALL types in FilterSettings.Rivers/Roads",
-        "Position after 'Coastal' toggle, before 'Growing Season' slider",
-        "Add tooltips: 'Any river type' / 'Any road type'",
-        "Test: Verify toggling enables all river/road types in filter results"
-      ],
-      "blockers": [],
-      "area": "UI",
-      "milestone": "0.1.1-beta",
-      "status": "in_progress"
-    },
-    {
-      "id": "LZ-FIX-STATUS-INFO",
-      "title": "Add total tiles and inhabitable tiles to status display",
-      "priority": "P1 - High",
-      "estimate": "1-2 hours",
-      "owner": "team",
-      "description": "Status area below buttons should show total world tiles and total inhabitable tiles for context. Found during testing (2025-11-13).",
-      "deliverables": [
-        "Add world tile count to status display: 'World: 156,231 tiles'",
-        "Add inhabitable tile count: '42,183 inhabitable (27%)'",
-        "Calculate inhabitable: tiles where biome != Ocean, SeaIce, Lake",
-        "Update DrawEvaluationStatus() in SelectStartingSiteButtonsPatch.cs",
-        "Format numbers with thousand separators for readability",
-        "Show this info when NOT evaluating (complementing progress/results)"
-      ],
-      "blockers": [],
-      "area": "UI",
-      "milestone": "0.1.1-beta",
-      "status": "in_progress"
-    }
-  ],
+  "in_progress": [],
   "todo": {
     "p0_critical": [],
     "p1_high": [
@@ -233,29 +172,6 @@
         "blockers": [],
         "area": "UX",
         "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-BOOKMARKS",
-        "title": "Bookmarks manager for favorite tiles",
-        "priority": "P2 - Medium",
-        "estimate": "8-10 hours",
-        "owner": "team",
-        "description": "Allow users to bookmark interesting tiles for later review. Bookmarks persist across sessions and show on world map.",
-        "deliverables": [
-          "Create BookmarkManager.cs service for CRUD operations",
-          "Create TileBookmark.cs data model (tile ID, name, notes, color, timestamp)",
-          "Add 'Bookmark This Tile' button to results window",
-          "Create bookmarks list window (show all, filter, sort, delete)",
-          "Add bookmark annotations to world map (colored markers with labels)",
-          "Persist bookmarks via Scribe in game save file",
-          "Add 'Jump to Bookmark' functionality",
-          "Support custom bookmark colors and categories",
-          "Add 'Export Bookmarks' (share with friends)"
-        ],
-        "blockers": [],
-        "area": "UX",
-        "milestone": "0.2.0",
-        "status": "todo"
       },
       {
         "id": "LZ-SCORING-UI-002",
@@ -411,6 +327,90 @@
     ]
   },
   "completed": [
+    {
+      "id": "LZ-BOOKMARKS",
+      "title": "Bookmarks manager for favorite tiles",
+      "priority": "P2 - Medium",
+      "estimate": "8-10 hours",
+      "owner": "team",
+      "description": "Allow users to bookmark interesting tiles for later review. Bookmarks persist across sessions and show on world map.",
+      "deliverables": [
+        "Create BookmarkManager.cs service for CRUD operations",
+        "Create TileBookmark.cs data model (tile ID, name, notes, color, timestamp)",
+        "Add 'Bookmark This Tile' button to results window",
+        "Create bookmarks list window (show all, filter, sort, delete)",
+        "Add bookmark annotations to world map (colored markers with labels)",
+        "Persist bookmarks via Scribe in game save file",
+        "Add 'Jump to Bookmark' functionality",
+        "Support custom bookmark colors and categories",
+        "Add 'Export Bookmarks' (share with friends)"
+      ],
+      "blockers": [],
+      "area": "UX",
+      "milestone": "0.2.0",
+      "status": "completed",
+      "completed": "2025-11-14"
+    },
+    {
+      "id": "LZ-FIX-STATUS-INFO",
+      "title": "Add total tiles and inhabitable tiles to status display",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Status area below buttons should show total world tiles and total inhabitable tiles for context. Found during testing (2025-11-13).",
+      "deliverables": [
+        "Add world tile count to status display: 'World: 156,231 tiles'",
+        "Add inhabitable tile count: '42,183 inhabitable (27%)'",
+        "Calculate inhabitable: tiles where biome != Ocean, SeaIce, Lake",
+        "Update DrawEvaluationStatus() in SelectStartingSiteButtonsPatch.cs",
+        "Format numbers with thousand separators for readability",
+        "Show this info when NOT evaluating (complementing progress/results)"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "completed"
+    },
+    {
+      "id": "LZ-FIX-BASIC-ROADS-RIVERS",
+      "title": "Add Rivers & Roads toggles to Basic interface",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Add simplified Rivers/Roads filters to Basic mode. Toggles enable ALL types (not per-type selection like Advanced mode).",
+      "deliverables": [
+        "Add 'Rivers (Any)' tri-state toggle to DefaultModeUI.cs",
+        "Add 'Roads (Any)' tri-state toggle to DefaultModeUI.cs",
+        "When set to Preferred/Critical, enable ALL types in FilterSettings.Rivers/Roads",
+        "Position after 'Coastal' toggle, before 'Growing Season' slider",
+        "Add tooltips: 'Any river type' / 'Any road type'",
+        "Test: Verify toggling enables all river/road types in filter results"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "completed"
+    },
+    {
+      "id": "LZ-FIX-TEMPERATURE-CF",
+      "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
+      "deliverables": [
+        "Read RimWorld's Prefs.TemperatureMode setting",
+        "Update DefaultModeUI.cs temperature slider labels to show correct unit",
+        "Convert slider values on-the-fly for display (storage stays Celsius)",
+        "Update tooltips to match displayed unit",
+        "Test with all 3 temperature modes (C/F/K)",
+        "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "completed"
+    },
     {
       "id": "LZ-DOCS-CLEANUP",
       "title": "Update documentation to reflect current reality",
