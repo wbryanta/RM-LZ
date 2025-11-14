@@ -181,6 +181,89 @@
         "milestone": "0.1.1-beta"
       },
       {
+        "id": "LZ-FIX-SCORING-WEIGHTS",
+        "title": "Implement 5 scoring weight presets in Mod Settings",
+        "priority": "P1 - High",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "Add dropdown in Mod Settings for 5 scoring weight presets. Provides user control over critical:preferred:bonus hierarchy. Default: 'Critical Focused' (10:3:1).",
+        "deliverables": [
+          "Create LandingZoneModSettings.cs extending ModSettings",
+          "Add ScoringWeightPreset enum with 5 presets:",
+          "  - Balanced (7:2:1): critBase=4.0, prefBase=1.0, mutWeight=0.1",
+          "  - Critical Focused (10:3:1): critBase=3.35, prefBase=1.0, mutWeight=0.071 [DEFAULT]",
+          "  - Strict Hierarchy (16:4:1): critBase=4.0, prefBase=1.0, mutWeight=0.05",
+          "  - Ultra Critical (20:4:1): critBase=5.0, prefBase=1.0, mutWeight=0.04",
+          "  - Precision Match (5:1:0): critBase=5.0, prefBase=1.0, mutWeight=0.0",
+          "Update FilterService.cs to read preset values instead of hardcoded constants",
+          "Add Mod Settings UI with dropdown + tooltips explaining each preset",
+          "Implement ExposeData() for persistence",
+          "Test: Verify switching presets changes scoring behavior"
+        ],
+        "blockers": [],
+        "area": "Scoring/Settings",
+        "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-FIX-TEMPERATURE-CF",
+        "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
+        "deliverables": [
+          "Read RimWorld's Prefs.TemperatureMode setting",
+          "Update DefaultModeUI.cs temperature slider labels to show correct unit",
+          "Convert slider values on-the-fly for display (storage stays Celsius)",
+          "Update tooltips to match displayed unit",
+          "Test with all 3 temperature modes (C/F/K)",
+          "Ensure conversion is accurate (C↔F: F = C×1.8+32)"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-FIX-BASIC-ROADS-RIVERS",
+        "title": "Add Rivers & Roads toggles to Basic interface",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Add simplified Rivers/Roads filters to Basic mode. Toggles enable ALL types (not per-type selection like Advanced mode).",
+        "deliverables": [
+          "Add 'Rivers (Any)' tri-state toggle to DefaultModeUI.cs",
+          "Add 'Roads (Any)' tri-state toggle to DefaultModeUI.cs",
+          "When set to Preferred/Critical, enable ALL types in FilterSettings.Rivers/Roads",
+          "Position after 'Coastal' toggle, before 'Growing Season' slider",
+          "Add tooltips: 'Any river type' / 'Any road type'",
+          "Test: Verify toggling enables all river/road types in filter results"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-FIX-LOGGING-LEVELS",
+        "title": "Add logging level control to Mod Settings",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Reduce log spam by adding Verbose/Standard/Brief logging levels. Default: Standard (reduces thousands of lines to ~10-20 per search).",
+        "deliverables": [
+          "Add LoggingLevel enum to LandingZoneModSettings.cs (Verbose/Standard/Brief)",
+          "Update tile-level logging in FilterService.cs:",
+          "  - Verbose: Log every tile evaluation (current behavior - floods log)",
+          "  - Standard: Log phase summaries only (~10-20 lines per search) [DEFAULT]",
+          "  - Brief: Log final results count and timing only (~3-5 lines)",
+          "Add Mod Settings dropdown with tooltip explaining each level",
+          "Test: Verify Standard reduces log output from 1000s of lines to ~10-20",
+          "Ensure critical errors still logged regardless of level"
+        ],
+        "blockers": [],
+        "area": "Infrastructure/Settings",
+        "milestone": "0.1.1-beta"
+      },
+      {
         "id": "LZ-FIX-STATUS-INFO",
         "title": "Add total tiles and inhabitable tiles to status display",
         "priority": "P1 - High",

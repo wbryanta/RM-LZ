@@ -122,8 +122,17 @@ namespace LandingZone.Core.UI
         {
             var filters = preferences.Filters;
 
-            // 1. Temperature
-            listing.Label($"Temperature: {filters.AverageTemperatureRange.min:F0}°C to {filters.AverageTemperatureRange.max:F0}°C");
+            // 1. Temperature (honor user's C/F preference)
+            bool useFahrenheit = LandingZoneMod.UseFahrenheit;
+            string tempUnit = useFahrenheit ? "°F" : "°C";
+            float displayMin = useFahrenheit
+                ? GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, TemperatureDisplayMode.Fahrenheit)
+                : filters.AverageTemperatureRange.min;
+            float displayMax = useFahrenheit
+                ? GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, TemperatureDisplayMode.Fahrenheit)
+                : filters.AverageTemperatureRange.max;
+
+            listing.Label($"Temperature: {displayMin:F0}{tempUnit} to {displayMax:F0}{tempUnit}");
             var tempRect = listing.GetRect(30f);
             var tempRange = filters.AverageTemperatureRange;
             DrawRangeSlider(tempRect, ref tempRange, -60f, 60f);
@@ -164,12 +173,24 @@ namespace LandingZone.Core.UI
             filters.CoastalImportance = coastalImportance;
             listing.Gap(10f);
 
-            // 5. Hilliness
+            // 5. Rivers (Any)
+            var riversImportance = GetAnyRiverImportance(filters.Rivers);
+            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Rivers (Any)", ref riversImportance);
+            SetAllRiversImportance(filters.Rivers, riversImportance);
+            listing.Gap(10f);
+
+            // 6. Roads (Any)
+            var roadsImportance = GetAnyRoadImportance(filters.Roads);
+            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Roads (Any)", ref roadsImportance);
+            SetAllRoadsImportance(filters.Roads, roadsImportance);
+            listing.Gap(10f);
+
+            // 7. Hilliness
             listing.Label("Terrain Hilliness:");
             DrawHillinessToggles(listing.GetRect(30f), filters);
             listing.Gap(10f);
 
-            // 6. Caves (via MapFeatures)
+            // 8. Caves (via MapFeatures)
             var caveImportance = filters.MapFeatures.GetImportance("Cave");
             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Caves", ref caveImportance);
             filters.MapFeatures.SetImportance("Cave", caveImportance);
@@ -314,6 +335,38 @@ namespace LandingZone.Core.UI
             }
 
             return FilterImportance.Ignored;
+        }
+
+        /// <summary>
+        /// Sets all river types to the specified importance level.
+        /// Used by Basic mode "Rivers (Any)" toggle.
+        /// </summary>
+        private static void SetAllRiversImportance(IndividualImportanceContainer<string> rivers, FilterImportance importance)
+        {
+            var allRivers = RiverFilter.GetAllRiverTypes().Select(r => r.defName);
+            foreach (var river in allRivers)
+            {
+                if (importance == FilterImportance.Ignored)
+                    rivers.ItemImportance.Remove(river);
+                else
+                    rivers.SetImportance(river, importance);
+            }
+        }
+
+        /// <summary>
+        /// Sets all road types to the specified importance level.
+        /// Used by Basic mode "Roads (Any)" toggle.
+        /// </summary>
+        private static void SetAllRoadsImportance(IndividualImportanceContainer<string> roads, FilterImportance importance)
+        {
+            var allRoads = RoadFilter.GetAllRoadTypes().Select(r => r.defName);
+            foreach (var road in allRoads)
+            {
+                if (importance == FilterImportance.Ignored)
+                    roads.ItemImportance.Remove(road);
+                else
+                    roads.SetImportance(road, importance);
+            }
         }
     }
 }

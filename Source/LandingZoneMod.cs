@@ -19,7 +19,7 @@ namespace LandingZone
         public LandingZoneMod(ModContentPack content) : base(content)
         {
             Instance = this;
-            Settings = GetSettings<LandingZoneSettings>();
+            Settings = GetSettings<LandingZoneModSettings>();
 
             var state = GameStateFactory.CreateDefault();
             _harmony = new Harmony("com.landingzone.mod");
@@ -32,22 +32,13 @@ namespace LandingZone
 
         public static LandingZoneMod Instance { get; private set; } = null!;
 
-        public LandingZoneSettings Settings { get; }
+        public LandingZoneModSettings Settings { get; }
 
         public override string SettingsCategory() => "LandingZone";
 
         public override void DoSettingsWindowContents(Rect inRect)
         {
-            var listing = new Listing_Standard();
-            listing.Begin(inRect);
-            listing.Label($"LandingZone {Version}");
-            listing.GapLine();
-            listing.CheckboxLabeled("Auto-run search when world loads", ref Settings.AutoRunSearchOnWorldLoad);
-            listing.Label($"Tiles processed per frame: {Settings.EvaluationChunkSize}");
-            Settings.EvaluationChunkSize = Mathf.RoundToInt(listing.Slider(Settings.EvaluationChunkSize, 50, 1000));
-            listing.Gap();
-            listing.Label("Lower values keep the UI snappier but take longer to finish.");
-            listing.End();
+            Settings.DoSettingsWindowContents(inRect);
         }
 
         public static bool UseFahrenheit => Prefs.TemperatureMode == TemperatureDisplayMode.Fahrenheit;

@@ -190,6 +190,10 @@ namespace LandingZone.Core.Filtering
             if (allCriticals.Count == 0)
                 return;
 
+            // Only show likelihood analysis in Standard or Verbose mode
+            if (LandingZoneModSettings.LogLevel > LoggingLevel.Standard)
+                return;
+
             Log.Message($"[LandingZone] === Match Likelihood Analysis ===");
 
             // Analyze selectivity of each critical filter
@@ -317,7 +321,10 @@ namespace LandingZone.Core.Filtering
                 _criticalWeights = Enumerable.Repeat(1f, _criticalFilters.Count).ToArray();
                 _preferredWeights = Enumerable.Repeat(1f, _preferredFilters.Count).ToArray();
 
-                Log.Message($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
+                if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                {
+                    Log.Message($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
+                }
 
                 var aggregator = new BitsetAggregator(
                     cheapPredicates,
@@ -329,13 +336,19 @@ namespace LandingZone.Core.Filtering
 
                 _candidates = aggregator.GetCandidates(_strictness, maxCandidates: 25000);
 
-                Log.Message($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
+                if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                {
+                    Log.Message($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
+                }
 
                 // Start incremental precomputation for all heavy predicates
                 _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
                 if (_heavyPredicateCount > 0)
                 {
-                    Log.Message($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
+                    if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                    {
+                        Log.Message($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
+                    }
                     foreach (var predicate in _heavyCriticals.Concat(_heavyPreferreds))
                     {
                         _heavyBitsets.StartPrecomputation(predicate, _context, _tileCount);
@@ -352,6 +365,10 @@ namespace LandingZone.Core.Filtering
 
             private static void LogActiveFilters(FilterSettings filters)
             {
+                // Only log filter configuration in Standard or Verbose mode
+                if (LandingZoneModSettings.LogLevel > LoggingLevel.Standard)
+                    return;
+
                 Log.Message($"[LandingZone] === Active Filter Configuration ===");
                 Log.Message($"[LandingZone] Strictness: {filters.CriticalStrictness:F2} (1.0 = all criticals required)");
                 Log.Message($"[LandingZone] MaxResults: {filters.MaxResults}");
@@ -436,13 +453,19 @@ namespace LandingZone.Core.Filtering
                         // Strictness check: critical score must meet threshold
                         if (critScore < _currentStrictness)
                         {
-                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
-                                       $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
+                            if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                            {
+                                Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
+                                           $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
+                            }
                             continue;
                         }
 
-                        Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
-                                   $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
+                        if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                        {
+                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
+                                       $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
+                        }
                     }
                     else
                     {
@@ -459,15 +482,21 @@ namespace LandingZone.Core.Filtering
                         // Strictness check
                         if (critScore < _currentStrictness)
                         {
-                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
-                                       $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
+                            if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                            {
+                                Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
+                                           $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
+                            }
                             continue;
                         }
 
                         finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
                         penalty = 1.0f; // No penalty in k-of-n
 
-                        Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
+                        if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                        {
+                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
+                        }
                     }
 
                     // Simplified breakdown for now
@@ -497,8 +526,11 @@ namespace LandingZone.Core.Filtering
                     // Auto-relax: If 0 results and strictness is 1.0, retry with relaxed strictness
                     if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalCriticals >= 2)
                     {
-                        Log.Warning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
-                        Log.Warning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
+                        if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                        {
+                            Log.Warning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
+                            Log.Warning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
+                        }
 
                         float relaxedStrictness = (_totalCriticals - 1) / (float)_totalCriticals;
 
@@ -510,7 +542,10 @@ namespace LandingZone.Core.Filtering
                         // Don't clear _heavyBitsets - we want to reuse the cached precomputed bitsets
 
                         // Continue processing (don't set _completed = true)
-                        Log.Message($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
+                        if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                        {
+                            Log.Message($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
+                        }
                         return false; // Not done yet, continue processing
                     }
 
@@ -520,12 +555,14 @@ namespace LandingZone.Core.Filtering
                     _stopwatch.Stop();
                     _completed = true;
 
+                    // Always show final results (Brief, Standard, Verbose)
                     if (_results.Count > 0 && _currentStrictness < 1.0f)
                     {
                         int requiredMatches = Mathf.CeilToInt(_totalCriticals * _currentStrictness);
                         Log.Message($"[LandingZone] 💡 No tiles matched all {_totalCriticals} criticals. Showing tiles matching {requiredMatches} of {_totalCriticals}.");
                     }
 
+                    // Final result summary (always shown)
                     LandingZoneContext.LogMessage($"K-of-N evaluation: {_results.Count} results, {_owner._tileCache.CachedCount} cached");
                     return true;
                 }
@@ -578,10 +615,8 @@ namespace LandingZone.Core.Filtering
                 const float gammaPen = 2.0f;  // Quadratic punishment
                 float penalty = ScoringWeights.ComputePenalty(worstCrit, alphaPen, gammaPen);
 
-                // Compute global weights
-                const float critBase = 4.0f;
-                const float prefBase = 1.0f;
-                const float mutatorWeight = 0.1f; // 10% weight for mutators
+                // Compute global weights from mod settings
+                var (critBase, prefBase, mutatorWeight) = LandingZoneModSettings.GetWeightValues();
                 var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
                     _criticalFilters.Count,
                     _preferredFilters.Count,
