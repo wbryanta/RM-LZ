@@ -77,8 +77,9 @@ namespace LandingZone.Core.UI
             var highlightRow = new Rect(rect.xMin + Gap, cursorY + ButtonSize.y + Gap, width - Gap * 2f, ButtonSize.y);
             DrawHighlightRow(highlightRow);
 
-            var statusRect = new Rect(highlightRow.x, highlightRow.yMax + 2f, highlightRow.width, 16f);
-            DrawEvaluationStatus(statusRect);
+            // Status/icons row: status on left, bookmark icons on right
+            var statusIconsRow = new Rect(highlightRow.x, highlightRow.yMax + 2f, highlightRow.width, 20f);
+            DrawStatusAndIcons(statusIconsRow);
 
             GenUI.AbsorbClicksInRect(rect);
         }
@@ -159,37 +160,51 @@ namespace LandingZone.Core.UI
         {
             var highlightState = LandingZoneContext.HighlightState;
             bool isShowing = highlightState?.ShowBestSites ?? false;
+
             const float navWidth = 44f;
-            const float prefsWidth = 153f;
+            const float filtersWidth = 80f;
+            const float topButtonWidth = 90f;
             const float innerGap = 6f;
+
+            // Top row: [ < ][ Search Landing Zones ][ Filters ][ Top (XX) ][ > ]
             var leftNavRect = new Rect(rect.x, rect.y, navWidth, rect.height);
             var rightNavRect = new Rect(rect.xMax - navWidth, rect.y, navWidth, rect.height);
-            var prefsRect = new Rect(rightNavRect.x - prefsWidth - innerGap, rect.y, prefsWidth, rect.height);
-            float buttonWidth = Mathf.Max(92f, prefsRect.x - innerGap - (leftNavRect.xMax + innerGap));
-            var buttonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, buttonWidth, rect.height);
+            var topButtonRect = new Rect(rightNavRect.x - topButtonWidth - innerGap, rect.y, topButtonWidth, rect.height);
+            var filtersRect = new Rect(topButtonRect.x - filtersWidth - innerGap, rect.y, filtersWidth, rect.height);
+            float searchButtonWidth = filtersRect.x - innerGap - (leftNavRect.xMax + innerGap);
+            var searchButtonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, searchButtonWidth, rect.height);
 
-            // Bookmark button removed - now in top row with Planet/Terrain tabs
-
+            // Search button (green when active)
             var prevColor = GUI.color;
             GUI.color = isShowing ? new Color(0.55f, 0.85f, 0.55f) : Color.white;
-            if (Widgets.ButtonText(buttonRect, "Search Landing Zones"))
+            if (Widgets.ButtonText(searchButtonRect, "Search Landing Zones"))
             {
                 if (highlightState != null)
                 {
-                    // Check if search will be expensive and show warning if needed
                     CheckComplexityAndStartSearch(highlightState);
                 }
             }
             GUI.color = prevColor;
-            TooltipHandler.TipRegion(buttonRect, "Search for best landing sites based on current filters");
+            TooltipHandler.TipRegion(searchButtonRect, "Search for best landing sites based on current filters");
 
-            string prefsLabel = $"LZ Prefs ({GetPresetDisplayName()})";
-            if (Widgets.ButtonText(prefsRect, prefsLabel))
+            // Filters button
+            if (Widgets.ButtonText(filtersRect, "Filters"))
             {
                 TogglePreferencesWindow();
             }
-            TooltipHandler.TipRegion(prefsRect, "Adjust LandingZone filter preferences");
+            TooltipHandler.TipRegion(filtersRect, "Adjust LandingZone filter preferences");
 
+            // Top (XX) button
+            int maxResults = LandingZoneContext.State?.Preferences?.Filters?.MaxResults ?? 20;
+            string topLabel = $"Top ({maxResults})";
+            if (Widgets.ButtonText(topButtonRect, topLabel))
+            {
+                // TODO: Open dialog to adjust MaxResults (could be a simple slider dialog)
+                Messages.Message("Max results control coming soon", MessageTypeDefOf.RejectInput, historical: false);
+            }
+            TooltipHandler.TipRegion(topButtonRect, $"Show top {maxResults} matches (click to adjust)");
+
+            // Navigation arrows
             DrawMatchNavigation(leftNavRect, rightNavRect);
         }
 
@@ -212,15 +227,27 @@ namespace LandingZone.Core.UI
             return isCustom ? "custom" : "default";
         }
 
-        private static void DrawEvaluationStatus(Rect rect)
+        private static void DrawStatusAndIcons(Rect rect)
         {
-            var statusRect = new Rect(rect.x, rect.y, rect.width, rect.height);
+            const float iconSize = 20f;
+            const float iconGap = 4f;
+
+            // Right side: icon buttons
+            float iconsWidth = iconSize * 2 + iconGap;
+            var iconsRect = new Rect(rect.xMax - iconsWidth, rect.y, iconsWidth, rect.height);
+            var bookmarkMgrIconRect = new Rect(iconsRect.xMax - iconSize, rect.y, iconSize, iconSize);
+            var bookmarkIconRect = new Rect(bookmarkMgrIconRect.x - iconSize - iconGap, rect.y, iconSize, iconSize);
+
+            // Left side: status text
+            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - 8f, rect.height);
+
+            // Draw status text
             var prevFont = Text.Font;
             Text.Font = GameFont.Tiny;
+            var prevColor = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, 0.85f);
             string status;
 
-            // Show tile cache precomputation status if in progress
             if (LandingZoneContext.IsTileCachePrecomputing)
             {
                 int percent = (int)(LandingZoneContext.TileCacheProgress * 100f);
@@ -249,8 +276,103 @@ namespace LandingZone.Core.UI
                 status = "No matches yet";
             }
             Widgets.Label(statusRect, status);
-            GUI.color = Color.white;
+            GUI.color = prevColor;
             Text.Font = prevFont;
+
+            // Draw bookmark toggle icon
+            DrawBookmarkIcon(bookmarkIconRect);
+
+            // Draw bookmark manager icon
+            DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+        }
+
+        private static void DrawBookmarkIcon(Rect rect)
+        {
+            int selectedTile = Find.WorldInterface.SelectedTile;
+            bool hasTileSelected = selectedTile >= 0 && selectedTile < Find.WorldGrid.TilesCount;
+
+            var manager = BookmarkManager.Get();
+            bool isBookmarked = hasTileSelected && manager != null && manager.IsBookmarked(selectedTile);
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            GUI.enabled = hasTileSelected && manager != null;
+
+            // Icon: ★ (filled star) when bookmarked (green), ☆ (empty star) when not (white)
+            if (isBookmarked)
+            {
+                GUI.color = new Color(0.4f, 1f, 0.4f); // Bright green
+            }
+            else if (!GUI.enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Dimmed
+            }
+            else
+            {
+                GUI.color = Color.white;
+            }
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            string icon = isBookmarked ? "★" : "☆";
+
+            if (Widgets.ButtonText(rect, icon, drawBackground: false))
+            {
+                if (manager != null && hasTileSelected)
+                {
+                    manager.ToggleBookmark(selectedTile);
+                    SoundDefOf.Click.PlayOneShotOnCamera();
+                }
+            }
+
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = hasTileSelected
+                ? (isBookmarked ? "Remove bookmark from this tile" : "Bookmark this tile for later reference")
+                : "Select a tile to bookmark it";
+            TooltipHandler.TipRegion(rect, tooltip);
+        }
+
+        private static void DrawBookmarkManagerIcon(Rect rect)
+        {
+            var manager = BookmarkManager.Get();
+            int bookmarkCount = manager?.Bookmarks?.Count ?? 0;
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+            GUI.enabled = bookmarkCount > 0;
+
+            if (!GUI.enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+            else
+            {
+                GUI.color = Color.white;
+            }
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
+            // Use ≡ (triple bar) icon for manager
+            if (Widgets.ButtonText(rect, "≡", drawBackground: false))
+            {
+                Messages.Message("Bookmark Manager coming soon", MessageTypeDefOf.RejectInput, historical: false);
+            }
+
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = bookmarkCount > 0
+                ? $"View and manage {bookmarkCount} bookmarked tiles"
+                : "No bookmarks yet - mark tiles to save them";
+            TooltipHandler.TipRegion(rect, tooltip);
         }
 
         private static void DrawMatchNavigation(Rect leftRect, Rect rightRect)
