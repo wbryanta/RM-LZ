@@ -75,19 +75,43 @@ namespace LandingZone.Core.UI
             var defaultRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
             var advancedRect = new Rect(startX + buttonWidth + spacing, rect.y + 5f, buttonWidth, 30f);
 
-            // Default button
+            // Default button - draw with visual highlight if active, but only switch if NOT already default
             var isDefault = currentMode == UIMode.Default;
-            if (Widgets.ButtonText(defaultRect, "Default", active: isDefault))
+
+            // Visual styling for active button
+            var prevColor = GUI.color;
+            if (isDefault)
             {
-                currentMode = UIMode.Default;
+                GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
             }
 
-            // Advanced button
-            var isAdvanced = currentMode == UIMode.Advanced;
-            if (Widgets.ButtonText(advancedRect, "Advanced", active: isAdvanced))
+            if (Widgets.ButtonText(defaultRect, "Default"))
             {
-                currentMode = UIMode.Advanced;
+                if (!isDefault)
+                {
+                    currentMode = UIMode.Default;
+                }
             }
+
+            GUI.color = prevColor;
+
+            // Advanced button - same pattern
+            var isAdvanced = currentMode == UIMode.Advanced;
+
+            if (isAdvanced)
+            {
+                GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
+            }
+
+            if (Widgets.ButtonText(advancedRect, "Advanced"))
+            {
+                if (!isAdvanced)
+                {
+                    currentMode = UIMode.Advanced;
+                }
+            }
+
+            GUI.color = prevColor;
         }
 
         private void DrawDefaultModeContent(Rect contentRect)

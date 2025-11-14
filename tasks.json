@@ -79,25 +79,6 @@
         "blockers": ["LZ-SCORING-003"],
         "area": "Scoring",
         "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-FIX-MODE-TOGGLE",
-        "title": "Fix Default/Advanced mode toggle buttons",
-        "priority": "P0 - Critical",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "User reports Default/Advanced buttons in LZ Prefs do nothing. Mode toggle not working. Found during testing (2025-11-13).",
-        "deliverables": [
-          "Investigate why mode toggle buttons are non-functional",
-          "Fix button click handlers to switch between Default/Advanced modes",
-          "Ensure mode preference persists correctly",
-          "Verify UI re-renders with correct mode filters",
-          "Test mode switching with various filter states",
-          "Add visual feedback for active mode (highlight/underline)"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.1.1-beta"
       }
     ],
     "p1_high": [
@@ -608,6 +589,13 @@
     ]
   },
   "completed": [
+    {
+      "id": "LZ-FIX-MODE-TOGGLE",
+      "title": "Fix Default/Advanced mode toggle buttons",
+      "completed": "2025-11-13",
+      "impact": "Fixed mode toggle buttons that were non-functional due to Widgets.ButtonText 'active' parameter preventing clicks. Removed 'active' parameter, added visual feedback (light green tint for active mode), added guard logic to prevent redundant switches. Mode now switches correctly between Default/Advanced with proper UI re-rendering.",
+      "area": "UI"
+    },
     {
       "id": "LZ-UI-MODE-FOUNDATION",
       "title": "Phase 1: Dual-mode UI foundation (Default/Advanced)",
