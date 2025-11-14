@@ -123,7 +123,7 @@ namespace LandingZone.Data
 
         // === RESULTS CONTROL ===
 
-        public const int DefaultMaxResults = 10;
+        public const int DefaultMaxResults = 20;
         public const int MaxResultsLimit = 25;
 
         private int _maxResults = DefaultMaxResults;

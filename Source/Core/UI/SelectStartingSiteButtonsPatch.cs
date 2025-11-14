@@ -160,17 +160,15 @@ namespace LandingZone.Core.UI
             var highlightState = LandingZoneContext.HighlightState;
             bool isShowing = highlightState?.ShowBestSites ?? false;
             const float navWidth = 44f;
-            const float bookmarkWidth = 80f;
             const float prefsWidth = 153f;
             const float innerGap = 6f;
             var leftNavRect = new Rect(rect.x, rect.y, navWidth, rect.height);
-            var bookmarkRect = new Rect(leftNavRect.xMax + innerGap, rect.y, bookmarkWidth, rect.height);
             var rightNavRect = new Rect(rect.xMax - navWidth, rect.y, navWidth, rect.height);
             var prefsRect = new Rect(rightNavRect.x - prefsWidth - innerGap, rect.y, prefsWidth, rect.height);
-            float buttonWidth = Mathf.Max(92f, prefsRect.x - innerGap - (bookmarkRect.xMax + innerGap));
-            var buttonRect = new Rect(bookmarkRect.xMax + innerGap, rect.y, buttonWidth, rect.height);
+            float buttonWidth = Mathf.Max(92f, prefsRect.x - innerGap - (leftNavRect.xMax + innerGap));
+            var buttonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, buttonWidth, rect.height);
 
-            DrawBookmarkToggleButton(bookmarkRect);
+            // Bookmark button removed - now in top row with Planet/Terrain tabs
 
             var prevColor = GUI.color;
             GUI.color = isShowing ? new Color(0.55f, 0.85f, 0.55f) : Color.white;

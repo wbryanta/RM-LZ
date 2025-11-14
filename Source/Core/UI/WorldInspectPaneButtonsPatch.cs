@@ -20,12 +20,14 @@ namespace LandingZone.Core.UI
         {
             // Use lineEndWidth to position our buttons correctly after vanilla tabs
             // This ensures we don't overlap with Planet/Terrain buttons
+            // rect.y is the correct y-coordinate for inline positioning
             float x = lineEndWidth + TabGap;
+            float y = rect.y;
 
             // Button 1: LZ Results (XX)
             int matchCount = LandingZoneContext.LastEvaluationCount;
             string resultsLabel = matchCount > 0 ? $"LZ Results ({matchCount})" : "LZ Results";
-            var resultsRect = new Rect(x, 0f, TabWidth, TabHeight);
+            var resultsRect = new Rect(x, y, TabWidth, TabHeight);
             TooltipHandler.TipRegion(resultsRect, "View LandingZone's ranked landing site matches");
 
             if (Widgets.ButtonText(resultsRect, resultsLabel))
@@ -35,12 +37,12 @@ namespace LandingZone.Core.UI
             x += TabWidth + TabGap;
 
             // Button 2: Bookmark (POI icon toggle)
-            var bookmarkRect = new Rect(x, 0f, BookmarkWidth, TabHeight);
+            var bookmarkRect = new Rect(x, y, BookmarkWidth, TabHeight);
             DrawBookmarkButton(bookmarkRect);
             x += BookmarkWidth + TabGap;
 
             // Button 3: Bookmark Manager (YY) - stub for future work
-            var bookmarkMgrRect = new Rect(x, 0f, TabWidth, TabHeight);
+            var bookmarkMgrRect = new Rect(x, y, TabWidth, TabHeight);
             DrawBookmarkManagerButton(bookmarkMgrRect);
             x += TabWidth + TabGap;
 
