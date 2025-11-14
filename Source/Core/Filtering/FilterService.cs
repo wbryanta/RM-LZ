@@ -191,7 +191,7 @@ namespace LandingZone.Core.Filtering
                 return;
 
             // Only show likelihood analysis in Standard or Verbose mode
-            if (LandingZoneModSettings.LogLevel > LoggingLevel.Standard)
+            if (LandingZoneSettings.LogLevel > LoggingLevel.Standard)
                 return;
 
             Log.Message($"[LandingZone] === Match Likelihood Analysis ===");
@@ -321,7 +321,7 @@ namespace LandingZone.Core.Filtering
                 _criticalWeights = Enumerable.Repeat(1f, _criticalFilters.Count).ToArray();
                 _preferredWeights = Enumerable.Repeat(1f, _preferredFilters.Count).ToArray();
 
-                if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                 {
                     Log.Message($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
                 }
@@ -336,7 +336,7 @@ namespace LandingZone.Core.Filtering
 
                 _candidates = aggregator.GetCandidates(_strictness, maxCandidates: 25000);
 
-                if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                 {
                     Log.Message($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
                 }
@@ -345,7 +345,7 @@ namespace LandingZone.Core.Filtering
                 _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
                 if (_heavyPredicateCount > 0)
                 {
-                    if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                    if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                     {
                         Log.Message($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
                     }
@@ -366,7 +366,7 @@ namespace LandingZone.Core.Filtering
             private static void LogActiveFilters(FilterSettings filters)
             {
                 // Only log filter configuration in Standard or Verbose mode
-                if (LandingZoneModSettings.LogLevel > LoggingLevel.Standard)
+                if (LandingZoneSettings.LogLevel > LoggingLevel.Standard)
                     return;
 
                 Log.Message($"[LandingZone] === Active Filter Configuration ===");
@@ -453,7 +453,7 @@ namespace LandingZone.Core.Filtering
                         // Strictness check: critical score must meet threshold
                         if (critScore < _currentStrictness)
                         {
-                            if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                            if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
                             {
                                 Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
                                            $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
@@ -461,7 +461,7 @@ namespace LandingZone.Core.Filtering
                             continue;
                         }
 
-                        if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                        if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
                         {
                             Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
                                        $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
@@ -482,7 +482,7 @@ namespace LandingZone.Core.Filtering
                         // Strictness check
                         if (critScore < _currentStrictness)
                         {
-                            if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                            if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
                             {
                                 Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
                                            $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
@@ -493,7 +493,7 @@ namespace LandingZone.Core.Filtering
                         finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
                         penalty = 1.0f; // No penalty in k-of-n
 
-                        if (LandingZoneModSettings.LogLevel == LoggingLevel.Verbose)
+                        if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
                         {
                             Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
                         }
@@ -526,7 +526,7 @@ namespace LandingZone.Core.Filtering
                     // Auto-relax: If 0 results and strictness is 1.0, retry with relaxed strictness
                     if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalCriticals >= 2)
                     {
-                        if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                        if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                         {
                             Log.Warning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
                             Log.Warning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
@@ -542,7 +542,7 @@ namespace LandingZone.Core.Filtering
                         // Don't clear _heavyBitsets - we want to reuse the cached precomputed bitsets
 
                         // Continue processing (don't set _completed = true)
-                        if (LandingZoneModSettings.LogLevel <= LoggingLevel.Standard)
+                        if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                         {
                             Log.Message($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
                         }
@@ -616,7 +616,7 @@ namespace LandingZone.Core.Filtering
                 float penalty = ScoringWeights.ComputePenalty(worstCrit, alphaPen, gammaPen);
 
                 // Compute global weights from mod settings
-                var (critBase, prefBase, mutatorWeight) = LandingZoneModSettings.GetWeightValues();
+                var (critBase, prefBase, mutatorWeight) = LandingZoneSettings.GetWeightValues();
                 var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
                     _criticalFilters.Count,
                     _preferredFilters.Count,

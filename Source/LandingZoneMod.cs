@@ -19,7 +19,7 @@ namespace LandingZone
         public LandingZoneMod(ModContentPack content) : base(content)
         {
             Instance = this;
-            Settings = GetSettings<LandingZoneModSettings>();
+            Settings = GetSettings<LandingZoneSettings>();
 
             var state = GameStateFactory.CreateDefault();
             _harmony = new Harmony("com.landingzone.mod");
@@ -32,7 +32,7 @@ namespace LandingZone
 
         public static LandingZoneMod Instance { get; private set; } = null!;
 
-        public LandingZoneModSettings Settings { get; }
+        public LandingZoneSettings Settings { get; }
 
         public override string SettingsCategory() => "LandingZone";
 
