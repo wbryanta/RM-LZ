@@ -17,6 +17,7 @@ namespace LandingZone
         public bool AutoRunSearchOnWorldLoad = false;
         public int EvaluationChunkSize = 250;
         public static MaxCandidateTilesLimit MaxCandidates = MaxCandidateTilesLimit.Standard;
+        public static bool AllowCancelSearch = true;
 
         // ===== SCORING WEIGHT PRESETS =====
 
@@ -53,6 +54,7 @@ namespace LandingZone
             Scribe_Values.Look(ref WeightPreset, "weightPreset", ScoringWeightPreset.CriticalFocused);
             Scribe_Values.Look(ref LogLevel, "logLevel", LoggingLevel.Standard);
             Scribe_Values.Look(ref MaxCandidates, "maxCandidates", MaxCandidateTilesLimit.Standard);
+            Scribe_Values.Look(ref AllowCancelSearch, "allowCancelSearch", true);
 
             // Clamp evaluation chunk size
             EvaluationChunkSize = Mathf.Clamp(EvaluationChunkSize, 50, 1000);
@@ -65,6 +67,10 @@ namespace LandingZone
 
             // Section: Performance Settings
             listingStandard.CheckboxLabeled("Auto-run search when world loads", ref AutoRunSearchOnWorldLoad);
+            listingStandard.CheckboxLabeled("Allow cancel search (show Stop button)", ref AllowCancelSearch);
+
+            listingStandard.Gap(8f);
+
             listingStandard.Label($"Tiles processed per frame: {EvaluationChunkSize}");
             EvaluationChunkSize = Mathf.RoundToInt(listingStandard.Slider(EvaluationChunkSize, 50, 1000));
             listingStandard.Gap(4f);

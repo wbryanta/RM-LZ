@@ -153,6 +153,21 @@ namespace LandingZone.Core
             return true;
         }
 
+        /// <summary>
+        /// Cancels the currently running evaluation job.
+        /// </summary>
+        public static void CancelEvaluation()
+        {
+            if (_activeJob != null)
+            {
+                LogMessage($"Search canceled by user at {(EvaluationProgress * 100f):F0}% progress.");
+                _activeJob = null;
+                IsEvaluating = false;
+                EvaluationProgress = 0f;
+                CurrentPhaseDescription = "";
+            }
+        }
+
         internal static void StepEvaluation()
         {
             if (_activeJob == null || Filters == null || State == null)

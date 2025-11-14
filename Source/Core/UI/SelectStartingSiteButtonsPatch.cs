@@ -256,8 +256,14 @@ namespace LandingZone.Core.UI
             var bookmarkMgrIconRect = new Rect(iconsRect.xMax - iconSize, rect.y, iconSize, iconSize);
             var bookmarkIconRect = new Rect(bookmarkMgrIconRect.x - iconSize - iconGap, rect.y, iconSize, iconSize);
 
+            // Stop button (between status text and icons, only when evaluating)
+            const float stopButtonWidth = 50f;
+            bool showStopButton = LandingZoneContext.IsEvaluating && LandingZoneSettings.AllowCancelSearch;
+            float stopButtonSpace = showStopButton ? stopButtonWidth + iconGap : 0f;
+            var stopButtonRect = new Rect(iconsRect.x - stopButtonSpace, rect.y, stopButtonWidth, rect.height);
+
             // Left side: status text
-            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - 8f, rect.height);
+            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - stopButtonSpace - 8f, rect.height);
 
             // Draw status text
             var prevFont = Text.Font;
@@ -297,11 +303,38 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
             Text.Font = prevFont;
 
+            // Draw Stop button when evaluating (if enabled)
+            if (showStopButton)
+            {
+                DrawStopButton(stopButtonRect);
+            }
+
             // Draw bookmark toggle icon
             DrawBookmarkIcon(bookmarkIconRect);
 
             // Draw bookmark manager icon
             DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+        }
+
+        private static void DrawStopButton(Rect rect)
+        {
+            var prevColor = GUI.color;
+            var prevFont = Text.Font;
+
+            // Dark red color
+            GUI.color = new Color(0.7f, 0.15f, 0.15f);
+            Text.Font = GameFont.Tiny;
+
+            if (Widgets.ButtonText(rect, "Stop", drawBackground: true, doMouseoverSound: true, active: true))
+            {
+                LandingZoneContext.CancelEvaluation();
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }
+
+            GUI.color = prevColor;
+            Text.Font = prevFont;
+
+            TooltipHandler.TipRegion(rect, "Cancel the current search");
         }
 
         private static void DrawBookmarkIcon(Rect rect)
