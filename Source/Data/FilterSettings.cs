@@ -225,7 +225,10 @@ namespace LandingZone.Data
             MaxResults = DefaultMaxResults;
 
             // Advanced Matching
-            CriticalStrictness = 1.0f;
+            // Note: With membership scoring, strictness should be 0.0 to allow fuzzy matching.
+            // The scoring system ranks tiles continuously rather than binary pass/fail.
+            // For k-of-n scoring (legacy), 1.0 means all critical filters must match.
+            CriticalStrictness = 0.0f;
         }
     }
 
