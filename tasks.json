@@ -1,15 +1,16 @@
 {
   "meta": {
-    "description": "LandingZone v0.1.0-beta development roadmap",
-    "version": "0.1.0-beta",
+    "description": "LandingZone v0.1.1-beta development roadmap",
+    "version": "0.1.1-beta",
     "last_updated": "2025-11-13",
     "forensic_analysis_date": "2025-11-13",
     "notes": [
-      "Clean slate rebuild for 0.1.0-beta release.",
-      "Architecture validated: A- grade (90% aligned with vision).",
-      "Core systems complete: game cache SSOT, lazy evaluation, two-phase filtering.",
-      "Scoring evolution: Replacing binary k-of-n with continuous membership functions.",
-      "Focus: Membership scoring (6.5 days), polish UI, add missing filters."
+      "v0.1.1-beta: Membership scoring system complete (commits 096d8c7, e15b486).",
+      "Architecture: A- grade - game cache SSOT, lazy evaluation, two-phase filtering.",
+      "Scoring: Fuzzy preference matching with continuous [0,1] memberships replaces k-of-n binary.",
+      "Mutators: Quality-of-life scoring (83 mutators rated -10 to +10) integrated.",
+      "UI: Default/Advanced mode toggle complete, stone selectors functional.",
+      "Ready for in-game validation testing (LZ-SCORING-004)."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -60,85 +61,6 @@
         "milestone": "0.1.0-beta"
       },
       {
-        "id": "LZ-UI-MODE-001",
-        "title": "Implement Basic/Advanced UI mode toggle",
-        "priority": "P0 - Critical",
-        "estimate": "4-6 hours",
-        "owner": "team",
-        "description": "CRITICAL UX improvement. Most users don't need 80+ filter controls. Split UI into Basic (10 essential filters) vs Advanced (full power).",
-        "rationale": "Forensic analysis identified this as critical blocker for casual users. Current UI is overwhelming for new players.",
-        "deliverables": [
-          "Add mode toggle button at top of LandingZonePreferencesWindow",
-          "Basic mode shows: Biome, AvgTemp range, Growing season, Rainfall range, Coastal yes/no, Rivers yes/no, Hilliness checkboxes, Stones (simplified), Caves yes/no, Roads yes/no",
-          "Advanced mode shows: All current sections (separate temps, all stones, all mutators, etc.)",
-          "Store mode preference in UserPreferences",
-          "Mode switch preserves all configured values",
-          "Update section rendering logic with if (mode == Basic) conditionals"
-        ],
-        "blockers": [],
-        "area": "UI/UX",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-SCORING-001",
-        "title": "Core membership layer for continuous scoring",
-        "priority": "P0 - Critical",
-        "estimate": "2 days",
-        "owner": "team",
-        "description": "Add continuous membership evaluation [0,1] to replace binary pass/fail. Implements trapezoid falloff for fuzzy preferences.",
-        "deliverables": [
-          "Add float Membership(int tileId, FilterContext context) to ISiteFilter interface",
-          "Implement trapezoid membership for 10 numeric filters (Rainfall, GrowingDays, Temperature ranges, etc.)",
-          "Implement distance-based membership for ordinal filters (Hilliness categories)",
-          "Implement binary 0/1 membership for boolean filters (Coastal, HasCave, etc.)",
-          "Keep existing Apply() method (parallel implementation for validation)",
-          "Document membership formulas in code comments (trapezoid: μ = 1/(1+d), margins: d^±_i = 0.3·range)"
-        ],
-        "blockers": [],
-        "area": "Scoring",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-SCORING-002",
-        "title": "Weighted aggregation system",
-        "priority": "P0 - Critical",
-        "estimate": "1.5 days",
-        "owner": "team",
-        "description": "Replace count-based aggregation with weighted membership sums. Core of new scoring architecture.",
-        "deliverables": [
-          "Add filter ranking properties to FilterSettings (auto-derive from declaration order initially)",
-          "Create MembershipAggregator (parallel to BitsetAggregator for now)",
-          "Add methods to ScoringWeights: ComputeGroupScore(memberships[], weights[]), ComputeWorstCritical(memberships[]), ComputePenalty(worstCrit, α_pen, γ_pen), ComputeGlobalWeights(n_C, n_P, critBase, prefBase, λ_mut)",
-          "Update FilterContext to provide membership access alongside bitsets",
-          "Replace int[] counts with float[] weighted sums"
-        ],
-        "blockers": ["LZ-SCORING-001"],
-        "area": "Scoring",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-SCORING-003",
-        "title": "Replace scoring formula with membership aggregation",
-        "priority": "P0 - Critical",
-        "estimate": "1 day",
-        "owner": "team",
-        "description": "Integrate membership scoring into FilterEvaluationJob. Implements user-modifying-mathed-math.md formula.",
-        "deliverables": [
-          "Update FilterService.FilterEvaluationJob.Step() with membership scoring",
-          "Compute S_C = Σ(w_i·μ_i)/Σ(w_i) for criticals (weighted average)",
-          "Compute S_P = Σ(w_j·μ_j)/Σ(w_j) for preferreds (weighted average)",
-          "Compute W_C = min{μ_i | i ∈ Critical} (worst critical miss)",
-          "Apply penalty: P_C = α_pen + (1-α_pen)·W_C^γ_pen",
-          "Compute global weights λ_C, λ_P based on counts (critBase=4, prefBase=1)",
-          "Final score: S = P_C · (λ_C·S_C + λ_P·S_P)",
-          "Add feature flag UseNewScoring to LandingZoneOptions (default: true)",
-          "Set default parameters: α_pen=0.1, γ_pen=2.0"
-        ],
-        "blockers": ["LZ-SCORING-002"],
-        "area": "Scoring",
-        "milestone": "0.1.0-beta"
-      },
-      {
         "id": "LZ-SCORING-004",
         "title": "Membership scoring testing and validation",
         "priority": "P0 - Critical",
@@ -161,63 +83,6 @@
     ],
     "p1_high": [
       {
-        "id": "LZ-FILTER-ANIMAL",
-        "title": "Add AnimalDensity filter",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Add filter for tile.AnimalDensity (0-6.5 range). Properties already in FilterSettings (AnimalDensityRange, AnimalDensityImportance).",
-        "deliverables": [
-          "Create AnimalDensityFilter.cs (Light heaviness, uses game cache)",
-          "Register in FilterService constructor",
-          "Add to SiteFilterRegistry.GetFilterImportance() mapping",
-          "Add UI slider in Resources section (if not already present)",
-          "Test with various animal density ranges"
-        ],
-        "blockers": [],
-        "area": "Filtering",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-FILTER-FISH",
-        "title": "Add FishPopulation filter",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Add filter for tile.MaxFishPopulation (0-900 range). Properties already in FilterSettings (FishPopulationRange, FishPopulationImportance).",
-        "deliverables": [
-          "Create FishPopulationFilter.cs (Light heaviness, uses game cache)",
-          "Register in FilterService constructor",
-          "Add to SiteFilterRegistry.GetFilterImportance() mapping",
-          "Add UI slider in Resources section (if not already present)",
-          "Test with coastal/river tiles"
-        ],
-        "blockers": [],
-        "area": "Filtering",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-VALIDATION-001",
-        "title": "Update FilterValidator for IndividualImportanceContainer",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "FilterValidator has TODO about updating validation for IndividualImportanceContainer. Need to aggregate Critical/Preferred counts from containers.",
-        "current_state": "Lines 80-84 in FilterValidator.cs have commented-out validation for containers.",
-        "deliverables": [
-          "Add validation for Rivers container (check HasCritical/HasPreferred)",
-          "Add validation for Roads container",
-          "Add validation for Stones container",
-          "Add validation for MapFeatures container",
-          "Add validation for AdjacentBiomes container",
-          "Update critical filter count logic in ValidateFilterCombinations()",
-          "Test validation with various container configurations"
-        ],
-        "blockers": [],
-        "area": "Validation",
-        "milestone": "0.1.0-beta"
-      },
-      {
         "id": "LZ-DOCS-CLEANUP",
         "title": "Update documentation to reflect current reality",
         "priority": "P1 - High",
@@ -235,25 +100,6 @@
         ],
         "blockers": [],
         "area": "Documentation",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-SCORING-005",
-        "title": "Mutator quality-of-life scoring",
-        "priority": "P1 - High",
-        "estimate": "1 day",
-        "owner": "team",
-        "description": "Add intrinsic quality scoring from tile mutators. Geothermal vents are objectively good even if user didn't filter for them.",
-        "deliverables": [
-          "Create MutatorQualityRatings.cs with quality map (-10 to +10)",
-          "Rate 83 mutators: +10 (Geothermal, HotSprings, FertileLands), 0 (neutral), -10 (ToxicLake, AncientInfestedSettlement, Pollution_Increased)",
-          "Implement ComputeMutatorScore(mutators[]): Q_raw = Σ(quality_k), S_mut = 0.5·(1 + tanh(β·Q_raw)) where β≈0.25",
-          "Integrate S_mut into final score via λ_mut weight (default 0.1)",
-          "Test: Verify tile with geothermal ranks higher than identical tile without",
-          "Use canonical mutator list from game cache analysis SSoT file"
-        ],
-        "blockers": ["LZ-SCORING-003"],
-        "area": "Scoring",
         "milestone": "0.1.0-beta"
       }
     ],
@@ -542,6 +388,48 @@
       "completed": "2025-11-13",
       "impact": "Removed TemperatureRange, individual stone properties, RequiredStoneDefNames, RiverImportance, RoadImportance, etc. Deleted TemperatureFilter, IndividualStoneFilter, SpecificStoneFilter, StoneCountFilter.",
       "area": "Cleanup"
+    },
+    {
+      "id": "LZ-UI-MODE-001",
+      "title": "Phase 2A: Default mode UI implementation",
+      "completed": "2025-11-13",
+      "impact": "Implemented Default mode UI with 8 essential filters. Created AdvancedModeUI with all 16 filters including multi-select containers. Stone selectors working in Advanced mode with per-stone importance. UI mode toggle functional with mode-specific rendering. Commit: 096d8c7",
+      "area": "UI"
+    },
+    {
+      "id": "LZ-SCORING-001",
+      "title": "Create MembershipFunctions utility library",
+      "completed": "2025-11-13",
+      "impact": "Created MembershipFunctions.cs with trapezoid (numeric ranges), distance decay, binary, and ordinal category membership functions. Foundation for fuzzy preference matching. 141 LOC. Commit: 096d8c7",
+      "area": "Scoring"
+    },
+    {
+      "id": "LZ-SCORING-002",
+      "title": "Add Membership() to ISiteFilter and all 16 filters",
+      "completed": "2025-11-13",
+      "impact": "Added Membership() method signature to ISiteFilter interface. Implemented in all 16 filters: trapezoid for numeric ranges (Rainfall, Temperature, Elevation, etc.), binary for boolean checks (Coastal, HasCave, etc.), set-based for multi-select containers (Rivers, Roads, Biomes, etc.). Enables continuous [0,1] scoring. Commit: 096d8c7",
+      "area": "Scoring"
+    },
+    {
+      "id": "LZ-SCORING-003",
+      "title": "Integrate membership scoring into FilterService",
+      "completed": "2025-11-13",
+      "impact": "Added ScoringWeights methods: ComputeGroupScore, ComputeWorstCritical, ComputePenalty, ComputeGlobalWeights, ComputeMembershipScore. Integrated into FilterEvaluationJob with feature flag (UseNewScoring). Complete pipeline: collect memberships → group scores (S_C, S_P) → penalty term (P_C) → global weights (λ_C, λ_P, λ_mut) → final score. Replaces k-of-n binary matching with fuzzy preferences. Commit: 096d8c7",
+      "area": "Scoring"
+    },
+    {
+      "id": "LZ-SCORING-005",
+      "title": "Mutator quality scoring integration",
+      "completed": "2025-11-13",
+      "impact": "Created MutatorQualityRatings.cs with 83 mutators rated -10 (very bad) to +10 (very good). ComputeMutatorScore() uses tanh squashing: S_mut = 0.5 × (1 + tanh(0.25 × Q_raw)). Integrated into membership scoring with λ_mut = 0.1 weight. Geothermal vents, fertile soil boost scores; toxic lakes, lava craters reduce scores. Made MapFeatureFilter.GetTileMapFeatures() internal for access. 184 LOC. Commit: e15b486",
+      "area": "Scoring"
+    },
+    {
+      "id": "LZ-VALIDATION-001",
+      "title": "Update FilterValidator for IndividualImportanceContainer",
+      "completed": "2025-11-13",
+      "impact": "Fixed FilterValidator.cs to use CountByImportance(FilterImportance.Critical/Preferred) methods instead of non-existent CriticalCount/PreferredCount properties. Added comprehensive counting logic for Rivers, Roads, Stones, MapFeatures, AdjacentBiomes, WorldFeatures. Build clean: 0 errors, 0 warnings. Commit: 096d8c7",
+      "area": "Validation"
     }
   ],
   "areas": {
