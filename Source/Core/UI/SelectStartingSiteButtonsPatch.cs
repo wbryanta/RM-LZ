@@ -396,9 +396,12 @@ namespace LandingZone.Core.UI
 
             var prevEnabled = GUI.enabled;
             var prevColor = GUI.color;
-            GUI.enabled = bookmarkCount > 0;
 
-            if (!GUI.enabled)
+            // Always enable button, but tooltip shows different message
+            GUI.enabled = true;
+
+            // Dim icon when no bookmarks
+            if (bookmarkCount == 0)
             {
                 GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
             }
@@ -413,7 +416,8 @@ namespace LandingZone.Core.UI
             // Use ≡ (triple bar) icon for manager
             if (Widgets.ButtonText(rect, "≡", drawBackground: false))
             {
-                Messages.Message("Bookmark Manager coming soon", MessageTypeDefOf.RejectInput, historical: false);
+                Find.WindowStack.Add(new BookmarkManagerWindow());
+                SoundDefOf.Click.PlayOneShotOnCamera();
             }
 
             Text.Anchor = TextAnchor.UpperLeft;
@@ -423,7 +427,7 @@ namespace LandingZone.Core.UI
 
             string tooltip = bookmarkCount > 0
                 ? $"View and manage {bookmarkCount} bookmarked tiles"
-                : "No bookmarks yet - mark tiles to save them";
+                : "Open bookmark manager (no bookmarks yet)";
             TooltipHandler.TipRegion(rect, tooltip);
         }
 

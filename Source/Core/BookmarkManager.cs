@@ -109,9 +109,32 @@ namespace LandingZone.Core
             }
             else
             {
-                AddBookmark(tileId, defaultColor ?? BookmarkColors.Yellow);
+                AddBookmark(tileId, defaultColor ?? BookmarkColors.Red);
                 return true; // Added
             }
+        }
+
+        /// <summary>
+        /// Updates an existing bookmark's properties.
+        /// </summary>
+        public bool UpdateBookmark(int tileId, string label = null, string notes = null, Color? color = null, bool? showTitleOnGlobe = null)
+        {
+            var bookmark = GetBookmark(tileId);
+            if (bookmark == null)
+                return false;
+
+            if (label != null)
+                bookmark.Label = label;
+            if (notes != null)
+                bookmark.Notes = notes;
+            if (color.HasValue)
+                bookmark.MarkerColor = color.Value;
+            if (showTitleOnGlobe.HasValue)
+                bookmark.ShowTitleOnGlobe = showTitleOnGlobe.Value;
+
+            Log.Message($"[LandingZone] Updated bookmark for tile {tileId}");
+            WorldLayerBookmarks.MarkDirty();
+            return true;
         }
 
         public override void ExposeData()

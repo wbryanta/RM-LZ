@@ -16,9 +16,15 @@ namespace LandingZone.Core
         private static readonly Material BookmarkMaterial;
         private static Mesh _cachedMesh;
         private static bool _meshDirty = true;
+        private static float _lastAltitude = -1f;
 
-        private const float MarkerSize = 0.5f; // Size of the marker in world units
+        private const float BaseMarkerSize = 0.5f; // Base size of the marker in world units
         private const float MarkerHeight = 0.015f; // Height above world surface
+        private const float MinZoomScale = 0.4f; // Minimum scale when zoomed out
+        private const float MaxZoomScale = 1.5f; // Maximum scale when zoomed in
+        private const float MinAltitude = 80f; // Camera altitude for max zoom in (markers largest)
+        private const float MaxAltitude = 250f; // Camera altitude for max zoom out (markers smallest)
+        private const float AltitudeChangeThreshold = 5f; // Only regenerate mesh if altitude changes by this much
 
         static WorldLayerBookmarks()
         {
@@ -51,11 +57,16 @@ namespace LandingZone.Core
             if (worldGrid == null)
                 return;
 
-            // Regenerate mesh if needed
-            if (_meshDirty || _cachedMesh == null)
+            // Check if zoom level changed significantly
+            float currentAltitude = Find.WorldCameraDriver.altitude;
+            bool altitudeChanged = Mathf.Abs(currentAltitude - _lastAltitude) > AltitudeChangeThreshold;
+
+            // Regenerate mesh if needed (bookmarks changed or zoom changed)
+            if (_meshDirty || _cachedMesh == null || altitudeChanged)
             {
-                RegenerateMesh(manager, worldGrid);
+                RegenerateMesh(manager, worldGrid, currentAltitude);
                 _meshDirty = false;
+                _lastAltitude = currentAltitude;
             }
 
             // Draw the mesh
@@ -63,9 +74,100 @@ namespace LandingZone.Core
             {
                 Graphics.DrawMesh(_cachedMesh, Matrix4x4.identity, BookmarkMaterial, 0);
             }
+
+            // Draw labels for bookmarks with ShowTitleOnGlobe enabled
+            DrawBookmarkLabels(manager, worldGrid, currentAltitude);
         }
 
-        private static void RegenerateMesh(BookmarkManager manager, WorldGrid worldGrid)
+        /// <summary>
+        /// Calculates marker scale based on camera altitude (zoom level).
+        /// Returns a value between MinZoomScale and MaxZoomScale.
+        /// </summary>
+        private static float CalculateZoomScale(float altitude)
+        {
+            // Clamp altitude to our zoom range
+            float clampedAltitude = Mathf.Clamp(altitude, MinAltitude, MaxAltitude);
+
+            // Invert: lower altitude (zoomed in) = larger scale
+            float t = (clampedAltitude - MinAltitude) / (MaxAltitude - MinAltitude);
+            float scale = Mathf.Lerp(MaxZoomScale, MinZoomScale, t);
+
+            return scale;
+        }
+
+        /// <summary>
+        /// Draws text labels for bookmarks that have ShowTitleOnGlobe enabled.
+        /// Also handles tooltips (notes if title visible, title if title hidden).
+        /// </summary>
+        private static void DrawBookmarkLabels(BookmarkManager manager, WorldGrid worldGrid, float altitude)
+        {
+            // Calculate text scale based on zoom
+            float zoomScale = CalculateZoomScale(altitude);
+            float textScale = Mathf.Lerp(0.7f, 1.2f, zoomScale / MaxZoomScale); // Scale text size with zoom
+
+            // Save current GUI state
+            var prevFont = Text.Font;
+            var prevAnchor = Text.Anchor;
+            var prevColor = GUI.color;
+
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
+            foreach (var bookmark in manager.Bookmarks)
+            {
+                if (bookmark.TileId < 0 || bookmark.TileId >= worldGrid.TilesCount)
+                    continue;
+
+                // Get world position for this tile
+                Vector3 tileCenter = worldGrid.GetTileCenter(bookmark.TileId);
+                Vector3 screenPos = GenWorldUI.WorldToUIPosition(tileCenter);
+
+                // Offset text above the marker
+                float yOffset = -20f * zoomScale; // Offset scales with zoom
+                screenPos.y += yOffset;
+
+                // Draw label if ShowTitleOnGlobe is enabled and label is not empty
+                if (bookmark.ShowTitleOnGlobe && !string.IsNullOrWhiteSpace(bookmark.Label))
+                {
+                    // Calculate label rect
+                    float labelWidth = Text.CalcSize(bookmark.Label).x * textScale;
+                    float labelHeight = 20f * textScale;
+                    Rect labelRect = new Rect(screenPos.x - labelWidth / 2f, screenPos.y - labelHeight / 2f, labelWidth, labelHeight);
+
+                    // Draw text with outline for visibility
+                    GUI.color = Color.black;
+                    Widgets.Label(labelRect.ExpandedBy(1f), bookmark.Label);
+                    GUI.color = bookmark.MarkerColor;
+                    Widgets.Label(labelRect, bookmark.Label);
+
+                    // Tooltip: Show notes if available
+                    if (!string.IsNullOrWhiteSpace(bookmark.Notes))
+                    {
+                        TooltipHandler.TipRegion(labelRect, bookmark.Notes);
+                    }
+                }
+                else
+                {
+                    // Title not shown on globe - create invisible tooltip region over marker
+                    float markerSize = BaseMarkerSize * zoomScale * 25f; // Convert to screen space
+                    Rect markerRect = new Rect(screenPos.x - markerSize / 2f, screenPos.y - markerSize / 2f, markerSize, markerSize);
+
+                    // Tooltip: Show title (or coordinates if no title)
+                    string tooltipText = !string.IsNullOrWhiteSpace(bookmark.Label)
+                        ? bookmark.Label
+                        : $"Tile {bookmark.TileId}";
+
+                    TooltipHandler.TipRegion(markerRect, tooltipText);
+                }
+            }
+
+            // Restore GUI state
+            GUI.color = prevColor;
+            Text.Anchor = prevAnchor;
+            Text.Font = prevFont;
+        }
+
+        private static void RegenerateMesh(BookmarkManager manager, WorldGrid worldGrid, float altitude)
         {
             if (_cachedMesh == null)
             {
@@ -80,13 +182,17 @@ namespace LandingZone.Core
             var triangles = new List<int>();
             var colors = new List<Color>();
 
+            // Calculate zoom scale for this altitude
+            float zoomScale = CalculateZoomScale(altitude);
+            float markerSize = BaseMarkerSize * zoomScale;
+
             foreach (var bookmark in manager.Bookmarks)
             {
                 if (bookmark.TileId < 0 || bookmark.TileId >= worldGrid.TilesCount)
                     continue;
 
                 Vector3 tileCenter = worldGrid.GetTileCenter(bookmark.TileId);
-                AddBookmarkMarker(vertices, triangles, colors, tileCenter, bookmark.MarkerColor);
+                AddBookmarkMarker(vertices, triangles, colors, tileCenter, bookmark.MarkerColor, markerSize);
             }
 
             _cachedMesh.SetVertices(vertices);
@@ -96,7 +202,7 @@ namespace LandingZone.Core
             _cachedMesh.RecalculateBounds();
         }
 
-        private static void AddBookmarkMarker(List<Vector3> vertices, List<int> triangles, List<Color> colors, Vector3 position, Color color)
+        private static void AddBookmarkMarker(List<Vector3> vertices, List<int> triangles, List<Color> colors, Vector3 position, Color color, float markerSize)
         {
             // Create a teardrop-shaped marker using a simple diamond
             // Offset position slightly above the world surface
@@ -109,11 +215,11 @@ namespace LandingZone.Core
                 north = Vector3.Cross(up, Vector3.forward).normalized;
             Vector3 east = Vector3.Cross(up, north).normalized;
 
-            // Diamond vertices (top, left, bottom, right)
-            Vector3 top = markerPos + north * MarkerSize * 0.8f;
-            Vector3 left = markerPos - east * MarkerSize * 0.5f;
-            Vector3 bottom = markerPos - north * MarkerSize * 1.2f; // Elongated downward (teardrop shape)
-            Vector3 right = markerPos + east * MarkerSize * 0.5f;
+            // Diamond vertices (top, left, bottom, right) - scaled by markerSize
+            Vector3 top = markerPos + north * markerSize * 0.8f;
+            Vector3 left = markerPos - east * markerSize * 0.5f;
+            Vector3 bottom = markerPos - north * markerSize * 1.2f; // Elongated downward (teardrop shape)
+            Vector3 right = markerPos + east * markerSize * 0.5f;
 
             int vertexCount = vertices.Count;
 
@@ -147,26 +253,26 @@ namespace LandingZone.Core
             triangles.Add(vertexCount + 3);
 
             // Add dark outline for contrast
-            AddMarkerOutline(vertices, triangles, colors, markerPos, north, east, color);
+            AddMarkerOutline(vertices, triangles, colors, markerPos, north, east, color, markerSize);
         }
 
         private static void AddMarkerOutline(List<Vector3> vertices, List<int> triangles, List<Color> colors,
-            Vector3 markerPos, Vector3 north, Vector3 east, Color color)
+            Vector3 markerPos, Vector3 north, Vector3 east, Color color, float markerSize)
         {
             Color outlineColor = new Color(0.1f, 0.1f, 0.1f, color.a); // Dark outline
-            float outlineOffset = MarkerSize * 0.06f;
+            float outlineOffset = markerSize * 0.06f;
 
             // Outer vertices (slightly larger)
-            Vector3 topOuter = markerPos + north * (MarkerSize * 0.8f + outlineOffset);
-            Vector3 leftOuter = markerPos - east * (MarkerSize * 0.5f + outlineOffset);
-            Vector3 bottomOuter = markerPos - north * (MarkerSize * 1.2f + outlineOffset);
-            Vector3 rightOuter = markerPos + east * (MarkerSize * 0.5f + outlineOffset);
+            Vector3 topOuter = markerPos + north * (markerSize * 0.8f + outlineOffset);
+            Vector3 leftOuter = markerPos - east * (markerSize * 0.5f + outlineOffset);
+            Vector3 bottomOuter = markerPos - north * (markerSize * 1.2f + outlineOffset);
+            Vector3 rightOuter = markerPos + east * (markerSize * 0.5f + outlineOffset);
 
             // Inner vertices (match marker)
-            Vector3 topInner = markerPos + north * MarkerSize * 0.8f;
-            Vector3 leftInner = markerPos - east * MarkerSize * 0.5f;
-            Vector3 bottomInner = markerPos - north * MarkerSize * 1.2f;
-            Vector3 rightInner = markerPos + east * MarkerSize * 0.5f;
+            Vector3 topInner = markerPos + north * markerSize * 0.8f;
+            Vector3 leftInner = markerPos - east * markerSize * 0.5f;
+            Vector3 bottomInner = markerPos - north * markerSize * 1.2f;
+            Vector3 rightInner = markerPos + east * markerSize * 0.5f;
 
             // Add outline edges as thin quads
             AddOutlineEdge(vertices, triangles, colors, topOuter, topInner, rightOuter, rightInner, outlineColor);
