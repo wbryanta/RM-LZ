@@ -16,6 +16,7 @@ namespace LandingZone
 
         public bool AutoRunSearchOnWorldLoad = false;
         public int EvaluationChunkSize = 250;
+        public static MaxCandidateTilesLimit MaxCandidates = MaxCandidateTilesLimit.Standard;
 
         // ===== SCORING WEIGHT PRESETS =====
 
@@ -51,6 +52,7 @@ namespace LandingZone
             Scribe_Values.Look(ref EvaluationChunkSize, "evaluationChunkSize", 250);
             Scribe_Values.Look(ref WeightPreset, "weightPreset", ScoringWeightPreset.CriticalFocused);
             Scribe_Values.Look(ref LogLevel, "logLevel", LoggingLevel.Standard);
+            Scribe_Values.Look(ref MaxCandidates, "maxCandidates", MaxCandidateTilesLimit.Standard);
 
             // Clamp evaluation chunk size
             EvaluationChunkSize = Mathf.Clamp(EvaluationChunkSize, 50, 1000);
@@ -68,6 +70,26 @@ namespace LandingZone
             listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
             listingStandard.Label("Lower values keep the UI snappier but take longer to finish.");
+            Text.Font = GameFont.Small;
+
+            listingStandard.Gap(12f);
+
+            // Max Candidate Tiles Limit
+            listingStandard.Label("Max Candidate Tiles:");
+
+            if (listingStandard.ButtonTextLabeled("Current limit:", MaxCandidates.ToLabel()))
+            {
+                var options = new List<FloatMenuOption>();
+                foreach (MaxCandidateTilesLimit limit in System.Enum.GetValues(typeof(MaxCandidateTilesLimit)))
+                {
+                    options.Add(new FloatMenuOption(limit.ToLabel(), () => MaxCandidates = limit));
+                }
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            listingStandard.Label(MaxCandidates.GetTooltip());
             Text.Font = GameFont.Small;
 
             listingStandard.Gap(12f);
@@ -174,6 +196,39 @@ namespace LandingZone
         Brief
     }
 
+    /// <summary>
+    /// Maximum candidate tiles to evaluate after cheap filter phase.
+    /// Controls memory usage and search performance.
+    /// </summary>
+    public enum MaxCandidateTilesLimit
+    {
+        /// <summary>
+        /// Conservative (25,000) - Original limit. Good for low-memory systems (8-16GB RAM).
+        /// </summary>
+        Conservative,
+
+        /// <summary>
+        /// Moderate (50,000) - Increased limit. For systems with 16GB+ RAM.
+        /// </summary>
+        Moderate,
+
+        /// <summary>
+        /// High (75,000) - High limit. For systems with 32GB+ RAM.
+        /// </summary>
+        High,
+
+        /// <summary>
+        /// Standard (100,000) - DEFAULT. Very high limit. For systems with 32GB+ RAM.
+        /// </summary>
+        Standard,
+
+        /// <summary>
+        /// Maximum (150,000) - Essentially unlimited for most worlds (50% coverage = ~150k settleable tiles).
+        /// Recommended for development/testing only. Requires 32GB+ RAM.
+        /// </summary>
+        Maximum
+    }
+
     // ===== EXTENSION METHODS =====
 
     public static class ScoringWeightPresetExtensions
@@ -234,6 +289,53 @@ namespace LandingZone
                 LoggingLevel.Brief =>
                     "Log only final results count and timing. ~3-5 lines per search. Minimal noise.",
                 _ => ""
+            };
+        }
+    }
+
+    public static class MaxCandidateTilesLimitExtensions
+    {
+        public static string ToLabel(this MaxCandidateTilesLimit limit)
+        {
+            return limit switch
+            {
+                MaxCandidateTilesLimit.Conservative => "Conservative (25k)",
+                MaxCandidateTilesLimit.Moderate => "Moderate (50k)",
+                MaxCandidateTilesLimit.High => "High (75k)",
+                MaxCandidateTilesLimit.Standard => "Standard (100k)",
+                MaxCandidateTilesLimit.Maximum => "Maximum (150k)",
+                _ => "Unknown"
+            };
+        }
+
+        public static string GetTooltip(this MaxCandidateTilesLimit limit)
+        {
+            return limit switch
+            {
+                MaxCandidateTilesLimit.Conservative =>
+                    "25,000 tiles. Original limit. Good for low-memory systems (8-16GB RAM).",
+                MaxCandidateTilesLimit.Moderate =>
+                    "50,000 tiles. Increased limit. For systems with 16GB+ RAM.",
+                MaxCandidateTilesLimit.High =>
+                    "75,000 tiles. High limit. For systems with 32GB+ RAM.",
+                MaxCandidateTilesLimit.Standard =>
+                    "100,000 tiles. DEFAULT. Very high limit. For systems with 32GB+ RAM.",
+                MaxCandidateTilesLimit.Maximum =>
+                    "150,000 tiles. Essentially unlimited for most worlds. Recommended for development. Requires 32GB+ RAM.",
+                _ => ""
+            };
+        }
+
+        public static int GetValue(this MaxCandidateTilesLimit limit)
+        {
+            return limit switch
+            {
+                MaxCandidateTilesLimit.Conservative => 25000,
+                MaxCandidateTilesLimit.Moderate => 50000,
+                MaxCandidateTilesLimit.High => 75000,
+                MaxCandidateTilesLimit.Standard => 100000,
+                MaxCandidateTilesLimit.Maximum => 150000,
+                _ => 100000
             };
         }
     }
