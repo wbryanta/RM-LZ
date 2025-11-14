@@ -79,6 +79,25 @@
         "blockers": ["LZ-SCORING-003"],
         "area": "Scoring",
         "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-FIX-MODE-TOGGLE",
+        "title": "Fix Default/Advanced mode toggle buttons",
+        "priority": "P0 - Critical",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "User reports Default/Advanced buttons in LZ Prefs do nothing. Mode toggle not working. Found during testing (2025-11-13).",
+        "deliverables": [
+          "Investigate why mode toggle buttons are non-functional",
+          "Fix button click handlers to switch between Default/Advanced modes",
+          "Ensure mode preference persists correctly",
+          "Verify UI re-renders with correct mode filters",
+          "Test mode switching with various filter states",
+          "Add visual feedback for active mode (highlight/underline)"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta"
       }
     ],
     "p1_high": [
@@ -121,6 +140,64 @@
         "blockers": [],
         "area": "UI/UX",
         "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-FIX-PREFS-LABEL",
+        "title": "Update LZ Prefs button label to show preset name",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "LZ Prefs button should show 'default', 'preset01', 'preset02', etc. or 'custom01', 'custom02' for saved filters (max 99 each). Found during testing (2025-11-13).",
+        "deliverables": [
+          "Add preset tracking to GameState or LandingZoneOptions",
+          "Track which preset is active (default, Temperate=01, ArcticChallenge=02, etc.)",
+          "Track custom saved filter slots (1-99)",
+          "Update GetPresetDisplayName() in SelectStartingSiteButtonsPatch.cs",
+          "Format: 'default', 'preset01', 'preset02', ... 'preset99', 'custom01', ... 'custom99'",
+          "Update label on preset load/save/reset"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-FIX-PRESETS-GRID",
+        "title": "Expand presets to 3x3 grid (9 presets)",
+        "priority": "P1 - High",
+        "estimate": "3-4 hours",
+        "owner": "team",
+        "description": "Currently only 3 presets visible (Temperate, Arctic Challenge, Desert Oasis). Expand to 3x3 grid with 9 built-in presets. Add minimize/collapse option. Found during testing (2025-11-13).",
+        "deliverables": [
+          "Design 6 additional preset configurations (total 9)",
+          "Presets should cover: Temperate, Arctic, Desert, Tropical, Coastal, Mountain, River Valley, Easy Start, Challenge",
+          "Update DefaultModeUI.cs to render 3x3 grid layout",
+          "Add collapse/minimize button to hide preset section",
+          "Ensure preset selection works with grid layout",
+          "Update preset persistence and loading",
+          "Add tooltips describing each preset's focus"
+        ],
+        "blockers": [],
+        "area": "UI/UX",
+        "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-FIX-STATUS-INFO",
+        "title": "Add total tiles and inhabitable tiles to status display",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Status area below buttons should show total world tiles and total inhabitable tiles for context. Found during testing (2025-11-13).",
+        "deliverables": [
+          "Add world tile count to status display: 'World: 156,231 tiles'",
+          "Add inhabitable tile count: '42,183 inhabitable (27%)'",
+          "Calculate inhabitable: tiles where biome != Ocean, SeaIce, Lake",
+          "Update DrawEvaluationStatus() in SelectStartingSiteButtonsPatch.cs",
+          "Format numbers with thousand separators for readability",
+          "Show this info when NOT evaluating (complementing progress/results)"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta"
       }
     ],
     "p2_medium": [
