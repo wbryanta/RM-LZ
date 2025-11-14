@@ -62,6 +62,26 @@
         "milestone": "0.1.1-beta"
       },
       {
+        "id": "LZ-FIX-TEMPERATURE-CF",
+        "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
+        "deliverables": [
+          "Read RimWorld's Prefs.TemperatureMode setting",
+          "Update DefaultModeUI.cs temperature slider labels to show correct unit",
+          "Convert slider values on-the-fly for display (storage stays Celsius)",
+          "Update tooltips to match displayed unit",
+          "Test with all 3 temperature modes (C/F/K)",
+          "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
+        ],
+        "blockers": [],
+        "area": "UI",
+        "milestone": "0.1.1-beta",
+        "status": "todo"
+      },
+      {
         "id": "LZ-FIX-PRESETS-GRID",
         "title": "Expand presets to 3x3 grid (9 presets)",
         "priority": "P1 - High",
@@ -79,26 +99,8 @@
         ],
         "blockers": [],
         "area": "UI/UX",
-        "milestone": "0.1.1-beta"
-      },
-      {
-        "id": "LZ-FIX-TEMPERATURE-CF",
-        "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
-        "deliverables": [
-          "Read RimWorld's Prefs.TemperatureMode setting",
-          "Update DefaultModeUI.cs temperature slider labels to show correct unit",
-          "Convert slider values on-the-fly for display (storage stays Celsius)",
-          "Update tooltips to match displayed unit",
-          "Test with all 3 temperature modes (C/F/K)",
-          "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.1.1-beta"
+        "milestone": "0.1.1-beta",
+        "status": "todo"
       },
       {
         "id": "LZ-FIX-LOGGING-LEVELS",
@@ -119,7 +121,8 @@
         ],
         "blockers": [],
         "area": "Infrastructure/Settings",
-        "milestone": "0.1.1-beta"
+        "milestone": "0.1.1-beta",
+        "status": "todo"
       },
       {
         "id": "LZ-FIX-STATUS-INFO",
@@ -671,5 +674,6 @@
   },
   "blocked": {
     "p1_high": []
-  }
+  },
+  "archived": []
 }
