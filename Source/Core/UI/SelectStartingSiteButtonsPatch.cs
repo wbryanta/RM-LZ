@@ -187,12 +187,12 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
             TooltipHandler.TipRegion(searchButtonRect, "Search for best landing sites based on current filters");
 
-            // Filters button (opens results window)
+            // Filters button (opens preferences/filters window)
             if (Widgets.ButtonText(filtersRect, "Filters"))
             {
-                LandingZoneResultsController.Toggle();
+                TogglePreferencesWindow();
             }
-            TooltipHandler.TipRegion(filtersRect, "View LandingZone's ranked landing site matches");
+            TooltipHandler.TipRegion(filtersRect, "Configure search filters and preferences");
 
             // Top (XX) button - opens results window
             bool hasResults = LandingZoneContext.HasMatches;
