@@ -88,6 +88,23 @@ python3 scripts/build.py -c Release   # Release
 
 **Always use this script** - manual builds require manual DLL copy.
 
+## Versioning
+
+**Single source of truth:** `About/About.xml`
+- Code reads version at runtime: `content.ModMetaData.ModVersion`
+- Never hardcode version in `.cs` files
+
+**Current phase:** Beta (0.1.x-beta)
+- Increment patch version when completing tasks
+- Increment minor version for major features
+
+**Workflow:**
+1. Update `About/About.xml`: `<modVersion>0.1.2-beta</modVersion>`
+2. Commit: `git commit -m "chore: bump version to 0.1.2-beta"`
+3. Tag: `git tag -a v0.1.2-beta -m "Version 0.1.2-beta: Description"`
+
+See `VERSIONING.md` for full guide.
+
 ## Task Management
 
 **Source of truth:** `tasks.json` (buckets: todo/in_progress/blocked/completed)

@@ -13,13 +13,21 @@ namespace LandingZone
     /// </summary>
     public class LandingZoneMod : Mod
     {
-        public const string Version = "0.0.3-alpha";
+        /// <summary>
+        /// Version read from About/About.xml at runtime.
+        /// Single source of truth for mod version.
+        /// </summary>
+        public static string Version { get; private set; } = "unknown";
+
         private readonly Harmony _harmony;
 
         public LandingZoneMod(ModContentPack content) : base(content)
         {
             Instance = this;
             Settings = GetSettings<LandingZoneSettings>();
+
+            // Read version from About.xml (single source of truth)
+            Version = content.ModMetaData.ModVersion;
 
             var state = GameStateFactory.CreateDefault();
             _harmony = new Harmony("com.landingzone.mod");
