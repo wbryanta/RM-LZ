@@ -334,7 +334,8 @@ namespace LandingZone.Core.Filtering
                     _tileCount
                 );
 
-                _candidates = aggregator.GetCandidates(_strictness, maxCandidates: 25000);
+                // Process ALL candidate tiles (no artificial limit)
+                _candidates = aggregator.GetCandidates(_strictness, maxCandidates: int.MaxValue);
 
                 if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
                 {

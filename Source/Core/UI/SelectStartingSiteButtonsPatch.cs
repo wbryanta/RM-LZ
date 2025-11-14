@@ -194,15 +194,33 @@ namespace LandingZone.Core.UI
             }
             TooltipHandler.TipRegion(filtersRect, "View LandingZone's ranked landing site matches");
 
-            // Top (XX) button
+            // Top (XX) button - opens results window
+            bool hasResults = LandingZoneContext.HasMatches;
             int maxResults = LandingZoneContext.State?.Preferences?.Filters?.MaxResults ?? 20;
             string topLabel = $"Top ({maxResults})";
+
+            var topPrevEnabled = GUI.enabled;
+            var topPrevColor = GUI.color;
+
+            // Grey out when no results
+            GUI.enabled = hasResults;
+            if (!hasResults)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+
             if (Widgets.ButtonText(topButtonRect, topLabel))
             {
-                // TODO: Open dialog to adjust MaxResults (could be a simple slider dialog)
-                Messages.Message("Max results control coming soon", MessageTypeDefOf.RejectInput, historical: false);
+                LandingZoneResultsController.Toggle();
             }
-            TooltipHandler.TipRegion(topButtonRect, $"Show top {maxResults} matches (click to adjust)");
+
+            GUI.enabled = topPrevEnabled;
+            GUI.color = topPrevColor;
+
+            string tooltip = hasResults
+                ? $"View top {maxResults} matches"
+                : "No matches yet - run a search first";
+            TooltipHandler.TipRegion(topButtonRect, tooltip);
 
             // Navigation arrows
             DrawMatchNavigation(leftNavRect, rightNavRect);
