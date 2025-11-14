@@ -62,7 +62,7 @@ namespace LandingZone.Core.Filtering.Filters
         /// Gets all map feature defNames (Mutators) for a specific tile.
         /// Map features (Mutators) include: Caves, Mountain, MixedBiome, Ruins, Junkyard, Archean trees, etc.
         /// </summary>
-        private static IEnumerable<string> GetTileMapFeatures(int tileId)
+        internal static IEnumerable<string> GetTileMapFeatures(int tileId)
         {
             var result = new List<string>();
             var tile = Find.WorldGrid?[tileId];

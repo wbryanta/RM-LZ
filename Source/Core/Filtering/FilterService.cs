@@ -581,7 +581,7 @@ namespace LandingZone.Core.Filtering
                 // Compute global weights
                 const float critBase = 4.0f;
                 const float prefBase = 1.0f;
-                const float mutatorWeight = 0.0f; // Mutator scoring comes in LZ-SCORING-005
+                const float mutatorWeight = 0.1f; // 10% weight for mutators
                 var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
                     _criticalFilters.Count,
                     _preferredFilters.Count,
@@ -590,8 +590,11 @@ namespace LandingZone.Core.Filtering
                     mutatorWeight
                 );
 
+                // Compute mutator quality score
+                var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
+                float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators);
+
                 // Compute final membership score
-                float mutatorScore = 0.5f; // Neutral baseline until LZ-SCORING-005
                 float finalScore = ScoringWeights.ComputeMembershipScore(
                     critScore,
                     prefScore,
