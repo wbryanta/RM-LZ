@@ -101,6 +101,26 @@
         "blockers": [],
         "area": "Documentation",
         "milestone": "0.1.0-beta"
+      },
+      {
+        "id": "LZ-RESULTS-REFACTOR",
+        "title": "Results window UX refactor",
+        "priority": "P1 - High",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Refactor LandingZoneResultsWindow for better organization, readability, and extensibility. Current implementation functional but could benefit from cleanup.",
+        "deliverables": [
+          "Restructure results display layout for better readability",
+          "Improve tile details panel organization",
+          "Add filtering/sorting controls (by score, by biome, etc.)",
+          "Optimize rendering performance for large result sets",
+          "Improve visual hierarchy and information density",
+          "Add quick-jump navigation between results",
+          "Clean up code structure for easier feature additions"
+        ],
+        "blockers": [],
+        "area": "UI/UX",
+        "milestone": "0.2.0"
       }
     ],
     "p2_medium": [
@@ -227,6 +247,71 @@
         "blockers": ["LZ-SCORING-003"],
         "area": "UI/UX",
         "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-MOD-SETTINGS",
+        "title": "Comprehensive mod settings menu",
+        "priority": "P2 - Medium",
+        "estimate": "5-6 hours",
+        "owner": "team",
+        "description": "Create comprehensive RimWorld Mod Settings menu for all configurable options (beyond just scoring parameters in LZ-SCORING-UI-001). Includes performance, UI, and feature toggles.",
+        "deliverables": [
+          "Create LandingZoneModSettings.cs extending ModSettings",
+          "Add performance settings: max results limit, evaluation timeout, cache size",
+          "Add UI settings: window opacity, font size, default mode (Default/Advanced)",
+          "Add feature toggles: UseNewScoring (already exists), enable heatmap, enable bookmarks",
+          "Add debug settings: verbose logging, show evaluation metrics, diagnostic mode",
+          "All settings persist via Scribe system",
+          "Settings accessible via RimWorld Mod Settings menu",
+          "Add 'Reset All to Defaults' button"
+        ],
+        "blockers": [],
+        "area": "UI/UX",
+        "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-BOOKMARKS",
+        "title": "Bookmarks manager for favorite tiles",
+        "priority": "P2 - Medium",
+        "estimate": "8-10 hours",
+        "owner": "team",
+        "description": "Allow users to bookmark interesting tiles for later review. Bookmarks persist across sessions and show on world map.",
+        "deliverables": [
+          "Create BookmarkManager.cs service for CRUD operations",
+          "Create TileBookmark.cs data model (tile ID, name, notes, color, timestamp)",
+          "Add 'Bookmark This Tile' button to results window",
+          "Create bookmarks list window (show all, filter, sort, delete)",
+          "Add bookmark annotations to world map (colored markers with labels)",
+          "Persist bookmarks via Scribe in game save file",
+          "Add 'Jump to Bookmark' functionality",
+          "Support custom bookmark colors and categories",
+          "Add 'Export Bookmarks' (share with friends)"
+        ],
+        "blockers": [],
+        "area": "UX",
+        "milestone": "0.2.0"
+      },
+      {
+        "id": "LZ-TELEMETRY",
+        "title": "End-user troubleshooting telemetry",
+        "priority": "P2 - Medium",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Add opt-in telemetry and diagnostic tools to help users troubleshoot issues without needing to read Player.log. Helpful for bug reports and support.",
+        "deliverables": [
+          "Create DiagnosticLogger.cs with ring buffer for recent events",
+          "Track: search start/end, filter application times, exceptions, performance metrics",
+          "Add 'Copy Diagnostics' button to preferences window (copies to clipboard)",
+          "Format: anonymized, human-readable, timestamp-prefixed log",
+          "Add session stats: searches performed, avg search time, cache hit rate, errors",
+          "Add 'Performance Report' showing bottleneck analysis",
+          "Opt-in via mod settings (default enabled, easily disableable)",
+          "Include mod version, RimWorld version, DLC detection in diagnostics",
+          "Never log user filter preferences or world seed (privacy)"
+        ],
+        "blockers": [],
+        "area": "Infrastructure",
+        "milestone": "0.2.0"
       }
     ],
     "p3_low": [
@@ -336,6 +421,29 @@
         "blockers": ["LZ-UI-MODE-001"],
         "area": "UI",
         "milestone": "0.3.0"
+      },
+      {
+        "id": "LZ-ADVANCED-RANKING",
+        "title": "Advanced drag-to-order rankings with AND/OR logic",
+        "priority": "Future",
+        "estimate": "12-16 hours",
+        "owner": "team",
+        "description": "Advanced filter ranking system building on LZ-SCORING-UI-003. Adds boolean logic for complex filter combinations (e.g., 'River AND (Coastal OR Lake)').",
+        "deliverables": [
+          "Extend drag-to-order UI from LZ-SCORING-UI-003 with logic operators",
+          "Add AND/OR/NOT operators between filter groups",
+          "Visual logic tree builder with parentheses grouping",
+          "Support complex expressions: '(Temperature AND Rainfall) OR (Coastal AND River)'",
+          "Real-time membership score preview as logic changes",
+          "Convert logic tree to scoring weights: AND = multiplication, OR = max, NOT = 1-x",
+          "Validate logic expressions for consistency (no contradictions)",
+          "Save/load complex logic expressions as presets",
+          "Add logic expression templates: 'Balanced', 'Strict Requirements', 'Flexible Preferences'",
+          "Show visual graph of how logic affects score distribution"
+        ],
+        "blockers": ["LZ-SCORING-UI-003"],
+        "area": "UI/UX",
+        "milestone": "0.4.0"
       }
     ]
   },
