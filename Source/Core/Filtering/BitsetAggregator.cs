@@ -72,7 +72,9 @@ namespace LandingZone.Core.Filtering
                        $"{_heavyPreferredCount} heavy prefs, κ={kappa:F3}");
 
             // Step 4: Compute upper bounds and create candidates
-            var candidates = new List<CandidateTile>(maxCandidates);
+            // Use reasonable initial capacity - don't pre-allocate for int.MaxValue!
+            int initialCapacity = Mathf.Min(maxCandidates, 100000);
+            var candidates = new List<CandidateTile>(initialCapacity);
             var world = Find.World;
             var worldGrid = world?.grid;
 
