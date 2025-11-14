@@ -38,6 +38,7 @@ namespace LandingZone.Core.UI
     {
         private const float Gap = 10f;
         private static readonly Vector2 ButtonSize = new Vector2(150f, 38f);
+        private static string _cachedWorldStats = null;
         private static readonly Func<Page, bool> CanDoBack = AccessTools.MethodDelegate<Func<Page, bool>>(AccessTools.Method(typeof(Page), "CanDoBack"));
         private static readonly Action<Page> DoBack = AccessTools.MethodDelegate<Action<Page>>(AccessTools.Method(typeof(Page), "DoBack"));
         private static readonly Func<Page_SelectStartingSite, bool> CanDoNext = AccessTools.MethodDelegate<Func<Page_SelectStartingSite, bool>>(AccessTools.Method(typeof(Page_SelectStartingSite), "CanDoNext"));
@@ -293,11 +294,11 @@ namespace LandingZone.Core.UI
             }
             else if (LandingZoneContext.LastEvaluationCount > 0)
             {
-                status = $"{LandingZoneContext.LastEvaluationCount} matches | {LandingZoneContext.LastEvaluationMs:F0} ms";
+                status = $"{LandingZoneContext.LastEvaluationCount} matches | {LandingZoneContext.LastEvaluationMs:F0} ms | {GetWorldTileStats()}";
             }
             else
             {
-                status = "No matches yet";
+                status = $"No matches yet | {GetWorldTileStats()}";
             }
             Widgets.Label(statusRect, status);
             GUI.color = prevColor;
@@ -525,6 +526,40 @@ namespace LandingZone.Core.UI
                 highlightState.ShowBestSites = true;
                 LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
             }
+        }
+
+        /// <summary>
+        /// Gets formatted string showing world tile statistics: total tiles and inhabitable count/percentage.
+        /// Cached to avoid recomputing every frame.
+        /// </summary>
+        private static string GetWorldTileStats()
+        {
+            if (_cachedWorldStats != null)
+                return _cachedWorldStats;
+
+            var worldGrid = Find.WorldGrid;
+            if (worldGrid == null) return "";
+
+            int totalTiles = worldGrid.TilesCount;
+            int inhabitable = 0;
+
+            // Count inhabitable tiles (biome != Ocean, SeaIce, Lake)
+            for (int i = 0; i < totalTiles; i++)
+            {
+                var tile = worldGrid[i];
+                if (tile?.PrimaryBiome != null)
+                {
+                    string biomeName = tile.PrimaryBiome.defName;
+                    if (biomeName != "Ocean" && biomeName != "SeaIce" && biomeName != "Lake")
+                    {
+                        inhabitable++;
+                    }
+                }
+            }
+
+            float percentage = totalTiles > 0 ? (inhabitable * 100f / totalTiles) : 0f;
+            _cachedWorldStats = $"World: {totalTiles:N0} tiles ({inhabitable:N0} inhabitable, {percentage:F0}%)";
+            return _cachedWorldStats;
         }
 
     }

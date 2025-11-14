@@ -38,111 +38,71 @@
       ]
     }
   },
-  "in_progress": [],
+  "in_progress": [
+    {
+      "id": "LZ-FIX-TEMPERATURE-CF",
+      "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
+      "deliverables": [
+        "Read RimWorld's Prefs.TemperatureMode setting",
+        "Update DefaultModeUI.cs temperature slider labels to show correct unit",
+        "Convert slider values on-the-fly for display (storage stays Celsius)",
+        "Update tooltips to match displayed unit",
+        "Test with all 3 temperature modes (C/F/K)",
+        "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "in_progress"
+    },
+    {
+      "id": "LZ-FIX-BASIC-ROADS-RIVERS",
+      "title": "Add Rivers & Roads toggles to Basic interface",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Add simplified Rivers/Roads filters to Basic mode. Toggles enable ALL types (not per-type selection like Advanced mode).",
+      "deliverables": [
+        "Add 'Rivers (Any)' tri-state toggle to DefaultModeUI.cs",
+        "Add 'Roads (Any)' tri-state toggle to DefaultModeUI.cs",
+        "When set to Preferred/Critical, enable ALL types in FilterSettings.Rivers/Roads",
+        "Position after 'Coastal' toggle, before 'Growing Season' slider",
+        "Add tooltips: 'Any river type' / 'Any road type'",
+        "Test: Verify toggling enables all river/road types in filter results"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "in_progress"
+    },
+    {
+      "id": "LZ-FIX-STATUS-INFO",
+      "title": "Add total tiles and inhabitable tiles to status display",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "Status area below buttons should show total world tiles and total inhabitable tiles for context. Found during testing (2025-11-13).",
+      "deliverables": [
+        "Add world tile count to status display: 'World: 156,231 tiles'",
+        "Add inhabitable tile count: '42,183 inhabitable (27%)'",
+        "Calculate inhabitable: tiles where biome != Ocean, SeaIce, Lake",
+        "Update DrawEvaluationStatus() in SelectStartingSiteButtonsPatch.cs",
+        "Format numbers with thousand separators for readability",
+        "Show this info when NOT evaluating (complementing progress/results)"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "in_progress"
+    }
+  ],
   "todo": {
     "p0_critical": [],
     "p1_high": [
-      {
-        "id": "LZ-FIX-PREFS-LABEL",
-        "title": "Update LZ Prefs button label to show preset name",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "LZ Prefs button should show 'default', 'preset01', 'preset02', etc. or 'custom01', 'custom02' for saved filters (max 99 each). Found during testing (2025-11-13).",
-        "deliverables": [
-          "Add preset tracking to GameState or LandingZoneOptions",
-          "Track which preset is active (default, Temperate=01, ArcticChallenge=02, etc.)",
-          "Track custom saved filter slots (1-99)",
-          "Update GetPresetDisplayName() in SelectStartingSiteButtonsPatch.cs",
-          "Format: 'default', 'preset01', 'preset02', ... 'preset99', 'custom01', ... 'custom99'",
-          "Update label on preset load/save/reset"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.1.1-beta"
-      },
-      {
-        "id": "LZ-FIX-TEMPERATURE-CF",
-        "title": "Honor Celsius/Fahrenheit user setting in Basic UI",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Read Prefs.TemperatureMode and display temperature ranges in user's chosen unit (Celsius/Fahrenheit/Kelvin). Storage remains Celsius internally.",
-        "deliverables": [
-          "Read RimWorld's Prefs.TemperatureMode setting",
-          "Update DefaultModeUI.cs temperature slider labels to show correct unit",
-          "Convert slider values on-the-fly for display (storage stays Celsius)",
-          "Update tooltips to match displayed unit",
-          "Test with all 3 temperature modes (C/F/K)",
-          "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.1.1-beta",
-        "status": "todo"
-      },
-      {
-        "id": "LZ-FIX-PRESETS-GRID",
-        "title": "Expand presets to 3x3 grid (9 presets)",
-        "priority": "P1 - High",
-        "estimate": "3-4 hours",
-        "owner": "team",
-        "description": "Currently only 3 presets visible (Temperate, Arctic Challenge, Desert Oasis). Expand to 3x3 grid with 9 built-in presets. Add minimize/collapse option. Found during testing (2025-11-13).",
-        "deliverables": [
-          "Design 6 additional preset configurations (total 9)",
-          "Presets should cover: Temperate, Arctic, Desert, Tropical, Coastal, Mountain, River Valley, Easy Start, Challenge",
-          "Update DefaultModeUI.cs to render 3x3 grid layout",
-          "Add collapse/minimize button to hide preset section",
-          "Ensure preset selection works with grid layout",
-          "Update preset persistence and loading",
-          "Add tooltips describing each preset's focus"
-        ],
-        "blockers": [],
-        "area": "UI/UX",
-        "milestone": "0.1.1-beta",
-        "status": "todo"
-      },
-      {
-        "id": "LZ-FIX-LOGGING-LEVELS",
-        "title": "Add logging level control to Mod Settings",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Reduce log spam by adding Verbose/Standard/Brief logging levels. Default: Standard (reduces thousands of lines to ~10-20 per search).",
-        "deliverables": [
-          "Add LoggingLevel enum to LandingZoneModSettings.cs (Verbose/Standard/Brief)",
-          "Update tile-level logging in FilterService.cs:",
-          "  - Verbose: Log every tile evaluation (current behavior - floods log)",
-          "  - Standard: Log phase summaries only (~10-20 lines per search) [DEFAULT]",
-          "  - Brief: Log final results count and timing only (~3-5 lines)",
-          "Add Mod Settings dropdown with tooltip explaining each level",
-          "Test: Verify Standard reduces log output from 1000s of lines to ~10-20",
-          "Ensure critical errors still logged regardless of level"
-        ],
-        "blockers": [],
-        "area": "Infrastructure/Settings",
-        "milestone": "0.1.1-beta",
-        "status": "todo"
-      },
-      {
-        "id": "LZ-FIX-STATUS-INFO",
-        "title": "Add total tiles and inhabitable tiles to status display",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Status area below buttons should show total world tiles and total inhabitable tiles for context. Found during testing (2025-11-13).",
-        "deliverables": [
-          "Add world tile count to status display: 'World: 156,231 tiles'",
-          "Add inhabitable tile count: '42,183 inhabitable (27%)'",
-          "Calculate inhabitable: tiles where biome != Ocean, SeaIce, Lake",
-          "Update DrawEvaluationStatus() in SelectStartingSiteButtonsPatch.cs",
-          "Format numbers with thousand separators for readability",
-          "Show this info when NOT evaluating (complementing progress/results)"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.1.1-beta"
-      },
       {
         "id": "LZ-RESULTS-REFACTOR",
         "title": "Results window UX refactor",
@@ -165,47 +125,23 @@
         "status": "todo"
       },
       {
-        "id": "LZ-FIX-SCORING-WEIGHTS",
-        "title": "Implement 5 scoring weight presets in Mod Settings",
+        "id": "LZ-FIX-PRESETS-GRID",
+        "title": "Expand presets to 3x3 grid (9 presets)",
         "priority": "P1 - High",
-        "estimate": "2-3 hours",
+        "estimate": "3-4 hours",
         "owner": "team",
-        "description": "Add dropdown in Mod Settings for 5 scoring weight presets. Provides user control over critical:preferred:bonus hierarchy. Default: 'Critical Focused' (10:3:1).",
+        "description": "Currently only 3 presets visible (Temperate, Arctic Challenge, Desert Oasis). Expand to 3x3 grid with 9 built-in presets. Add minimize/collapse option. Found during testing (2025-11-13).",
         "deliverables": [
-          "Create LandingZoneModSettings.cs extending ModSettings",
-          "Add ScoringWeightPreset enum with 5 presets:",
-          "  - Balanced (7:2:1): critBase=4.0, prefBase=1.0, mutWeight=0.1",
-          "  - Critical Focused (10:3:1): critBase=3.35, prefBase=1.0, mutWeight=0.071 [DEFAULT]",
-          "  - Strict Hierarchy (16:4:1): critBase=4.0, prefBase=1.0, mutWeight=0.05",
-          "  - Ultra Critical (20:4:1): critBase=5.0, prefBase=1.0, mutWeight=0.04",
-          "  - Precision Match (5:1:0): critBase=5.0, prefBase=1.0, mutWeight=0.0",
-          "Update FilterService.cs to read preset values instead of hardcoded constants",
-          "Add Mod Settings UI with dropdown + tooltips explaining each preset",
-          "Implement ExposeData() for persistence",
-          "Test: Verify switching presets changes scoring behavior"
+          "Design 6 additional preset configurations (total 9)",
+          "Presets should cover: Temperate, Arctic, Desert, Tropical, Coastal, Mountain, River Valley, Easy Start, Challenge",
+          "Update DefaultModeUI.cs to render 3x3 grid layout",
+          "Add collapse/minimize button to hide preset section",
+          "Ensure preset selection works with grid layout",
+          "Update preset persistence and loading",
+          "Add tooltips describing each preset's focus"
         ],
         "blockers": [],
-        "area": "Scoring/Settings",
-        "milestone": "0.1.1-beta",
-        "status": "todo"
-      },
-      {
-        "id": "LZ-FIX-BASIC-ROADS-RIVERS",
-        "title": "Add Rivers & Roads toggles to Basic interface",
-        "priority": "P1 - High",
-        "estimate": "1-2 hours",
-        "owner": "team",
-        "description": "Add simplified Rivers/Roads filters to Basic mode. Toggles enable ALL types (not per-type selection like Advanced mode).",
-        "deliverables": [
-          "Add 'Rivers (Any)' tri-state toggle to DefaultModeUI.cs",
-          "Add 'Roads (Any)' tri-state toggle to DefaultModeUI.cs",
-          "When set to Preferred/Critical, enable ALL types in FilterSettings.Rivers/Roads",
-          "Position after 'Coastal' toggle, before 'Growing Season' slider",
-          "Add tooltips: 'Any river type' / 'Any road type'",
-          "Test: Verify toggling enables all river/road types in filter results"
-        ],
-        "blockers": [],
-        "area": "UI",
+        "area": "UI/UX",
         "milestone": "0.1.1-beta",
         "status": "todo"
       }
@@ -299,25 +235,27 @@
         "milestone": "0.2.0"
       },
       {
-        "id": "LZ-SCORING-UI-001",
-        "title": "Mod settings for scoring parameters",
+        "id": "LZ-BOOKMARKS",
+        "title": "Bookmarks manager for favorite tiles",
         "priority": "P2 - Medium",
-        "estimate": "3-4 hours",
+        "estimate": "8-10 hours",
         "owner": "team",
-        "description": "Expose tuning knobs in RimWorld Mod Settings menu. Complex math stays under the hood, but power users get control.",
+        "description": "Allow users to bookmark interesting tiles for later review. Bookmarks persist across sessions and show on world map.",
         "deliverables": [
-          "Add slider for \u03b1_pen (penalty floor): range 0.0-0.3, default 0.1, tooltip 'How much score survives worst critical miss'",
-          "Add slider for \u03b3_pen (penalty sharpness): range 1.0-4.0, default 2.0, tooltip 'How harshly worst critical is punished'",
-          "Add slider for \u03bb_mut (mutator weight): range 0.0-0.3, default 0.1, tooltip 'How much mutators influence score'",
-          "Add slider for fuzzy margin multiplier: range 0.5-2.0, default 1.0, tooltip 'Widens/narrows acceptable range for numeric filters'",
-          "Changes apply immediately to next search",
-          "Add 'Reset to defaults' button"
+          "Create BookmarkManager.cs service for CRUD operations",
+          "Create TileBookmark.cs data model (tile ID, name, notes, color, timestamp)",
+          "Add 'Bookmark This Tile' button to results window",
+          "Create bookmarks list window (show all, filter, sort, delete)",
+          "Add bookmark annotations to world map (colored markers with labels)",
+          "Persist bookmarks via Scribe in game save file",
+          "Add 'Jump to Bookmark' functionality",
+          "Support custom bookmark colors and categories",
+          "Add 'Export Bookmarks' (share with friends)"
         ],
-        "blockers": [
-          "LZ-SCORING-003"
-        ],
-        "area": "UI/UX",
-        "milestone": "0.2.0"
+        "blockers": [],
+        "area": "UX",
+        "milestone": "0.2.0",
+        "status": "todo"
       },
       {
         "id": "LZ-SCORING-UI-002",
@@ -340,71 +278,6 @@
         ],
         "area": "UI/UX",
         "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-MOD-SETTINGS",
-        "title": "Comprehensive mod settings menu",
-        "priority": "P2 - Medium",
-        "estimate": "5-6 hours",
-        "owner": "team",
-        "description": "Create comprehensive RimWorld Mod Settings menu for all configurable options (beyond just scoring parameters in LZ-SCORING-UI-001). Includes performance, UI, and feature toggles.",
-        "deliverables": [
-          "Create LandingZoneModSettings.cs extending ModSettings",
-          "Add performance settings: max results limit, evaluation timeout, cache size",
-          "Add UI settings: window opacity, font size, default mode (Default/Advanced)",
-          "Add feature toggles: UseNewScoring (already exists), enable heatmap, enable bookmarks",
-          "Add debug settings: verbose logging, show evaluation metrics, diagnostic mode",
-          "All settings persist via Scribe system",
-          "Settings accessible via RimWorld Mod Settings menu",
-          "Add 'Reset All to Defaults' button"
-        ],
-        "blockers": [],
-        "area": "UI/UX",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-BOOKMARKS",
-        "title": "Bookmarks manager for favorite tiles",
-        "priority": "P2 - Medium",
-        "estimate": "8-10 hours",
-        "owner": "team",
-        "description": "Allow users to bookmark interesting tiles for later review. Bookmarks persist across sessions and show on world map.",
-        "deliverables": [
-          "Create BookmarkManager.cs service for CRUD operations",
-          "Create TileBookmark.cs data model (tile ID, name, notes, color, timestamp)",
-          "Add 'Bookmark This Tile' button to results window",
-          "Create bookmarks list window (show all, filter, sort, delete)",
-          "Add bookmark annotations to world map (colored markers with labels)",
-          "Persist bookmarks via Scribe in game save file",
-          "Add 'Jump to Bookmark' functionality",
-          "Support custom bookmark colors and categories",
-          "Add 'Export Bookmarks' (share with friends)"
-        ],
-        "blockers": [],
-        "area": "UX",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-TELEMETRY",
-        "title": "End-user troubleshooting telemetry",
-        "priority": "P2 - Medium",
-        "estimate": "6-8 hours",
-        "owner": "team",
-        "description": "Add opt-in telemetry and diagnostic tools to help users troubleshoot issues without needing to read Player.log. Helpful for bug reports and support.",
-        "deliverables": [
-          "Create DiagnosticLogger.cs with ring buffer for recent events",
-          "Track: search start/end, filter application times, exceptions, performance metrics",
-          "Add 'Copy Diagnostics' button to preferences window (copies to clipboard)",
-          "Format: anonymized, human-readable, timestamp-prefixed log",
-          "Add session stats: searches performed, avg search time, cache hit rate, errors",
-          "Add 'Performance Report' showing bottleneck analysis",
-          "Opt-in via mod settings (default enabled, easily disableable)",
-          "Include mod version, RimWorld version, DLC detection in diagnostics",
-          "Never log user filter preferences or world seed (privacy)"
-        ],
-        "blockers": [],
-        "area": "Infrastructure",
-        "milestone": "0.2.0"
       }
     ],
     "p3_low": [
@@ -426,23 +299,6 @@
         "milestone": "0.2.0"
       },
       {
-        "id": "LZ-UI-TOOLTIPS",
-        "title": "Comprehensive tooltip pass",
-        "priority": "P3 - Low",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Ensure ALL filters have helpful, consistent tooltips. Most already have them, this is polish.",
-        "deliverables": [
-          "Audit all filters for missing tooltips",
-          "Standardize tooltip format and tone",
-          "Add examples where helpful (e.g., 'Granite: Strong, common')",
-          "Add tooltip hover delay if too aggressive"
-        ],
-        "blockers": [],
-        "area": "UI/Polish",
-        "milestone": "0.2.0"
-      },
-      {
         "id": "LZ-UI-SCROLLBAR",
         "title": "Polish scrollbar visibility",
         "priority": "P3 - Low",
@@ -451,17 +307,6 @@
         "description": "Current scrollbar works but could use visual polish. Low priority cosmetic improvement.",
         "blockers": [],
         "area": "UI/Polish",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-UI-KEYBOARD",
-        "title": "Add keyboard shortcuts",
-        "priority": "P3 - Low",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Add keyboard shortcuts for common operations (Space=toggle section, Enter=search, Ctrl+R=reset, etc.).",
-        "blockers": [],
-        "area": "UX/Polish",
         "milestone": "0.2.0"
       },
       {
@@ -481,9 +326,25 @@
         "blockers": [],
         "area": "Visualization",
         "milestone": "0.3.0"
-      }
-    ],
-    "future": [
+      },
+      {
+        "id": "LZ-UI-TOOLTIPS",
+        "title": "Comprehensive tooltip pass",
+        "priority": "P3 - Low",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "Ensure ALL filters have helpful, consistent tooltips. Most already have them, this is polish.",
+        "deliverables": [
+          "Audit all filters for missing tooltips",
+          "Standardize tooltip format and tone",
+          "Add examples where helpful (e.g., 'Granite: Strong, common')",
+          "Add tooltip hover delay if too aggressive"
+        ],
+        "blockers": [],
+        "area": "UI/Polish",
+        "milestone": "0.2.0",
+        "status": "todo"
+      },
       {
         "id": "LZ-SCORING-UI-003",
         "title": "Drag-and-drop filter ranking UI",
@@ -504,8 +365,11 @@
           "LZ-SCORING-003"
         ],
         "area": "UI/UX",
-        "milestone": "0.3.0"
-      },
+        "milestone": "0.3.0",
+        "status": "todo"
+      }
+    ],
+    "future": [
       {
         "id": "LZ-MUTATOR-CATEGORIES",
         "title": "Categorize 83 mutators in Advanced UI",
@@ -553,13 +417,6 @@
       "completed": "2025-11-13",
       "impact": "Complete documentation overhaul aligned with v0.1.* architecture. Archived obsolete v0.0.* docs (WorldSnapshot, deleted filters). Created comprehensive docs/architecture-v0.1-beta.md (327 lines). Updated CLAUDE.md with membership scoring details. Rewrote README.md from scaffolding stub to full feature documentation. Created DOCS_AUDIT_REPORT.md with forensic findings. Updated tasks.json meta to v0.1.3-beta. All documentation now accurately reflects current reality: membership scoring, game cache SSOT, IndividualImportanceContainer pattern, mutator quality scoring, Default/Advanced UI modes.",
       "area": "Documentation"
-    },
-    {
-      "id": "LZ-STONE-001",
-      "title": "Complete stone filter UI rebuild",
-      "completed": "2025-11-13",
-      "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred).",
-      "area": "Filtering/UI"
     },
     {
       "id": "LZ-FIX-MODE-TOGGLE",
@@ -673,7 +530,167 @@
     "Cleanup": "Dead code removal and refactoring"
   },
   "blocked": {
-    "p1_high": []
+    "p1_high": [
+      {
+        "id": "LZ-FIX-LOGGING-LEVELS",
+        "title": "Add logging level control to Mod Settings",
+        "priority": "P1 - High",
+        "estimate": "1-2 hours",
+        "owner": "team",
+        "description": "Reduce log spam by adding Verbose/Standard/Brief logging levels. Default: Standard (reduces thousands of lines to ~10-20 per search).",
+        "deliverables": [
+          "Add LoggingLevel enum to LandingZoneModSettings.cs (Verbose/Standard/Brief)",
+          "Update tile-level logging in FilterService.cs:",
+          "  - Verbose: Log every tile evaluation (current behavior - floods log)",
+          "  - Standard: Log phase summaries only (~10-20 lines per search) [DEFAULT]",
+          "  - Brief: Log final results count and timing only (~3-5 lines)",
+          "Add Mod Settings dropdown with tooltip explaining each level",
+          "Test: Verify Standard reduces log output from 1000s of lines to ~10-20",
+          "Ensure critical errors still logged regardless of level"
+        ],
+        "blockers": [],
+        "area": "Infrastructure/Settings",
+        "milestone": "0.1.1-beta",
+        "status": "blocked"
+      },
+      {
+        "id": "LZ-FIX-SCORING-WEIGHTS",
+        "title": "Implement 5 scoring weight presets in Mod Settings",
+        "priority": "P1 - High",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "Add dropdown in Mod Settings for 5 scoring weight presets. Provides user control over critical:preferred:bonus hierarchy. Default: 'Critical Focused' (10:3:1).",
+        "deliverables": [
+          "Create LandingZoneModSettings.cs extending ModSettings",
+          "Add ScoringWeightPreset enum with 5 presets:",
+          "  - Balanced (7:2:1): critBase=4.0, prefBase=1.0, mutWeight=0.1",
+          "  - Critical Focused (10:3:1): critBase=3.35, prefBase=1.0, mutWeight=0.071 [DEFAULT]",
+          "  - Strict Hierarchy (16:4:1): critBase=4.0, prefBase=1.0, mutWeight=0.05",
+          "  - Ultra Critical (20:4:1): critBase=5.0, prefBase=1.0, mutWeight=0.04",
+          "  - Precision Match (5:1:0): critBase=5.0, prefBase=1.0, mutWeight=0.0",
+          "Update FilterService.cs to read preset values instead of hardcoded constants",
+          "Add Mod Settings UI with dropdown + tooltips explaining each preset",
+          "Implement ExposeData() for persistence",
+          "Test: Verify switching presets changes scoring behavior"
+        ],
+        "blockers": [],
+        "area": "Scoring/Settings",
+        "milestone": "0.1.1-beta",
+        "status": "blocked"
+      }
+    ],
+    "p3_low": [
+      {
+        "id": "LZ-UI-KEYBOARD",
+        "title": "Add keyboard shortcuts",
+        "priority": "P3 - Low",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "Add keyboard shortcuts for common operations (Space=toggle section, Enter=search, Ctrl+R=reset, etc.).",
+        "blockers": [],
+        "area": "UX/Polish",
+        "milestone": "0.2.0",
+        "status": "blocked"
+      }
+    ],
+    "p2_medium": [
+      {
+        "id": "LZ-MOD-SETTINGS",
+        "title": "Comprehensive mod settings menu",
+        "priority": "P2 - Medium",
+        "estimate": "5-6 hours",
+        "owner": "team",
+        "description": "Create comprehensive RimWorld Mod Settings menu for all configurable options (beyond just scoring parameters in LZ-SCORING-UI-001). Includes performance, UI, and feature toggles.",
+        "deliverables": [
+          "Create LandingZoneModSettings.cs extending ModSettings",
+          "Add performance settings: max results limit, evaluation timeout, cache size",
+          "Add UI settings: window opacity, font size, default mode (Default/Advanced)",
+          "Add feature toggles: UseNewScoring (already exists), enable heatmap, enable bookmarks",
+          "Add debug settings: verbose logging, show evaluation metrics, diagnostic mode",
+          "All settings persist via Scribe system",
+          "Settings accessible via RimWorld Mod Settings menu",
+          "Add 'Reset All to Defaults' button"
+        ],
+        "blockers": [],
+        "area": "UI/UX",
+        "milestone": "0.2.0",
+        "status": "blocked"
+      },
+      {
+        "id": "LZ-TELEMETRY",
+        "title": "End-user troubleshooting telemetry",
+        "priority": "P2 - Medium",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Add opt-in telemetry and diagnostic tools to help users troubleshoot issues without needing to read Player.log. Helpful for bug reports and support.",
+        "deliverables": [
+          "Create DiagnosticLogger.cs with ring buffer for recent events",
+          "Track: search start/end, filter application times, exceptions, performance metrics",
+          "Add 'Copy Diagnostics' button to preferences window (copies to clipboard)",
+          "Format: anonymized, human-readable, timestamp-prefixed log",
+          "Add session stats: searches performed, avg search time, cache hit rate, errors",
+          "Add 'Performance Report' showing bottleneck analysis",
+          "Opt-in via mod settings (default enabled, easily disableable)",
+          "Include mod version, RimWorld version, DLC detection in diagnostics",
+          "Never log user filter preferences or world seed (privacy)"
+        ],
+        "blockers": [],
+        "area": "Infrastructure",
+        "milestone": "0.2.0",
+        "status": "blocked"
+      },
+      {
+        "id": "LZ-SCORING-UI-001",
+        "title": "Mod settings for scoring parameters",
+        "priority": "P2 - Medium",
+        "estimate": "3-4 hours",
+        "owner": "team",
+        "description": "Expose tuning knobs in RimWorld Mod Settings menu. Complex math stays under the hood, but power users get control.",
+        "deliverables": [
+          "Add slider for \u03b1_pen (penalty floor): range 0.0-0.3, default 0.1, tooltip 'How much score survives worst critical miss'",
+          "Add slider for \u03b3_pen (penalty sharpness): range 1.0-4.0, default 2.0, tooltip 'How harshly worst critical is punished'",
+          "Add slider for \u03bb_mut (mutator weight): range 0.0-0.3, default 0.1, tooltip 'How much mutators influence score'",
+          "Add slider for fuzzy margin multiplier: range 0.5-2.0, default 1.0, tooltip 'Widens/narrows acceptable range for numeric filters'",
+          "Changes apply immediately to next search",
+          "Add 'Reset to defaults' button"
+        ],
+        "blockers": [
+          "LZ-SCORING-003"
+        ],
+        "area": "UI/UX",
+        "milestone": "0.2.0",
+        "status": "blocked"
+      }
+    ]
   },
-  "archived": []
+  "archived": [
+    {
+      "id": "LZ-FIX-PREFS-LABEL",
+      "title": "Update LZ Prefs button label to show preset name",
+      "priority": "P1 - High",
+      "estimate": "1-2 hours",
+      "owner": "team",
+      "description": "LZ Prefs button should show 'default', 'preset01', 'preset02', etc. or 'custom01', 'custom02' for saved filters (max 99 each). Found during testing (2025-11-13).",
+      "deliverables": [
+        "Add preset tracking to GameState or LandingZoneOptions",
+        "Track which preset is active (default, Temperate=01, ArcticChallenge=02, etc.)",
+        "Track custom saved filter slots (1-99)",
+        "Update GetPresetDisplayName() in SelectStartingSiteButtonsPatch.cs",
+        "Format: 'default', 'preset01', 'preset02', ... 'preset99', 'custom01', ... 'custom99'",
+        "Update label on preset load/save/reset"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.1.1-beta",
+      "status": "archived"
+    },
+    {
+      "id": "LZ-STONE-001",
+      "title": "Complete stone filter UI rebuild",
+      "completed": "2025-11-13",
+      "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred).",
+      "area": "Filtering/UI",
+      "status": "archived"
+    }
+  ]
 }

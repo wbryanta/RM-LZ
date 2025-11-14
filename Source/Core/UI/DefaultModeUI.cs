@@ -122,21 +122,32 @@ namespace LandingZone.Core.UI
         {
             var filters = preferences.Filters;
 
-            // 1. Temperature (honor user's C/F preference)
-            bool useFahrenheit = LandingZoneMod.UseFahrenheit;
-            string tempUnit = useFahrenheit ? "°F" : "°C";
-            float displayMin = useFahrenheit
-                ? GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, TemperatureDisplayMode.Fahrenheit)
-                : filters.AverageTemperatureRange.min;
-            float displayMax = useFahrenheit
-                ? GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, TemperatureDisplayMode.Fahrenheit)
-                : filters.AverageTemperatureRange.max;
+            // 1. Temperature (honor user's C/F/K preference)
+            var tempMode = Prefs.TemperatureMode;
+            string tempUnit = tempMode == TemperatureDisplayMode.Fahrenheit ? "°F"
+                            : tempMode == TemperatureDisplayMode.Kelvin ? "K"
+                            : "°C";
+
+            // Convert stored Celsius values to display unit
+            float displayMin = GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, tempMode);
+            float displayMax = GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, tempMode);
+
+            // Define slider range in display unit
+            float sliderMin = GenTemperature.CelsiusTo(-60f, tempMode);  // -60°C = -76°F = 213K
+            float sliderMax = GenTemperature.CelsiusTo(60f, tempMode);   // 60°C = 140°F = 333K
 
             listing.Label($"Temperature: {displayMin:F0}{tempUnit} to {displayMax:F0}{tempUnit}");
             var tempRect = listing.GetRect(30f);
-            var tempRange = filters.AverageTemperatureRange;
-            DrawRangeSlider(tempRect, ref tempRange, -60f, 60f);
-            filters.AverageTemperatureRange = tempRange;
+
+            // Slider works in display units
+            var displayRange = new FloatRange(displayMin, displayMax);
+            DrawRangeSlider(tempRect, ref displayRange, sliderMin, sliderMax);
+
+            // Convert back to Celsius for storage
+            filters.AverageTemperatureRange = new FloatRange(
+                ConvertToCelsius(displayRange.min, tempMode),
+                ConvertToCelsius(displayRange.max, tempMode)
+            );
 
             var tempImportance = filters.AverageTemperatureImportance;
             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Temperature Importance", ref tempImportance);
@@ -174,34 +185,22 @@ namespace LandingZone.Core.UI
             listing.Gap(10f);
 
             // 5. Rivers (Any)
-            var riversImportance = GetAnyRiverImportance(filters.Rivers);
-            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Rivers (Any)", ref riversImportance);
-            SetAllRiversImportance(filters.Rivers, riversImportance);
+            DrawRiversControl(listing.GetRect(30f), filters);
             listing.Gap(10f);
 
             // 6. Roads (Any)
-            var roadsImportance = GetAnyRoadImportance(filters.Roads);
-            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Roads (Any)", ref roadsImportance);
-            SetAllRoadsImportance(filters.Roads, roadsImportance);
+            DrawRoadsControl(listing.GetRect(30f), filters);
             listing.Gap(10f);
 
-            // 7. Hilliness
-            listing.Label("Terrain Hilliness:");
-            DrawHillinessToggles(listing.GetRect(30f), filters);
-            listing.Gap(10f);
-
-            // 8. Caves (via MapFeatures)
+            // 7. Caves (via MapFeatures)
             var caveImportance = filters.MapFeatures.GetImportance("Cave");
             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Caves", ref caveImportance);
             filters.MapFeatures.SetImportance("Cave", caveImportance);
             listing.Gap(10f);
 
-            // 7. Rivers (any type)
-            DrawRiversControl(listing.GetRect(30f), filters);
-            listing.Gap(10f);
-
-            // 8. Roads (any type)
-            DrawRoadsControl(listing.GetRect(30f), filters);
+            // 8. Hilliness
+            listing.Label("Terrain Hilliness:");
+            DrawHillinessToggles(listing.GetRect(30f), filters);
             listing.Gap(10f);
 
             // 9. Stones (Granite and Marble)
@@ -338,34 +337,24 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Sets all river types to the specified importance level.
-        /// Used by Basic mode "Rivers (Any)" toggle.
+        /// Converts temperature from display mode back to Celsius for storage.
         /// </summary>
-        private static void SetAllRiversImportance(IndividualImportanceContainer<string> rivers, FilterImportance importance)
+        private static float ConvertToCelsius(float displayValue, TemperatureDisplayMode mode)
         {
-            var allRivers = RiverFilter.GetAllRiverTypes().Select(r => r.defName);
-            foreach (var river in allRivers)
+            if (mode == TemperatureDisplayMode.Fahrenheit)
             {
-                if (importance == FilterImportance.Ignored)
-                    rivers.ItemImportance.Remove(river);
-                else
-                    rivers.SetImportance(river, importance);
+                // F to C: (F - 32) / 1.8
+                return (displayValue - 32f) / 1.8f;
             }
-        }
-
-        /// <summary>
-        /// Sets all road types to the specified importance level.
-        /// Used by Basic mode "Roads (Any)" toggle.
-        /// </summary>
-        private static void SetAllRoadsImportance(IndividualImportanceContainer<string> roads, FilterImportance importance)
-        {
-            var allRoads = RoadFilter.GetAllRoadTypes().Select(r => r.defName);
-            foreach (var road in allRoads)
+            else if (mode == TemperatureDisplayMode.Kelvin)
             {
-                if (importance == FilterImportance.Ignored)
-                    roads.ItemImportance.Remove(road);
-                else
-                    roads.SetImportance(road, importance);
+                // K to C: K - 273.15
+                return displayValue - 273.15f;
+            }
+            else
+            {
+                // Already Celsius
+                return displayValue;
             }
         }
     }
