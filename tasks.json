@@ -39,48 +39,7 @@
   },
   "in_progress": [],
   "todo": {
-    "p0_critical": [
-      {
-        "id": "LZ-STONE-001",
-        "title": "Complete stone filter UI rebuild",
-        "priority": "P0 - Critical",
-        "estimate": "3-4 hours",
-        "owner": "team",
-        "description": "Stone filter architecture complete (FilterSettings.Stones uses IndividualImportanceContainer). UI temporarily stubbed during Sprint 1.1 cleanup. Need to rebuild stone selector UI.",
-        "current_state": "FilterSettings.Stones exists and works. LandingZonePreferencesWindow has 3 TODOs pointing to stubbed sections.",
-        "deliverables": [
-          "Populate stone selector from DefDatabase<ThingDef> buildingStones",
-          "Use FilterSettings.Stones.SetImportance(stoneName, importance)",
-          "Add search box for filtering stone list",
-          "Add Reset/All/None utility buttons",
-          "Update stone count indicator in section header",
-          "Remove TODO comments from LandingZonePreferencesWindow.cs"
-        ],
-        "blockers": [],
-        "area": "Filtering/UI",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-SCORING-004",
-        "title": "Membership scoring testing and validation",
-        "priority": "P0 - Critical",
-        "estimate": "1 day",
-        "owner": "team",
-        "description": "Validate new membership scoring against k-of-n baseline. Ensure quality improvement is measurable.",
-        "deliverables": [
-          "Run same world/filters through both k-of-n and membership systems",
-          "Compare top-20 results: score distributions, rank correlations",
-          "Performance profiling: memory usage (float[] vs BitArray), scoring speed",
-          "Edge case testing: no criticals, no preferreds, extreme ranges, over-constrained filters",
-          "Document findings in docs/SCORING_VALIDATION.md",
-          "Verify: membership handles 'near miss' gracefully (599mm vs 600mm min)",
-          "Verify: penalty term punishes worst critical appropriately"
-        ],
-        "blockers": ["LZ-SCORING-003"],
-        "area": "Scoring",
-        "milestone": "0.1.0-beta"
-      }
-    ],
+    "p0_critical": [],
     "p1_high": [
       {
         "id": "LZ-DOCS-CLEANUP",
@@ -589,6 +548,13 @@
     ]
   },
   "completed": [
+    {
+      "id": "LZ-STONE-001",
+      "title": "Complete stone filter UI rebuild",
+      "completed": "2025-11-13",
+      "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred).",
+      "area": "Filtering/UI"
+    },
     {
       "id": "LZ-FIX-MODE-TOGGLE",
       "title": "Fix Default/Advanced mode toggle buttons",
