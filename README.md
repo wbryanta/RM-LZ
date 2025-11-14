@@ -1,18 +1,217 @@
 # LandingZone
 
-LandingZone is a fresh take on RimWorld's landing-site preparation tools. Instead of forking **Prepare Landing**, we are rebuilding the experience with a cleaner codebase and modern RimWorld 1.5 support. The first milestone is a feature-parity implementation of smart tile filtering, highlighting, and preset management so players can quickly find ideal colony spots without juggling multiple menus.
+**Version**: 0.1.3-beta
+**RimWorld Version**: 1.6
+**Status**: Active Development (Beta)
 
-## Goals
-- **Modern architecture** – decouple game data, filtering logic, and UI from day one.
-- **Modular filters** – compose biome, terrain, temperature, and world-feature filters without a monolithic class.
-- **Responsive UX** – keep the world map interactive while filters run, with clear logging/debug info.
-- **Extendable** – make it easy to add new filters, overlays, and presets without Harmony surgery.
+LandingZone is a RimWorld mod for intelligent landing site selection. Find your perfect settlement location using advanced filtering and fuzzy preference matching across 40+ criteria including climate, terrain, resources, and geographic features.
 
-## Current Status
-- Repository scaffolded with RimWorld mod folders (`About/`, `Assemblies/`, `Defs/`, `Patches/`, `Source/`).
-- Documentation folder for design notes and learnings from the original Prepare Landing mod.
-- Next step: bring in the initial C# project, copy MIT license, and start codifying the architecture plan.
+## Features
+
+### Two-Phase Filtering Architecture
+- **Apply Phase**: Critical filters eliminate 90-95% of tiles instantly using cheap game cache lookups
+- **Score Phase**: Membership-based fuzzy scoring ranks remaining candidates with continuous [0,1] preferences
+- **Performance**: Searches complete in seconds, not minutes (handles 150k+ settleable tiles efficiently)
+
+### 40+ Filters Across Categories
+- **Climate**: Average/Min/Max temperature, Rainfall, Growing season
+- **Terrain**: Biomes, Elevation, Hilliness, Coastal (ocean/lake)
+- **Geography**: Rivers, Roads, World features, Landmarks, Adjacent biomes
+- **Resources**: Specific stones (Granite, Marble, etc.), Forageable food
+- **Features**: Map features (caves, geothermal, ancient ruins, etc.) with 83 mutators rated for quality
+
+### Intelligent Scoring System
+- **Fuzzy Preferences**: Continuous [0,1] membership scores with trapezoid falloff for numeric ranges
+- **Penalty Term**: Worst critical membership reduces overall score (prevents "jack of all trades" results)
+- **Mutator Quality**: 83 map features rated -10 (very bad) to +10 (very good) - geothermal vents boost scores, toxic lakes reduce them
+- **Configurable Weights**: 5 scoring presets (Balanced, Critical Focused, Strict Hierarchy, Ultra Critical, Precision Match)
+
+### Dual-Mode Interface
+- **Default Mode**: Simplified UI with 8 essential filters and preset cards (Temperate, Arctic Challenge, Desert Oasis)
+- **Advanced Mode**: Full control with 40+ filters organized into collapsible sections
+- **Stone Selector**: Per-stone importance (Granite=Critical, Marble=Preferred) dynamically loaded from DefDatabase
+- **Results Window**: Top-N matches with detailed tile information, click to jump to location on world map
+
+### Performance & Customization
+- **Max Candidate Tiles**: Configurable 25k-150k (default 100k) to balance memory usage vs search completeness
+- **Stop Button**: Cancel long-running searches mid-evaluation
+- **Logging Levels**: Verbose/Standard/Brief to control log spam
+- **Mod Settings**: Performance tuning, scoring presets, UI preferences
+
+## Installation
+
+1. Download latest release from [Releases](https://github.com/wbryanta/RM-LZ/releases)
+2. Extract to RimWorld/Mods/LandingZone
+3. Enable in RimWorld mod list (requires Harmony)
+4. Launch game and start new world or load existing save
+
+## Usage
+
+### Quick Start
+1. Generate or load a RimWorld world
+2. Click **"Filters"** button in bottom panel on "Select Starting Site" screen
+3. Choose **Default** or **Advanced** mode
+4. Set your preferences (temperature, biome, coastal, etc.)
+5. Click **">>"** to start search
+6. Click **"Top (20)"** to view results
+7. Click any result to jump to that tile on the world map
+
+### Default Mode
+- Simplified interface for casual users
+- 3 preset cards (click to apply)
+- 8 essential filters: Biomes, Temperature, Rainfall, Coastal, Growing Season, Rivers, Roads, Stones
+- Tri-state toggles: Ignored | Preferred | Critical
+
+### Advanced Mode
+- Full filter control for power users
+- 40+ filters organized by category
+- Per-item importance for stones, rivers, roads, biomes, features
+- Stone Count mode: "Any 3 types" instead of specific stones
+- All numeric filters have range sliders with fuzzy margins
+
+### Understanding Scores
+- **1.0 = Perfect match** - all criticals excellent, all preferreds met
+- **0.8-0.9 = Very good** - strong critical matches, good preferred matches
+- **0.6-0.7 = Good** - solid criticals, some preferred misses
+- **0.4-0.5 = Acceptable** - marginal criticals or weak preferreds
+- **<0.4 = Poor** - at least one critical severely unmet
+
+Worst critical membership acts as a penalty multiplier - a tile with 9 perfect criticals but 1 terrible critical will score poorly.
+
+## Architecture
+
+See `docs/architecture-v0.1-beta.md` for detailed architecture documentation.
+
+**Core Components**:
+- **Game Cache** (`Find.World.grid`) - Single source of truth for cheap tile data
+- **TileDataCache** - Lazy computation for expensive RimWorld API calls
+- **FilterService** - Two-phase pipeline orchestrator (Apply → Score)
+- **MembershipFunctions** - Trapezoid, distance decay, binary membership computations
+- **ScoringWeights** - Penalty term, global weights, final score calculation
+
+**Filter Pattern**:
+```csharp
+public class ExampleFilter : ISiteFilter
+{
+    public FilterHeaviness Heaviness => FilterHeaviness.Light; // or Heavy
+
+    public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
+    {
+        // Hard filtering: eliminate tiles that don't meet Critical importance
+        return inputTiles.Where(id => MeetsCriteria(id));
+    }
+
+    public float Membership(FilterContext context, int tileId)
+    {
+        // Soft scoring: return [0,1] membership for Preferred importance
+        return ComputeMembership(tileId);
+    }
+}
+```
+
+## Development
+
+### Build
+```bash
+python3 scripts/build.py              # Debug build (default)
+python3 scripts/build.py -c Release   # Release build
+```
+
+Builds project and copies DLL to `Assemblies/` directory for RimWorld to load.
+
+### Task Management
+```bash
+python3 scripts/tasks_api.py          # Start task board server
+# Open http://localhost:8080 in browser
+```
+
+Kanban board for tracking development tasks. Drag cards between swimlanes to update `tasks.json`.
+
+### Adding a New Filter
+1. Create `Source/Core/Filtering/Filters/YourFilter.cs` implementing `ISiteFilter`
+2. Choose `FilterHeaviness.Light` (cheap data) or `.Heavy` (expensive APIs)
+3. Register in `SiteFilterRegistry.RegisterDefaultFilters()`
+4. Add properties to `FilterSettings.cs` (importance, ranges, etc.)
+5. Wire up UI in `DefaultModeUI.cs` and/or `AdvancedModeUI.cs`
+
+See `CLAUDE.md` for detailed development guide.
+
+### Versioning
+Version follows semantic versioning: `major.minor.patch(-prerelease)`
+
+Current: **0.1.3-beta**
+- 0.1.x-beta: Feature additions and bug fixes during beta
+- 1.0.0: First stable release (planned)
+
+See `VERSIONING.md` for workflow details.
+
+## Roadmap
+
+**Completed (v0.1.0-0.1.3)**:
+- ✅ Two-phase filtering architecture
+- ✅ 40+ filter implementations
+- ✅ Membership-based fuzzy scoring
+- ✅ Mutator quality scoring (83 mutators)
+- ✅ Default/Advanced UI modes
+- ✅ Stone selector with per-stone importance
+- ✅ Results window with top-N display
+- ✅ Mod settings (performance, scoring, logging)
+- ✅ Configurable max candidates
+- ✅ Stop button for canceling searches
+
+**In Progress (v0.2.0-beta)**:
+- 🔨 Documentation cleanup and architecture alignment
+- 📋 Preset save/load system
+- 📋 Score breakdown transparency UI
+- 📋 Results window UX refactor
+
+**Planned (v0.3.0+)**:
+- 📋 Bookmark manager for favorite tiles
+- 📋 Heatmap overlay visualization on world map
+- 📋 Advanced drag-to-order ranking with AND/OR logic
+- 📋 "Why No Results?" diagnostic analysis
+
+See `tasks.json` for full task list with priorities and estimates.
+
+## Known Issues
+
+- CoastalLakeFilter and AdjacentBiomesFilter use neighbor heuristic (may not perfectly match icosahedral grid)
+- MapFeatureFilter uses reflection to access RimWorld 1.6+ Mutators (graceful degradation on older versions)
+- FilterPerformanceTest.cs still references WorldSnapshot in comments (code is correct, comments outdated)
 
 ## Credits
-Prepare Landing (neitsa, m00nl1ght, contributors) is licensed under MIT, which allows us to reuse ideas. We'll reference their work where appropriate while writing new code.
-# RM-LZ
+
+**Inspiration**: [Prepare Landing](https://github.com/neitsa/PrepareLanding) (MIT License) by neitsa, m00nl1ght, and contributors. LandingZone is a from-scratch rewrite with new architecture and scoring system.
+
+**Development**: Built with [Claude Code](https://claude.com/claude-code) assistance for forensic analysis, architecture design, and implementation.
+
+**License**: MIT (see LICENSE file)
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/wbryanta/RM-LZ/issues)
+- **Source**: [GitHub Repository](https://github.com/wbryanta/RM-LZ)
+
+## Changelog
+
+### v0.1.3-beta (2025-11-13)
+- Fixed Default/Advanced mode toggle buttons (removed 'active' parameter bug)
+- Fixed tasks board API to handle nested priority structure
+- Moved LZ-STONE-001 to completed (forensic analysis confirmed implementation complete)
+- Removed LZ-SCORING-004 (validation task, scoring works in production)
+
+### v0.1.2-beta (2025-11-13)
+- Added Stop button to cancel running searches
+- Fixed Top (XX) button to open results window
+- Fixed Filters button accidentally opening results
+- Added Max Candidate Tiles setting (25k-150k, default 100k)
+- Fixed OutOfMemoryException from int.MaxValue pre-allocation
+
+### v0.1.1-beta (2025-11-13)
+- Mod settings: Scoring presets, logging levels
+- UI consolidation to bottom panel
+- Compact icon buttons for bookmarks
+- Temperature display honors Celsius/Fahrenheit setting
+- Fixed CriticalStrictness and button positioning bugs
+
+See `VERSIONING.md` for complete version history.

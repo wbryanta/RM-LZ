@@ -134,9 +134,12 @@ See `VERSIONING.md` for full guide.
    - Only applies Critical importance filters
 
 2. **Score (Precision Ranking)** - Runs in `FilterService.BuildTileScore()`
-   - Scores candidates: cheap checks first, expensive (TileCache) only if pass
-   - Applies Preferred importance as score penalties
-   - Maintains top-N heap, returns sorted by score
+   - Computes membership-based scores using fuzzy preference matching
+   - Critical filters use continuous [0,1] memberships (trapezoid falloff)
+   - Preferred filters contribute to score with weighted averages
+   - Penalty term (P_C) based on worst critical membership
+   - Mutator quality scoring (83 mutators rated -10 to +10)
+   - Maintains top-N heap, returns sorted by membership score
 
 **Performance pattern:** Cheap filters eliminate bulk of tiles → expensive filters only process survivors → lazy scoring → seconds instead of minutes
 
@@ -219,13 +222,19 @@ Register filters with correct heaviness to optimize pipeline:
 ## Documentation
 
 **Primary docs:**
-- `docs/filtering-architecture_v0_0_3-alpha.md` - Performance analysis, patterns, bottlenecks
+- `docs/architecture-v0.1-beta.md` - Current architecture, two-phase pipeline, membership scoring
+- `docs/mathing-the-math.md` - Membership scoring mathematics and formulas
 - `tasks.json` - Work items, dependencies, deliverables
-- `README.md` - Project goals
+- `VERSIONING.md` - Version management workflow
+- `README.md` - Project goals and overview
+
+**Archived docs** (historical reference):
+- `docs/archive/filtering-architecture_v0_0_3-alpha.md` - v0.0.3-alpha architecture (outdated)
+- `docs/archive/architecture-blueprint-original.md` - Original planning blueprint
 
 **When investigating issues:**
 1. Check `tasks.json` for related work
-2. Read architecture doc for performance context
+2. Read `docs/architecture-v0.1-beta.md` for current architecture
 3. Check RimWorld logs for actual behavior
 4. Add diagnostic logging - never assume
 

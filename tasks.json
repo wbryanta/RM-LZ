@@ -1,20 +1,21 @@
 {
   "meta": {
-    "description": "LandingZone v0.1.1-beta development roadmap",
-    "version": "0.1.1-beta",
+    "description": "LandingZone v0.1.3-beta development roadmap",
+    "version": "0.1.3-beta",
     "last_updated": "2025-11-13",
     "forensic_analysis_date": "2025-11-13",
     "notes": [
+      "v0.1.3-beta: Mode toggle fixed, tasks board operational, max candidates configurable (25k-150k).",
       "v0.1.1-beta: Membership scoring system complete (commits 096d8c7, e15b486).",
       "Architecture: A- grade - game cache SSOT, lazy evaluation, two-phase filtering.",
       "Scoring: Fuzzy preference matching with continuous [0,1] memberships replaces k-of-n binary.",
       "Mutators: Quality-of-life scoring (83 mutators rated -10 to +10) integrated.",
       "UI: Default/Advanced mode toggle complete, stone selectors functional.",
-      "Ready for in-game validation testing (LZ-SCORING-004)."
+      "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
-      "Two-phase filtering: Apply (hard Critical) → Score (soft Preferred)",
+      "Two-phase filtering: Apply (hard Critical) \u2192 Score (soft Preferred)",
       "Lazy evaluation: expensive data only computed for survivors",
       "IndividualImportanceContainer: per-item importance (Granite=Critical, Marble=Preferred)",
       "Membership scoring: Fuzzy preferences (trapezoid falloff) replace binary cutoffs",
@@ -37,50 +38,32 @@
       ]
     }
   },
-  "in_progress": [],
+  "in_progress": [
+    {
+      "id": "LZ-DOCS-CLEANUP",
+      "title": "Update documentation to reflect current reality",
+      "priority": "P1 - High",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Documentation references deleted code (WorldSnapshot, TemperatureFilter, HasCaveFilter, etc.). Need complete refresh.",
+      "deliverables": [
+        "Update CLAUDE.md: Remove WorldSnapshot, document game cache pattern",
+        "Update docs/filtering-architecture_v0_0_3-alpha.md: Remove obsolete sections",
+        "Add actual performance metrics from testing",
+        "Document cave filtering fix as case study",
+        "Update filter implementation examples",
+        "Add forensic analysis findings summary to docs/",
+        "Verify all code references in docs are accurate"
+      ],
+      "blockers": [],
+      "area": "Documentation",
+      "milestone": "0.1.0-beta",
+      "status": "in_progress"
+    }
+  ],
   "todo": {
     "p0_critical": [],
     "p1_high": [
-      {
-        "id": "LZ-DOCS-CLEANUP",
-        "title": "Update documentation to reflect current reality",
-        "priority": "P1 - High",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Documentation references deleted code (WorldSnapshot, TemperatureFilter, HasCaveFilter, etc.). Need complete refresh.",
-        "deliverables": [
-          "Update CLAUDE.md: Remove WorldSnapshot, document game cache pattern",
-          "Update docs/filtering-architecture_v0_0_3-alpha.md: Remove obsolete sections",
-          "Add actual performance metrics from testing",
-          "Document cave filtering fix as case study",
-          "Update filter implementation examples",
-          "Add forensic analysis findings summary to docs/",
-          "Verify all code references in docs are accurate"
-        ],
-        "blockers": [],
-        "area": "Documentation",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-RESULTS-REFACTOR",
-        "title": "Results window UX refactor",
-        "priority": "P1 - High",
-        "estimate": "6-8 hours",
-        "owner": "team",
-        "description": "Refactor LandingZoneResultsWindow for better organization, readability, and extensibility. Current implementation functional but could benefit from cleanup.",
-        "deliverables": [
-          "Restructure results display layout for better readability",
-          "Improve tile details panel organization",
-          "Add filtering/sorting controls (by score, by biome, etc.)",
-          "Optimize rendering performance for large result sets",
-          "Improve visual hierarchy and information density",
-          "Add quick-jump navigation between results",
-          "Clean up code structure for easier feature additions"
-        ],
-        "blockers": [],
-        "area": "UI/UX",
-        "milestone": "0.2.0"
-      },
       {
         "id": "LZ-FIX-PREFS-LABEL",
         "title": "Update LZ Prefs button label to show preset name",
@@ -157,7 +140,7 @@
           "Convert slider values on-the-fly for display (storage stays Celsius)",
           "Update tooltips to match displayed unit",
           "Test with all 3 temperature modes (C/F/K)",
-          "Ensure conversion is accurate (C↔F: F = C×1.8+32)"
+          "Ensure conversion is accurate (C\u2194F: F = C\u00d71.8+32)"
         ],
         "blockers": [],
         "area": "UI",
@@ -221,6 +204,27 @@
         "blockers": [],
         "area": "UI",
         "milestone": "0.1.1-beta"
+      },
+      {
+        "id": "LZ-RESULTS-REFACTOR",
+        "title": "Results window UX refactor",
+        "priority": "P1 - High",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Refactor LandingZoneResultsWindow for better organization, readability, and extensibility. Current implementation functional but could benefit from cleanup.",
+        "deliverables": [
+          "Restructure results display layout for better readability",
+          "Improve tile details panel organization",
+          "Add filtering/sorting controls (by score, by biome, etc.)",
+          "Optimize rendering performance for large result sets",
+          "Improve visual hierarchy and information density",
+          "Add quick-jump navigation between results",
+          "Clean up code structure for easier feature additions"
+        ],
+        "blockers": [],
+        "area": "UI/UX",
+        "milestone": "0.2.0",
+        "status": "todo"
       }
     ],
     "p2_medium": [
@@ -250,7 +254,9 @@
         "estimate": "2-3 hours",
         "owner": "team",
         "description": "AdjacentBiomesFilter uses same heuristic as CoastalLakeFilter. Need to verify correctness.",
-        "blockers": ["LZ-FILTER-VERIFY-001"],
+        "blockers": [
+          "LZ-FILTER-VERIFY-001"
+        ],
         "area": "Filtering",
         "milestone": "0.1.0-beta"
       },
@@ -317,14 +323,16 @@
         "owner": "team",
         "description": "Expose tuning knobs in RimWorld Mod Settings menu. Complex math stays under the hood, but power users get control.",
         "deliverables": [
-          "Add slider for α_pen (penalty floor): range 0.0-0.3, default 0.1, tooltip 'How much score survives worst critical miss'",
-          "Add slider for γ_pen (penalty sharpness): range 1.0-4.0, default 2.0, tooltip 'How harshly worst critical is punished'",
-          "Add slider for λ_mut (mutator weight): range 0.0-0.3, default 0.1, tooltip 'How much mutators influence score'",
+          "Add slider for \u03b1_pen (penalty floor): range 0.0-0.3, default 0.1, tooltip 'How much score survives worst critical miss'",
+          "Add slider for \u03b3_pen (penalty sharpness): range 1.0-4.0, default 2.0, tooltip 'How harshly worst critical is punished'",
+          "Add slider for \u03bb_mut (mutator weight): range 0.0-0.3, default 0.1, tooltip 'How much mutators influence score'",
           "Add slider for fuzzy margin multiplier: range 0.5-2.0, default 1.0, tooltip 'Widens/narrows acceptable range for numeric filters'",
           "Changes apply immediately to next search",
           "Add 'Reset to defaults' button"
         ],
-        "blockers": ["LZ-SCORING-003"],
+        "blockers": [
+          "LZ-SCORING-003"
+        ],
         "area": "UI/UX",
         "milestone": "0.2.0"
       },
@@ -337,14 +345,16 @@
         "description": "Show per-filter memberships in results window. Users can see exactly why a tile scored high/low.",
         "deliverables": [
           "Add expandable 'Score Details' section to tile info panel in results window",
-          "Show critical filters with membership: 'Temperature: 0.9 ★★★★☆' (5-star visualization)",
+          "Show critical filters with membership: 'Temperature: 0.9 \u2605\u2605\u2605\u2605\u2606' (5-star visualization)",
           "Show preferred filters with membership and contribution to score",
-          "Highlight worst critical: 'Growing season: 0.3 ⚠️ (penalty applied: -40%)'",
+          "Highlight worst critical: 'Growing season: 0.3 \u26a0\ufe0f (penalty applied: -40%)'",
           "Show mutator score contribution: 'Mutators: +0.05 (Geothermal +10, Polluted -5)'",
-          "Display final score formula with actual values: 'Score = 0.6 × (0.51×0.82 + 0.39×0.68 + 0.1×0.55) = 0.73'",
+          "Display final score formula with actual values: 'Score = 0.6 \u00d7 (0.51\u00d70.82 + 0.39\u00d70.68 + 0.1\u00d70.55) = 0.73'",
           "Collapsible by default, expand on click"
         ],
-        "blockers": ["LZ-SCORING-003"],
+        "blockers": [
+          "LZ-SCORING-003"
+        ],
         "area": "UI/UX",
         "milestone": "0.2.0"
       },
@@ -504,10 +514,12 @@
           "Add visual rank indicators (1st, 2nd, 3rd...)",
           "Weights auto-update on reorder: w_i = (n - r_i + 1)/n (linear decay)",
           "Save rank order in FilterSettings per filter",
-          "Show weight preview as user drags: 'This filter will be 2.5× more important than bottom-ranked'",
+          "Show weight preview as user drags: 'This filter will be 2.5\u00d7 more important than bottom-ranked'",
           "Add 'Reset to default order' button"
         ],
-        "blockers": ["LZ-SCORING-003"],
+        "blockers": [
+          "LZ-SCORING-003"
+        ],
         "area": "UI/UX",
         "milestone": "0.3.0"
       },
@@ -518,7 +530,9 @@
         "estimate": "4-5 hours",
         "owner": "team",
         "description": "In Advanced mode, organize 83 mutators into categories: Geological, Water, Resources, Climate, Wildlife, Ancient Sites, Hazards, Terrain.",
-        "blockers": ["LZ-UI-MODE-001"],
+        "blockers": [
+          "LZ-UI-MODE-001"
+        ],
         "area": "UI",
         "milestone": "0.3.0"
       },
@@ -541,7 +555,9 @@
           "Add logic expression templates: 'Balanced', 'Strict Requirements', 'Flexible Preferences'",
           "Show visual graph of how logic affects score distribution"
         ],
-        "blockers": ["LZ-SCORING-UI-003"],
+        "blockers": [
+          "LZ-SCORING-UI-003"
+        ],
         "area": "UI/UX",
         "milestone": "0.4.0"
       }
@@ -636,14 +652,14 @@
       "id": "LZ-SCORING-003",
       "title": "Integrate membership scoring into FilterService",
       "completed": "2025-11-13",
-      "impact": "Added ScoringWeights methods: ComputeGroupScore, ComputeWorstCritical, ComputePenalty, ComputeGlobalWeights, ComputeMembershipScore. Integrated into FilterEvaluationJob with feature flag (UseNewScoring). Complete pipeline: collect memberships → group scores (S_C, S_P) → penalty term (P_C) → global weights (λ_C, λ_P, λ_mut) → final score. Replaces k-of-n binary matching with fuzzy preferences. Commit: 096d8c7",
+      "impact": "Added ScoringWeights methods: ComputeGroupScore, ComputeWorstCritical, ComputePenalty, ComputeGlobalWeights, ComputeMembershipScore. Integrated into FilterEvaluationJob with feature flag (UseNewScoring). Complete pipeline: collect memberships \u2192 group scores (S_C, S_P) \u2192 penalty term (P_C) \u2192 global weights (\u03bb_C, \u03bb_P, \u03bb_mut) \u2192 final score. Replaces k-of-n binary matching with fuzzy preferences. Commit: 096d8c7",
       "area": "Scoring"
     },
     {
       "id": "LZ-SCORING-005",
       "title": "Mutator quality scoring integration",
       "completed": "2025-11-13",
-      "impact": "Created MutatorQualityRatings.cs with 83 mutators rated -10 (very bad) to +10 (very good). ComputeMutatorScore() uses tanh squashing: S_mut = 0.5 × (1 + tanh(0.25 × Q_raw)). Integrated into membership scoring with λ_mut = 0.1 weight. Geothermal vents, fertile soil boost scores; toxic lakes, lava craters reduce scores. Made MapFeatureFilter.GetTileMapFeatures() internal for access. 184 LOC. Commit: e15b486",
+      "impact": "Created MutatorQualityRatings.cs with 83 mutators rated -10 (very bad) to +10 (very good). ComputeMutatorScore() uses tanh squashing: S_mut = 0.5 \u00d7 (1 + tanh(0.25 \u00d7 Q_raw)). Integrated into membership scoring with \u03bb_mut = 0.1 weight. Geothermal vents, fertile soil boost scores; toxic lakes, lava craters reduce scores. Made MapFeatureFilter.GetTileMapFeatures() internal for access. 184 LOC. Commit: e15b486",
       "area": "Scoring"
     },
     {
@@ -665,5 +681,8 @@
     "Visualization": "World map overlays and visual feedback",
     "Scoring": "Tile ranking algorithms",
     "Cleanup": "Dead code removal and refactoring"
+  },
+  "blocked": {
+    "p1_high": []
   }
 }
