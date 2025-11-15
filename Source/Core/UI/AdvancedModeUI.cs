@@ -22,6 +22,7 @@ namespace LandingZone.Core.UI
         private static FilterOrganization _currentOrganization = FilterOrganization.UserIntent;
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
+        private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
 
         /// <summary>
         /// Renders the Advanced mode UI (search + grouped filters).

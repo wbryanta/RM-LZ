@@ -177,6 +177,25 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Rivers:");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.Rivers.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = filters.Rivers.Operator == ImportanceOperator.OR
+                                ? "Match: ANY of the selected rivers"
+                                : "Match: ALL of the selected rivers";
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Rivers.Operator = filters.Rivers.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            listing.Gap(4f);
+                        }
+
+                        // Individual river list
                         var riverTypes = RiverFilter.GetAllRiverTypes().Select(r => r.defName).ToList();
                         foreach (var riverType in riverTypes)
                         {
@@ -192,6 +211,25 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Roads:");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.Roads.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = filters.Roads.Operator == ImportanceOperator.OR
+                                ? "Match: ANY of the selected roads"
+                                : "Match: ALL of the selected roads";
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Roads.Operator = filters.Roads.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            listing.Gap(4f);
+                        }
+
+                        // Individual road list
                         var roadTypes = RoadFilter.GetAllRoadTypes().Select(r => r.defName).ToList();
                         foreach (var roadType in roadTypes)
                         {
@@ -240,6 +278,25 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Stones (individual selection):");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.Stones.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = filters.Stones.Operator == ImportanceOperator.OR
+                                ? "Match: ANY of the selected stones"
+                                : "Match: ALL of the selected stones";
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Stones.Operator = filters.Stones.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            listing.Gap(4f);
+                        }
+
+                        // Individual stone list
                         var stoneTypes = GetAllStoneTypes();
                         foreach (var stoneType in stoneTypes)
                         {
@@ -314,7 +371,25 @@ namespace LandingZone.Core.UI
                     "Map Features (Mutators)",
                     (listing, filters) =>
                     {
-                        listing.Label("Map Features (83 types - use search!):");
+                        listing.Label("Map Features (scroll for all types):");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.MapFeatures.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = filters.MapFeatures.Operator == ImportanceOperator.OR
+                                ? "Match: ANY of the selected features"
+                                : "Match: ALL of the selected features";
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.MapFeatures.Operator = filters.MapFeatures.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            listing.Gap(4f);
+                        }
+
                         var featureTypes = MapFeatureFilter.GetAllMapFeatureTypes().OrderBy(f => f).ToList();
 
                         // Only show features matching search
@@ -322,16 +397,45 @@ namespace LandingZone.Core.UI
                             ? featureTypes
                             : featureTypes.Where(f => MatchesSearch(f)).ToList();
 
-                        foreach (var feature in visibleFeatures.Take(20)) // Limit display to avoid UI overflow
+                        // Use scrollable view for all features (no hard limit)
+                        const float itemHeight = 30f;
+                        const float maxScrollHeight = 400f;
+                        float totalHeight = visibleFeatures.Count * itemHeight;
+                        bool needsScroll = totalHeight > maxScrollHeight;
+
+                        if (needsScroll)
                         {
-                            var importance = filters.MapFeatures.GetImportance(feature);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), feature, ref importance);
-                            filters.MapFeatures.SetImportance(feature, importance);
+                            var viewRect = listing.GetRect(maxScrollHeight);
+                            var scrollRect = new Rect(0f, 0f, viewRect.width - 16f, totalHeight);
+
+                            Widgets.BeginScrollView(viewRect, ref _mapFeaturesScrollPosition, scrollRect);
+
+                            float y = 0f;
+                            foreach (var feature in visibleFeatures)
+                            {
+                                var itemRect = new Rect(0f, y, scrollRect.width, itemHeight);
+                                var importance = filters.MapFeatures.GetImportance(feature);
+                                UIHelpers.DrawImportanceSelector(itemRect, feature, ref importance);
+                                filters.MapFeatures.SetImportance(feature, importance);
+                                y += itemHeight;
+                            }
+
+                            Widgets.EndScrollView();
+                        }
+                        else
+                        {
+                            // Draw without scrolling if all items fit
+                            foreach (var feature in visibleFeatures)
+                            {
+                                var importance = filters.MapFeatures.GetImportance(feature);
+                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), feature, ref importance);
+                                filters.MapFeatures.SetImportance(feature, importance);
+                            }
                         }
 
-                        if (visibleFeatures.Count > 20)
+                        if (visibleFeatures.Count == 0 && !string.IsNullOrEmpty(_searchText))
                         {
-                            listing.Label($"... and {visibleFeatures.Count - 20} more (use search to narrow)");
+                            listing.Label("(no features match search)");
                         }
                     },
                     filters => (filters.MapFeatures.HasAnyImportance,
@@ -390,6 +494,25 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Adjacent Biomes:");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.AdjacentBiomes.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = filters.AdjacentBiomes.Operator == ImportanceOperator.OR
+                                ? "Match: ANY of the selected biomes"
+                                : "Match: ALL of the selected biomes";
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.AdjacentBiomes.Operator = filters.AdjacentBiomes.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            listing.Gap(4f);
+                        }
+
+                        // Individual biome list
                         var biomes = GetAllBiomes();
                         foreach (var biome in biomes)
                         {

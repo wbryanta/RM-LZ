@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace LandingZone.Data
@@ -30,6 +31,8 @@ namespace LandingZone.Data
             int requiredStoneCount,
             int stoneMatches,
             bool hillinessAllowed,
+            float mutatorScore,
+            IReadOnlyList<string>? tileMutators,
             float finalScore)
         {
             TemperatureEnabled = temperatureEnabled;
@@ -57,6 +60,8 @@ namespace LandingZone.Data
             RequiredStoneCount = requiredStoneCount;
             StoneMatches = stoneMatches;
             HillinessAllowed = hillinessAllowed;
+            MutatorScore = Mathf.Clamp01(mutatorScore);
+            TileMutators = tileMutators;
             FinalScore = Mathf.Clamp01(finalScore);
         }
 
@@ -85,6 +90,8 @@ namespace LandingZone.Data
         public int RequiredStoneCount { get; }
         public int StoneMatches { get; }
         public bool HillinessAllowed { get; }
+        public float MutatorScore { get; }
+        public IReadOnlyList<string>? TileMutators { get; }
         public float FinalScore { get; }
 
         public bool RequiresFeature => FeatureImportance == FilterImportance.Critical;

@@ -91,8 +91,8 @@ namespace LandingZone.Data
 
         public static readonly string[] ColorNames = new[]
         {
-            "Red (Default)", "Yellow", "Blue (Resources)", "Green (Farming)",
-            "Orange (Settlement)", "Purple (Special)", "Cyan (Coastal)", "Magenta (Priority)", "White (Note)"
+            "Red", "Yellow", "Blue", "Green",
+            "Orange", "Purple", "Cyan", "Magenta", "White"
         };
     }
 }

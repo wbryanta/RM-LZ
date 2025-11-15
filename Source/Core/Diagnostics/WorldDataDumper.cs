@@ -15,109 +15,11 @@ namespace LandingZone.Core.Diagnostics
     public static class WorldDataDumper
     {
         /// <summary>
-        /// Dumps comprehensive world data to a file in the mod directory.
-        /// Samples tiles across the world to show different terrain types.
+        /// Legacy entry point retained for compatibility; now performs a full world cache dump.
         /// </summary>
         public static void DumpWorldData()
         {
-            try
-            {
-                var world = Find.World;
-                if (world?.grid == null)
-                {
-                    Log.Error("[LandingZone] WorldDataDumper: World or grid is null");
-                    return;
-                }
-
-                var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-                var filePath = Path.Combine(GenFilePaths.ConfigFolderPath, $"LandingZone_WorldDump_{timestamp}.txt");
-
-                var sb = new StringBuilder();
-                sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine($"LandingZone World Data Dump - {timestamp}");
-                // Skip version - not essential for data dump
-                sb.AppendLine($"World: {world.info.name}");
-                sb.AppendLine($"Seed: {world.info.seedString}");
-                sb.AppendLine($"Total Tiles: {world.grid.TilesCount}");
-                sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine();
-
-                // Sample 10 random settleable tiles
-                var tilesToDump = new System.Collections.Generic.HashSet<int>();
-                var settleableTiles = new System.Collections.Generic.List<int>();
-
-                // Build list of settleable tiles
-                for (int i = 0; i < world.grid.TilesCount; i++)
-                {
-                    var tile = world.grid[i];
-                    var biome = tile?.PrimaryBiome;
-                    if (tile != null && biome != null && !biome.impassable && !world.Impassable(i))
-                    {
-                        settleableTiles.Add(i);
-                    }
-                }
-
-                // Sample 10 random from settleable
-                var rand = new Random();
-                for (int i = 0; i < 10 && settleableTiles.Count > 0; i++)
-                {
-                    var randomIndex = rand.Next(settleableTiles.Count);
-                    tilesToDump.Add(settleableTiles[randomIndex]);
-                    settleableTiles.RemoveAt(randomIndex);
-                }
-
-                sb.AppendLine($"Dumping {tilesToDump.Count} sample tiles:");
-                sb.AppendLine();
-
-                foreach (var tileId in tilesToDump.OrderBy(x => x))
-                {
-                    DumpTileData(tileId, world, sb);
-                }
-
-                // Dump world features (landmarks/regions)
-                sb.AppendLine();
-                sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine("WORLD FEATURES (Find.World.features)");
-                sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine();
-
-                if (world.features?.features != null)
-                {
-                    int featureCount = 0;
-                    foreach (var feature in world.features.features)
-                    {
-                        if (feature == null) continue;
-
-                        sb.AppendLine($"Feature #{featureCount++}:");
-                        sb.AppendLine($"  Name: {feature.name ?? "(unnamed)"}");
-                        sb.AppendLine($"  Def: {feature.def?.defName ?? "(no def)"}");
-                        sb.AppendLine($"  Max Draw Size: {feature.maxDrawSizeInTiles}");
-                        var tileCount = feature.Tiles != null ? feature.Tiles.Count() : 0;
-                        sb.AppendLine($"  Tiles: {tileCount}");
-
-                        if (feature.Tiles != null && feature.Tiles.Any())
-                        {
-                            var sampleTiles = feature.Tiles.Take(5).ToList();
-                            sb.AppendLine($"  Sample Tile IDs: {string.Join(", ", sampleTiles)}");
-                        }
-
-                        sb.AppendLine();
-                    }
-                }
-                else
-                {
-                    sb.AppendLine("(No world features found)");
-                }
-
-                File.WriteAllText(filePath, sb.ToString());
-
-                Log.Message($"[LandingZone] World data dumped to: {filePath}");
-                Messages.Message($"LandingZone: World data dumped to {Path.GetFileName(filePath)}", MessageTypeDefOf.SilentInput, false);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[LandingZone] WorldDataDumper error: {ex}");
-            }
+            DumpFullWorldCache();
         }
 
         private static void DumpTileData(int tileId, World world, StringBuilder sb)

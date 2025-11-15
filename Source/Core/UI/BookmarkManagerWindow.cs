@@ -75,7 +75,7 @@ namespace LandingZone.Core.UI
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
                 GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                Widgets.Label(rect, "No bookmarks yet.\n\nRight-click tiles on the world map to add bookmarks.");
+                Widgets.Label(rect, "No bookmarks yet.\n\nClick the star icon in the action bar to add bookmarks,\nor use the 'BM' button in the Results window.");
                 GUI.color = Color.white;
                 Text.Anchor = TextAnchor.UpperLeft;
                 return;

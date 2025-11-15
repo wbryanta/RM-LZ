@@ -19,6 +19,8 @@ namespace LandingZone.Core.UI
         private Color _selectedColor;
         private bool _showTitleOnGlobe;
 
+        private bool _cancelled = false;
+
         public BookmarkEditDialog(int tileId)
         {
             _tileId = tileId;
@@ -44,6 +46,21 @@ namespace LandingZone.Core.UI
                 _notes = string.Empty;
                 _selectedColor = BookmarkColors.Red;
                 _showTitleOnGlobe = true;
+            }
+        }
+
+        public override void PreClose()
+        {
+            base.PreClose();
+
+            // Auto-save on close unless explicitly cancelled
+            if (!_cancelled)
+            {
+                var manager = BookmarkManager.Get();
+                if (manager != null)
+                {
+                    SaveChanges(manager);
+                }
             }
         }
 
@@ -169,6 +186,7 @@ namespace LandingZone.Core.UI
             Rect cancelRect = new Rect(rect.x + buttonWidth + 10f, rect.y, buttonWidth, rect.height);
             if (Widgets.ButtonText(cancelRect, "Cancel"))
             {
+                _cancelled = true;
                 Close();
             }
         }

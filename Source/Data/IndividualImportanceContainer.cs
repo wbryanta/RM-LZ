@@ -5,6 +5,24 @@ using System.Linq;
 namespace LandingZone.Data
 {
     /// <summary>
+    /// Operator for combining multiple critical items in a filter.
+    /// </summary>
+    public enum ImportanceOperator
+    {
+        /// <summary>
+        /// Tile must have ALL critical items (default for Advanced mode multi-select).
+        /// Example: Rivers with AND = tile must have creek AND stream AND river AND huge river
+        /// </summary>
+        AND,
+
+        /// <summary>
+        /// Tile must have ANY critical item (Default mode "Any" selections).
+        /// Example: Rivers with OR = tile must have creek OR stream OR river OR huge river
+        /// </summary>
+        OR
+    }
+
+    /// <summary>
     /// Container for filters where each item can have its own importance level.
     /// Example: "Marble is Critical, Granite is Preferred, Sandstone is Ignored"
     /// Replaces the old pattern of "select items + global importance".
@@ -18,6 +36,18 @@ namespace LandingZone.Data
         /// Items not in this dictionary are considered Ignored.
         /// </summary>
         public Dictionary<T, FilterImportance> ItemImportance { get; set; } = new Dictionary<T, FilterImportance>();
+
+        /// <summary>
+        /// Operator for combining critical items.
+        /// - AND (default): Tile must have ALL critical items (Advanced mode multi-select)
+        /// - OR: Tile must have ANY critical item (Default mode "Any" selections)
+        ///
+        /// Example: Rivers set to Critical with OR operator = "tile must have creek OR stream OR river OR huge river"
+        /// Example: Rivers set to Critical with AND operator = "tile must have ALL river types" (rare, but supported)
+        ///
+        /// Advanced UI exposes operator toggle. Default mode sets OR for "Any" selections.
+        /// </summary>
+        public ImportanceOperator Operator { get; set; } = ImportanceOperator.AND;
 
         /// <summary>
         /// Gets the importance of a specific item.
@@ -101,11 +131,12 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Resets all items to Ignored (clears the dictionary).
+        /// Resets all items to Ignored (clears the dictionary) and resets operator to AND.
         /// </summary>
         public void Reset()
         {
             ItemImportance.Clear();
+            Operator = ImportanceOperator.AND;
         }
 
         /// <summary>
@@ -121,7 +152,9 @@ namespace LandingZone.Data
 
         /// <summary>
         /// Checks if a tile's items match the Critical requirements.
-        /// Returns true if all Critical items are present in tileItems.
+        /// Respects the Operator setting:
+        /// - AND: Returns true if ALL critical items are present
+        /// - OR: Returns true if ANY critical item is present
         /// </summary>
         public bool MeetsCriticalRequirements(IEnumerable<T> tileItems)
         {
@@ -129,7 +162,17 @@ namespace LandingZone.Data
                 return true;  // No Critical requirements
 
             var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
-            return GetCriticalItems().All(criticalItem => tileSet.Contains(criticalItem));
+
+            if (Operator == ImportanceOperator.OR)
+            {
+                // OR: Tile must have AT LEAST ONE critical item
+                return GetCriticalItems().Any(criticalItem => tileSet.Contains(criticalItem));
+            }
+            else
+            {
+                // AND: Tile must have ALL critical items (original behavior)
+                return GetCriticalItems().All(criticalItem => tileSet.Contains(criticalItem));
+            }
         }
 
         /// <summary>
@@ -146,13 +189,46 @@ namespace LandingZone.Data
         }
 
         /// <summary>
+        /// Computes proportional critical satisfaction for membership scoring.
+        /// Respects the Operator setting:
+        /// - OR: Returns 1.0 if ANY critical item present, 0.0 otherwise
+        /// - AND: Returns fraction of critical items present (proportional)
+        /// Used by Membership() methods to align with Apply() phase logic.
+        /// </summary>
+        public float GetCriticalSatisfaction(IEnumerable<T> tileItems)
+        {
+            if (!HasCritical)
+                return 1.0f;  // No requirements = fully satisfied
+
+            var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
+            var criticals = GetCriticalItems().ToList();
+
+            if (criticals.Count == 0)
+                return 1.0f;
+
+            int matches = criticals.Count(critical => tileSet.Contains(critical));
+
+            if (Operator == ImportanceOperator.OR)
+            {
+                // OR: Binary - any match = 1.0, no match = 0.0
+                return matches > 0 ? 1.0f : 0.0f;
+            }
+            else
+            {
+                // AND: Proportional satisfaction (fraction of required items present)
+                return (float)matches / criticals.Count;
+            }
+        }
+
+        /// <summary>
         /// Creates a copy of this container.
         /// </summary>
         public IndividualImportanceContainer<T> Clone()
         {
             return new IndividualImportanceContainer<T>
             {
-                ItemImportance = new Dictionary<T, FilterImportance>(ItemImportance)
+                ItemImportance = new Dictionary<T, FilterImportance>(ItemImportance),
+                Operator = Operator
             };
         }
 

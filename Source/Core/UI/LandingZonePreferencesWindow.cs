@@ -119,7 +119,8 @@ namespace LandingZone.Core.UI
             // Use new DefaultModeUI renderer
             var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
 
-            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 600f);
+            // Dynamic height: let DefaultModeUI calculate its own content height
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1200f); // Increased to accommodate all filters
             Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
 
             DefaultModeUI.DrawContent(viewRect, preferences);
@@ -182,18 +183,10 @@ namespace LandingZone.Core.UI
 
                 listing.Gap(4f);
 
-                if (listing.ButtonText("[DEV] Dump World Tile Data"))
-                {
-                    Log.Message("[LandingZone] Dumping world tile data...");
-                    Diagnostics.WorldDataDumper.DumpWorldData();
-                }
-
-                listing.Gap(4f);
-
                 if (listing.ButtonText("[DEV] Dump FULL World Cache"))
                 {
                     Log.Message("[LandingZone] Dumping FULL world cache (this may take a while)...");
-                    Diagnostics.WorldDataDumper.DumpFullWorldCache();
+                    Diagnostics.WorldDataDumper.DumpWorldData();
                 }
 
                 listing.Gap(12f);

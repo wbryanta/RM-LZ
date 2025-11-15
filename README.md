@@ -1,6 +1,6 @@
 # LandingZone
 
-**Version**: 0.1.3-beta
+**Version**: 0.2.0-beta
 **RimWorld Version**: 1.6
 **Status**: Active Development (Beta)
 
@@ -33,7 +33,8 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 - **Results Window**: Top-N matches with detailed tile information, click to jump to location on world map
 
 ### Performance & Customization
-- **Max Candidate Tiles**: Configurable 25k-150k (default 100k) to balance memory usage vs search completeness
+- **Max Candidate Tiles**: Configurable Conservative (25k) through Unlimited (all settleable), default Standard (100k). Unlimited mode processes all tiles but may cause delays on large worlds.
+- **Tiles Per Frame**: Default 500 (adjustable 50-1000). High-end systems can use 1000 for faster searches.
 - **Stop Button**: Cancel long-running searches mid-evaluation
 - **Logging Levels**: Verbose/Standard/Brief to control log spam
 - **Mod Settings**: Performance tuning, scoring presets, UI preferences
@@ -135,6 +136,19 @@ Kanban board for tracking development tasks. Drag cards between swimlanes to upd
 5. Wire up UI in `DefaultModeUI.cs` and/or `AdvancedModeUI.cs`
 
 See `CLAUDE.md` for detailed development guide.
+
+### Canonical World Library
+
+For feature/defName accuracy and rarity data, consult `docs/CANONICAL_WORLD_LIBRARY.md` which is generated from the latest full world cache dump. It includes machine-readable JSON (`docs/data/canonical_world_library_2025-11-15.json`) with exact names and frequencies for every biome, mutator, river, and road. Regenerate it with `python3 scripts/analyze_world_cache.py <FullCache.txt> --json-summary <output>` whenever a new world baseline is captured.
+
+## AI Agents & Overwatch
+
+LandingZone uses two coordinated AI agents:
+
+- **DevAgent (Claude Code)** – virtual SDE that implements features following `CLAUDE.md`.
+- **Codex (QA/QC Overwatch)** – independent reviewer documented in `AGENTS.md` who validates code, tests, docs, and tasks before work lands.
+
+Codex operates from the instructions in `AGENTS.md` only; DevAgent’s instructions remain in `CLAUDE.md`. Refer to `AGENTS.md` when requesting reviews or quality sign-off so Codex can apply the mandated verdict/issue template and severity bars.
 
 ### Versioning
 Version follows semantic versioning: `major.minor.patch(-prerelease)`

@@ -2,18 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Contents
+- [Project Overview](#project-overview)
+- [Quick Start](#quick-start)
+- [Canonical World Data (Single Source of Truth)](#canonical-world-data-single-source-of-truth)
+- [Build System](#build-system)
+- [Versioning](#versioning)
+- [Task Management](#task-management)
+- [Architecture](#architecture)
+- [Critical Design Patterns](#critical-design-patterns)
+- [Testing & Validation](#testing--validation)
+- [Documentation](#documentation)
+- [Common Pitfalls](#common-pitfalls)
+- [Workflow Principles](#workflow-principles)
+- [Forensic Analysis Pattern](#forensic-analysis-pattern)
+
 ## Project Overview
 
 LandingZone is a RimWorld mod for intelligent landing site selection. Uses Harmony for runtime patching and a hybrid filtering architecture: game's native cache (cheap, instant) + lazy expensive computation (TileDataCache) + two-phase filtering (Apply → Score).
 
 **Core Value: Quality over shortcuts.** Don't compromise project integrity when facing obstacles - solve them properly or engineer better solutions. Never assume/guess API behavior - validate with evidence.
 
+### AI Agents & Review Boundary
+- **You are DevAgent (Claude Code)** — follow this file for implementation guidance.
+- **Codex** acts as QA/QC Overwatch under `AGENTS.md`. Codex’s instructions stay there; do not duplicate them here.
+- Expect Codex to audit your work using the verdict/issue template defined in `AGENTS.md`. Provide evidence (code, tests, logs) so Codex can validate without guesswork.
+
 ## Quick Start
 
-**Build and deploy:**
-```bash
-python3 scripts/build.py              # Builds and copies DLL to Assemblies/
-```
+**Build and deploy:** Run `python3 scripts/build.py` to restore/build and copy `LandingZone.dll` into `Assemblies/`. See [Build System](#build-system) for Release builds and troubleshooting.
 
 **Add a new filter:**
 1. Create `Source/Core/Filtering/Filters/YourFilter.cs` implementing `ISiteFilter`
@@ -35,8 +52,14 @@ python3 scripts/build.py              # Builds and copies DLL to Assemblies/
 
 ## Canonical World Data (Single Source of Truth)
 
-**Source:** `/Users/will/Library/Application Support/RimWorld/Config/LandingZone_CacheAnalysis_2025-11-13_12-49-46.txt`
-**Generated from:** `LandingZone_FullCache_2025-11-13_12-46-35.txt` (215MB, 295,732 tiles, 137,159 settleable)
+**Default location (macOS example):** `~/Library/Application Support/RimWorld/Config/`
+**Windows equivalent:** `%USERPROFILE%/AppData/LocalLow/Ludeon Studios/RimWorld by Ludeon Studios/Config/`
+**Artifacts:** `LandingZone_FullCache_<timestamp>.txt` (raw dump) → `LandingZone_CacheAnalysis_<timestamp>.txt` (processed report; current snapshot covers 295,732 tiles / 137,159 settleable).
+
+**To regenerate:**
+1. Enable Dev Mode, open the Landing Zone preferences window, and click `[DEV] Dump FULL World Cache` to emit a fresh dump file in the Config directory.
+2. Run `python3 scripts/analyze_world_cache.py /path/to/LandingZone_FullCache_<timestamp>.txt > LandingZone_CacheAnalysis_<date>.txt`.
+3. Update references here with the new timestamp/path so future contributors know which dataset is authoritative.
 
 **NEVER assume or guess mutator names or availability. Always reference this canonical data.**
 
@@ -280,3 +303,95 @@ Log.Message($"[LandingZone] Debug: {context}");
 3. **Proper solutions over shortcuts**: Fix root causes, don't work around them
 4. **Clear communication**: Log important operations for debugging
 5. **Task tracking**: Update `tasks.json` as work progresses
+
+## Forensic Analysis Pattern
+
+**Core Value:** Forensic-level analysis, critical thinking, and challenging assumptions lead to quality results. Projects languish when parameters, standards, and processes become muddy. We value granular definition and precision.
+
+### When Facing Bugs or Unclear Behavior
+
+**1. Add Diagnostic Tools FIRST** - Don't guess, instrument
+   - Add DEBUG dump buttons/commands (dev mode only) before attempting fixes
+   - Log comprehensive state to `Player.log` with `[LandingZone]` prefix
+   - Dump actual runtime data: filter states, match breakdowns, tile properties
+   - Example: Match data dump revealed IsPerfectMatch logic was correct, but filter IDs were generic
+
+```csharp
+// In dev mode: Add forensic dump for later analysis
+if (Prefs.DevMode)
+{
+    if (Widgets.ButtonText(debugRect, "[DEBUG] Dump State"))
+    {
+        DumpComprehensiveState(); // Log EVERYTHING relevant
+    }
+}
+```
+
+**2. Plot the RIGHT Solution, Not the Easiest** - Quality over shortcuts
+   - Quick fix: Hard-code filter names → "Cave", "Granite" in UI
+   - Right solution: Resolve filter IDs dynamically per tile using actual RimWorld data
+   - Ask: "What produces the best user experience long-term?"
+   - Ask: "What happens when user adds new filters/mutators?"
+
+**3. Validate Assumptions with Code, Not Intuition**
+   - ❌ "The API probably works like this based on the name..."
+   - ✅ Read the source: `MapFeatureFilter.cs` returns generic "map_features" ID
+   - ✅ Check actual usage: `Find.WorldGrid[id]` not `Find.World.grid[id].biome`
+   - ✅ Test with logging: `Log.Message($"[LandingZone] Actual value: {actual}")"`
+
+```csharp
+// DON'T assume Find.World.grid[id].biome exists
+var tile = Find.World.grid[id];
+var biome = tile.biome; // COMPILE ERROR - SurfaceTile doesn't have .biome
+
+// DO verify actual API
+var tile = Find.WorldGrid[id]; // Tile, not SurfaceTile
+var biome = tile.PrimaryBiome; // Correct property
+```
+
+**4. Holistic Assessment: UX + Aesthetics + Functionality**
+   - Not just "does it work?" but "is this intuitive at-a-glance?"
+   - Example: Two-column layout wasn't required, but reduces vertical waste by 50%
+   - Example: ⚠ icons for critical misses improve scannability without cluttering
+   - Example: Specific filter names ("Cave", "Granite") vs generic ("map_features", "stones")
+   - Plan layout changes with mockups/descriptions before coding
+
+### When Progress Stalls
+
+If stuck for more than 15 minutes:
+
+1. **Stop coding** - Adding more code won't help if assumptions are wrong
+2. **Add forensic logging** - Instrument the actual runtime behavior
+3. **Dump to Player.log** - Get evidence of what's ACTUALLY happening
+4. **Compare expected vs actual** - What did you assume? What's the evidence?
+5. **Ask the right question**: "What's the correct solution?" not "What's the quick fix?"
+
+### Example: Filter Name Resolution Investigation
+
+**Symptoms:** Users see "map_features" instead of "Cave"
+
+**Wrong approach:**
+- Assume it's a display bug
+- Quick fix: Replace "map_features" → "Cave" in UI code
+- Ship it
+
+**Right approach:**
+1. ✅ Add DEBUG dump showing actual `FilterMatchInfo.FilterName` values
+2. ✅ Read `FilterMatchInfo` struct → `FilterName` is just the filter ID
+3. ✅ Read `MapFeatureFilter.cs` → `Id => "map_features"` (generic container)
+4. ✅ Find `GetTileMapFeatures(tileId)` → Returns actual feature names per tile
+5. ✅ Solution: Enhance `FormatFilterDisplayName(filterId, tileId)` to resolve specific items
+6. ✅ Result: Shows "Cave", "Granite", "huge river" based on actual tile data
+
+**Quality outcome:** Works for ANY mutator/river/road/stone, not just hard-coded cases
+
+### Standards and Precision
+
+**Projects languish when standards become muddy.** Maintain granular definition:
+
+- ✅ `FilterImportance.Critical` vs `.Preferred` - precise enum, not bool
+- ✅ `FilterHeaviness.Light` vs `.Heavy` - performance contract, not comments
+- ✅ `FilterMatchInfo.IsCritical` - computed property, single source of truth
+- ✅ Task IDs: `LZ-RESULTS-007` - specific, trackable, granular
+- ❌ "The filter is important" - vague, no precision
+- ❌ "This might be slow" - vague, use heaviness classification instead

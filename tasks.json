@@ -1,8 +1,8 @@
 {
   "meta": {
     "description": "LandingZone v0.1.3-beta development roadmap",
-    "version": "0.1.3-beta",
-    "last_updated": "2025-11-13",
+    "version": "0.1.3-beta (crisis freeze)",
+    "last_updated": "2025-11-14",
     "forensic_analysis_date": "2025-11-13",
     "notes": [
       "v0.1.3-beta: Mode toggle fixed, tasks board operational, max candidates configurable (25k-150k).",
@@ -11,7 +11,8 @@
       "Scoring: Fuzzy preference matching with continuous [0,1] memberships replaces k-of-n binary.",
       "Mutators: Quality-of-life scoring (83 mutators rated -10 to +10) integrated.",
       "UI: Default/Advanced mode toggle complete, stone selectors functional.",
-      "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived."
+      "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived.",
+      "2025-11-14: Crisis freeze – default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -40,48 +41,83 @@
   },
   "in_progress": [],
   "todo": {
-    "p0_critical": [],
-    "p1_high": [
+    "p0_critical": [
       {
-        "id": "LZ-RESULTS-REFACTOR",
-        "title": "Results window UX refactor",
-        "priority": "P1 - High",
+        "id": "LZ-CRISIS-SCORING-VALIDATION",
+        "title": "Validate scoring pipeline & progress UI",
+        "priority": "P0 - Critical",
         "estimate": "6-8 hours",
         "owner": "team",
-        "description": "Refactor LandingZoneResultsWindow for better organization, readability, and extensibility. Current implementation functional but could benefit from cleanup.",
+        "description": "Recent searches show 143k tiles evaluated with zero critical/preferred memberships yet UI reports 'Perfect Match' (see _downloads/debug-log-14112025-2004.txt).",
         "deliverables": [
-          "Restructure results display layout for better readability",
-          "Improve tile details panel organization",
-          "Add filtering/sorting controls (by score, by biome, etc.)",
-          "Optimize rendering performance for large result sets",
-          "Improve visual hierarchy and information density",
-          "Add quick-jump navigation between results",
-          "Clean up code structure for easier feature additions"
+          "Instrument FilterService to log per-filter candidate counts and membership summaries",
+          "Fix progress reporting so LandingZonePreferencesWindow updates past 0% and completion closes spinner",
+          "Verify MatchBreakdown displays non-zero memberships when filters are satisfied",
+          "Add regression log capturing tile IDs, selected filters, and computed scores for forensic review",
+          "Document validation steps in docs/results-window-refactor-design.md"
         ],
         "blockers": [],
-        "area": "UI/UX",
-        "milestone": "0.2.0",
+        "area": "Filtering/Diagnostics",
+        "milestone": "Crisis-Freeze",
+        "status": "todo"
+      }
+      ,
+      {
+        "id": "LZ-BOOKMARK-MATERIAL",
+        "title": "WorldLayerBookmarks static constructor",
+        "priority": "P0 - Critical",
+        "estimate": "1 hour",
+        "owner": "team",
+        "description": "Fix startup warning: WorldLayerBookmarks lazily creates Material without StaticConstructorOnStartup.",
+        "deliverables": [
+          "Add [StaticConstructorOnStartup] to WorldLayerBookmarks",
+          "Initialize _bookmarkMaterial via LongEventHandler to ensure main-thread asset creation"
+        ],
+        "blockers": [],
+        "area": "UI/Infrastructure",
+        "milestone": "0.1.3",
         "status": "todo"
       },
       {
-        "id": "LZ-FIX-PRESETS-GRID",
-        "title": "Expand presets to 3x3 grid (9 presets)",
-        "priority": "P1 - High",
-        "estimate": "3-4 hours",
+        "id": "LZ-CANDIDATE-CAP-OVERHAUL",
+        "title": "Always evaluate full tile set / clarify Max Candidate",
+        "priority": "P0 - Critical",
+        "estimate": "6-8 hours",
         "owner": "team",
-        "description": "Currently only 3 presets visible (Temperate, Arctic Challenge, Desert Oasis). Expand to 3x3 grid with 9 built-in presets. Add minimize/collapse option. Found during testing (2025-11-13).",
+        "description": "Stage A already scans all tiles yet we truncate Stage B to MaxCandidates. Redesign limit into full-coverage + guardrails.",
         "deliverables": [
-          "Design 6 additional preset configurations (total 9)",
-          "Presets should cover: Temperate, Arctic, Desert, Tropical, Coastal, Mountain, River Valley, Easy Start, Challenge",
-          "Update DefaultModeUI.cs to render 3x3 grid layout",
-          "Add collapse/minimize button to hide preset section",
-          "Ensure preset selection works with grid layout",
-          "Update preset persistence and loading",
-          "Add tooltips describing each preset's focus"
+          "Expose world settleable count and allow 'Unlimited (all tiles)' option",
+          "Warn when candidate list hits the cap and tiles are dropped",
+          "Document lower-tier settings as memory guardrails, not coverage presets",
+          "Consider advanced toggle to stream all candidates with chunked evaluation",
+          "Update UI copy/tooltips to explain trade-offs"
         ],
         "blockers": [],
+        "area": "Filtering/UX",
+        "milestone": "0.2.0",
+        "status": "todo"
+      }
+    ],
+    "p1_high": [
+      {
+        "id": "LZ-PRESETS-ANGELIC-SET",
+        "title": "Angel/Unicorn/Demon preset tiles",
+        "priority": "P1 - High",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Add curated preset tiles (Angel, Unicorn, Demon) above the 3x3 preset grid using canonical rarity data.",
+        "deliverables": [
+          "Consume aggregated canonical world library stats to rank positive and negative features",
+          "Angel preset: emphasize high-quality/positive features + high scoring",
+          "Unicorn preset: require rare (<0.1%) features and highlight rarity",
+          "Demon preset: target harsh climates and negative mutators for challenge runs",
+          "UI: place the three tiles above the preset grid; grid = Angel/Unicorn/Demon + 5 built-ins + 1 user slot"
+        ],
+        "blockers": [
+          "LZ-CRISIS-ADV-UX"
+        ],
         "area": "UI/UX",
-        "milestone": "0.1.1-beta",
+        "milestone": "0.2.0",
         "status": "todo"
       }
     ],
@@ -328,6 +364,39 @@
   },
   "completed": [
     {
+      "id": "LZ-LOGIC-001",
+      "title": "Fix AND/OR operator logic for IndividualImportanceContainer filters",
+      "priority": "P0 - Critical",
+      "estimate": "8-10 hours",
+      "owner": "team",
+      "description": "Fixed critical bug where Default mode 'Any' selections (Rivers, Roads, Map Features) enforced impossible AND logic requiring tiles to have ALL river types simultaneously. Implemented OR operator support and aligned membership scoring with Apply phase.",
+      "deliverables": [
+        "Added ImportanceOperator enum (AND/OR) to IndividualImportanceContainer",
+        "Updated MeetsCriticalRequirements() to respect operator: OR = any match, AND = all matches",
+        "Added GetCriticalSatisfaction() for operator-aware proportional scoring",
+        "DefaultModeUI sets OR operator for 'Any River/Road' selections",
+        "AdvancedModeUI exposes operator toggle buttons for all 5 containers (Rivers, Roads, Stones, MapFeatures, AdjacentBiomes)",
+        "Fixed MapFeatureFilter.Membership() to use GetCriticalSatisfaction() and count preferred matches",
+        "Fixed RiverFilter.Membership() to use GetCriticalSatisfaction() with OR/AND logic",
+        "Instrumented GetTileMapFeatures() with comprehensive DevMode diagnostics",
+        "Removed Map Features 20-item hard cap, replaced with 400px scrollable view",
+        "All changes compile cleanly (0 errors, 35 pre-existing warnings)"
+      ],
+      "impact": "Critical bug fix enabling 'Any River = Critical' to work correctly. Users can now find tiles with ANY river type instead of requiring ALL types (impossible). Scoring now aligns with filtering logic. Map features fully accessible in Advanced UI.",
+      "area": "Filtering/Scoring/UI",
+      "milestone": "Crisis-Freeze",
+      "status": "completed",
+      "completed": "2025-11-15",
+      "files_modified": [
+        "Source/Data/IndividualImportanceContainer.cs (added operator support)",
+        "Source/Core/UI/DefaultModeUI.cs (set OR for 'Any' selections)",
+        "Source/Core/UI/AdvancedModeUI.cs (added scroll position state)",
+        "Source/Core/UI/AdvancedModeUI_Controls.cs (operator toggles + scrollable map features)",
+        "Source/Core/Filtering/Filters/MapFeatureFilter.cs (fixed Membership + instrumentation)",
+        "Source/Core/Filtering/Filters/RiverFilter.cs (fixed Membership)"
+      ]
+    },
+    {
       "id": "LZ-BOOKMARKS",
       "title": "Bookmarks manager for favorite tiles",
       "priority": "P2 - Medium",
@@ -532,6 +601,20 @@
   "blocked": {
     "p1_high": [
       {
+        "id": "LZ-RESULTS-REFACTOR",
+        "title": "Results window UX refactor",
+        "priority": "P1 - High",
+        "estimate": "6-8 hours",
+        "owner": "team",
+        "description": "Refactor LandingZoneResultsWindow for better organization, readability, and extensibility.",
+        "blockers": [
+          "Core filter/scoring correctness unresolved as of 2025-11-14 freeze"
+        ],
+        "area": "UI/UX",
+        "milestone": "0.2.0",
+        "status": "blocked"
+      },
+      {
         "id": "LZ-FIX-LOGGING-LEVELS",
         "title": "Add logging level control to Mod Settings",
         "priority": "P1 - High",
@@ -550,6 +633,20 @@
         ],
         "blockers": [],
         "area": "Infrastructure/Settings",
+        "milestone": "0.1.1-beta",
+        "status": "blocked"
+      },
+      {
+        "id": "LZ-FIX-PRESETS-GRID",
+        "title": "Expand presets to 3x3 grid (9 presets)",
+        "priority": "P1 - High",
+        "estimate": "3-4 hours",
+        "owner": "team",
+        "description": "Expand Default mode presets to 3x3 grid with collapse toggle once core filter correctness is restored.",
+        "blockers": [
+          "Deprioritized until crisis tasks complete"
+        ],
+        "area": "UI/UX",
         "milestone": "0.1.1-beta",
         "status": "blocked"
       },
@@ -688,7 +785,7 @@
       "id": "LZ-STONE-001",
       "title": "Complete stone filter UI rebuild",
       "completed": "2025-11-13",
-      "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred).",
+      "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred). NOTE: 2025-11-14 regression tracked by LZ-CRISIS-OR-LOGIC reintroduces AND-vs-OR issues for multi-select filters.",
       "area": "Filtering/UI",
       "status": "archived"
     }
