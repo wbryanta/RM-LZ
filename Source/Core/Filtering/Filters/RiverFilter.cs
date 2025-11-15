@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using LandingZone.Core;
 using LandingZone.Data;
 using RimWorld;
 using RimWorld.Planet;
@@ -105,13 +106,39 @@ namespace LandingZone.Core.Filtering.Filters
             if (riverDef == null)
                 return 0.0f; // No river on this tile
 
-            // Check if this river type is selected (has any importance)
-            var importance = rivers.GetImportance(riverDef.defName);
-            if (importance == FilterImportance.Ignored)
-                return 0.0f;
+            // Align with Apply phase: prioritize Critical requirements
+            if (rivers.HasCritical)
+            {
+                // Use GetCriticalSatisfaction to respect AND/OR operator
+                var tileRivers = new[] { riverDef.defName };
+                float satisfaction = rivers.GetCriticalSatisfaction(tileRivers);
 
-            // Binary membership: 1.0 if ANY selected river present, 0.0 if not
-            return 1.0f;
+                if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
+                {
+                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef.defName}");
+                    LandingZoneLogger.LogVerbose($"  Critical rivers: [{string.Join(", ", rivers.GetCriticalItems())}], Operator={rivers.Operator}");
+                    LandingZoneLogger.LogVerbose($"  → Satisfaction: {satisfaction:F2}");
+                }
+
+                return satisfaction;
+            }
+
+            // No Critical rivers, check Preferred (binary: 1.0 if river is Preferred)
+            if (rivers.HasPreferred)
+            {
+                var importance = rivers.GetImportance(riverDef.defName);
+
+                if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
+                {
+                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef.defName}");
+                    LandingZoneLogger.LogVerbose($"  Preferred rivers: [{string.Join(", ", rivers.GetPreferredItems())}]");
+                    LandingZoneLogger.LogVerbose($"  → Importance={importance}, returning {(importance == FilterImportance.Preferred ? "1.0" : "0.0")}");
+                }
+
+                return importance == FilterImportance.Preferred ? 1.0f : 0.0f;
+            }
+
+            return 0.0f;
         }
     }
 }
