@@ -191,10 +191,10 @@ namespace LandingZone.Core.Filtering
                 return;
 
             // Only show likelihood analysis in Standard or Verbose mode
-            if (LandingZoneSettings.LogLevel > LoggingLevel.Standard)
+            if (!LandingZoneLogger.IsStandardOrVerbose)
                 return;
 
-            Log.Message($"[LandingZone] === Match Likelihood Analysis ===");
+            LandingZoneLogger.LogStandard($"[LandingZone] === Match Likelihood Analysis ===");
 
             // Analyze selectivity of each critical filter
             var selectivities = _selectivityAnalyzer.AnalyzeCriticals(
@@ -208,23 +208,23 @@ namespace LandingZone.Core.Filtering
                 ? MatchLikelihoodEstimator.EstimateAllCriticals(selectivities)
                 : MatchLikelihoodEstimator.EstimateRelaxedCriticals(selectivities, strictness);
 
-            Log.Message($"[LandingZone] {likelihood.GetUserMessage()}");
-            Log.Message($"[LandingZone] Details: {likelihood.Description}");
+            LandingZoneLogger.LogStandard($"[LandingZone] {likelihood.GetUserMessage()}");
+            LandingZoneLogger.LogStandard($"[LandingZone] Details: {likelihood.Description}");
 
             // Warn if very restrictive
             if (likelihood.Category <= LikelihoodCategory.Low)
             {
-                Log.Warning($"[LandingZone] ⚠️ Your {allCriticals.Count} critical filters are very restrictive!");
+                LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ Your {allCriticals.Count} critical filters are very restrictive!");
 
                 // Provide suggestions for different strictness levels
                 var suggestions = MatchLikelihoodEstimator.SuggestStrictness(selectivities);
 
-                Log.Message("[LandingZone] Suggestions:");
+                LandingZoneLogger.LogStandard("[LandingZone] Suggestions:");
                 foreach (var suggestion in suggestions)
                 {
                     if (suggestion.Strictness < strictness && suggestion.Category >= LikelihoodCategory.Medium)
                     {
-                        Log.Message($"[LandingZone]   {suggestion.GetDisplayText()}");
+                        LandingZoneLogger.LogStandard($"[LandingZone]   {suggestion.GetDisplayText()}");
                     }
                 }
             }
@@ -232,11 +232,11 @@ namespace LandingZone.Core.Filtering
             // If impossible, strongly recommend relaxing
             if (likelihood.Category == LikelihoodCategory.Impossible)
             {
-                Log.Error("[LandingZone] 🚨 Your filter combination appears impossible!");
-                Log.Error("[LandingZone] 🚨 Consider reducing strictness or moving some filters to Preferred.");
+                LandingZoneLogger.LogError("[LandingZone] 🚨 Your filter combination appears impossible!");
+                LandingZoneLogger.LogError("[LandingZone] 🚨 Consider reducing strictness or moving some filters to Preferred.");
             }
 
-            Log.Message("[LandingZone] ===================================");
+            LandingZoneLogger.LogStandard("[LandingZone] ===================================");
         }
 
         public sealed class FilterEvaluationJob
@@ -321,10 +321,7 @@ namespace LandingZone.Core.Filtering
                 _criticalWeights = Enumerable.Repeat(1f, _criticalFilters.Count).ToArray();
                 _preferredWeights = Enumerable.Repeat(1f, _preferredFilters.Count).ToArray();
 
-                if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
-                {
-                    Log.Message($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
-                }
+                LandingZoneLogger.LogStandard($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
 
                 var aggregator = new BitsetAggregator(
                     cheapPredicates,
@@ -338,19 +335,13 @@ namespace LandingZone.Core.Filtering
                 int maxCandidates = LandingZoneSettings.MaxCandidates.GetValue();
                 _candidates = aggregator.GetCandidates(_strictness, maxCandidates);
 
-                if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
-                {
-                    Log.Message($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
-                }
+                LandingZoneLogger.LogStandard($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
 
                 // Start incremental precomputation for all heavy predicates
                 _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
                 if (_heavyPredicateCount > 0)
                 {
-                    if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
-                    {
-                        Log.Message($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
-                    }
+                    LandingZoneLogger.LogStandard($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
                     foreach (var predicate in _heavyCriticals.Concat(_heavyPreferreds))
                     {
                         _heavyBitsets.StartPrecomputation(predicate, _context, _tileCount);
@@ -368,12 +359,12 @@ namespace LandingZone.Core.Filtering
             private static void LogActiveFilters(FilterSettings filters)
             {
                 // Only log filter configuration in Standard or Verbose mode
-                if (LandingZoneSettings.LogLevel > LoggingLevel.Standard)
+                if (!LandingZoneLogger.IsStandardOrVerbose)
                     return;
 
-                Log.Message($"[LandingZone] === Active Filter Configuration ===");
-                Log.Message($"[LandingZone] Strictness: {filters.CriticalStrictness:F2} (1.0 = all criticals required)");
-                Log.Message($"[LandingZone] MaxResults: {filters.MaxResults}");
+                LandingZoneLogger.LogStandard($"[LandingZone] === Active Filter Configuration ===");
+                LandingZoneLogger.LogStandard($"[LandingZone] Strictness: {filters.CriticalStrictness:F2} (1.0 = all criticals required)");
+                LandingZoneLogger.LogStandard($"[LandingZone] MaxResults: {filters.MaxResults}");
 
                 // Critical filters
                 var criticals = new List<string>();
@@ -387,9 +378,9 @@ namespace LandingZone.Core.Filtering
                 if (filters.GrazeImportance == FilterImportance.Critical) criticals.Add("Graze");
 
                 if (criticals.Count > 0)
-                    Log.Message($"[LandingZone] Critical filters: {string.Join(", ", criticals)}");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Critical filters: {string.Join(", ", criticals)}");
                 else
-                    Log.Message($"[LandingZone] Critical filters: (none)");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Critical filters: (none)");
 
                 // Preferred filters
                 var preferreds = new List<string>();
@@ -410,11 +401,11 @@ namespace LandingZone.Core.Filtering
                 if (filters.FeatureImportance == FilterImportance.Preferred) preferreds.Add("Feature");
 
                 if (preferreds.Count > 0)
-                    Log.Message($"[LandingZone] Preferred filters: {string.Join(", ", preferreds)}");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Preferred filters: {string.Join(", ", preferreds)}");
                 else
-                    Log.Message($"[LandingZone] Preferred filters: (none)");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Preferred filters: (none)");
 
-                Log.Message($"[LandingZone] =====================================");
+                LandingZoneLogger.LogStandard($"[LandingZone] =====================================");
             }
 
             public bool Step(int iterations)
@@ -445,29 +436,24 @@ namespace LandingZone.Core.Filtering
                         continue;
 
                     float critScore, prefScore, penalty, finalScore;
+                    MatchBreakdownV2? detailedBreakdown = null;
 
                     // Check feature flag for scoring system
                     if (_state.Preferences.Options.UseNewScoring)
                     {
                         // NEW: Membership-based scoring
-                        (critScore, prefScore, penalty, finalScore) = ComputeMembershipScoreForTile(candidate.TileId);
+                        (critScore, prefScore, penalty, finalScore, detailedBreakdown) = ComputeMembershipScoreForTile(candidate.TileId);
 
                         // Strictness check: critical score must meet threshold
                         if (critScore < _currentStrictness)
                         {
-                            if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
-                            {
-                                Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
+                            LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
                                            $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
-                            }
                             continue;
                         }
 
-                        if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
-                        {
-                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
+                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
                                        $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
-                        }
                     }
                     else
                     {
@@ -484,21 +470,15 @@ namespace LandingZone.Core.Filtering
                         // Strictness check
                         if (critScore < _currentStrictness)
                         {
-                            if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
-                            {
-                                Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
+                            LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
                                            $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
-                            }
                             continue;
                         }
 
                         finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
                         penalty = 1.0f; // No penalty in k-of-n
 
-                        if (LandingZoneSettings.LogLevel == LoggingLevel.Verbose)
-                        {
-                            Log.Message($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
-                        }
+                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
                     }
 
                     // Simplified breakdown for now
@@ -509,10 +489,10 @@ namespace LandingZone.Core.Filtering
                         FilterImportance.Ignored, false, null,
                         FilterImportance.Ignored, false,
                         FilterImportance.Ignored, 0, 0,
-                        true, finalScore
+                        true, 0f, null, finalScore
                     );
 
-                    var tileScore = new TileScore(candidate.TileId, finalScore, breakdown);
+                    var tileScore = new TileScore(candidate.TileId, finalScore, breakdown, detailedBreakdown);
 
                     // Insert into Top-N heap
                     InsertTopResult(_best, tileScore, _maxResults);
@@ -525,14 +505,14 @@ namespace LandingZone.Core.Filtering
                 // Check if done
                 if (_cursor >= _candidates.Count)
                 {
+                    // Log Stage B completion telemetry
+                    LandingZoneLogger.LogStandard($"[LandingZone] Stage B processed {_cursor}/{_candidates.Count} candidates in {_stopwatch.ElapsedMilliseconds}ms");
+
                     // Auto-relax: If 0 results and strictness is 1.0, retry with relaxed strictness
                     if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalCriticals >= 2)
                     {
-                        if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
-                        {
-                            Log.Warning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
-                            Log.Warning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
-                        }
+                        LandingZoneLogger.LogWarning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
+                        LandingZoneLogger.LogWarning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
 
                         float relaxedStrictness = (_totalCriticals - 1) / (float)_totalCriticals;
 
@@ -544,10 +524,7 @@ namespace LandingZone.Core.Filtering
                         // Don't clear _heavyBitsets - we want to reuse the cached precomputed bitsets
 
                         // Continue processing (don't set _completed = true)
-                        if (LandingZoneSettings.LogLevel <= LoggingLevel.Standard)
-                        {
-                            Log.Message($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
-                        }
+                        LandingZoneLogger.LogStandard($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
                         return false; // Not done yet, continue processing
                     }
 
@@ -561,11 +538,19 @@ namespace LandingZone.Core.Filtering
                     if (_results.Count > 0 && _currentStrictness < 1.0f)
                     {
                         int requiredMatches = Mathf.CeilToInt(_totalCriticals * _currentStrictness);
-                        Log.Message($"[LandingZone] 💡 No tiles matched all {_totalCriticals} criticals. Showing tiles matching {requiredMatches} of {_totalCriticals}.");
+                        LandingZoneLogger.LogStandard($"[LandingZone] 💡 No tiles matched all {_totalCriticals} criticals. Showing tiles matching {requiredMatches} of {_totalCriticals}.");
                     }
 
-                    // Final result summary (always shown)
-                    LandingZoneContext.LogMessage($"K-of-N evaluation: {_results.Count} results, {_owner._tileCache.CachedCount} cached");
+                    // Final result summary - show appropriate message based on scoring system
+                    if (_state.Preferences.Options.UseNewScoring)
+                    {
+                        LandingZoneLogger.LogStandard($"[LandingZone] Membership-based scoring complete: {_results.Count} results in {_stopwatch.ElapsedMilliseconds}ms");
+                    }
+                    else
+                    {
+                        // Legacy k-of-n scoring
+                        LandingZoneContext.LogMessage($"K-of-N evaluation: {_results.Count} results, {_owner._tileCache.CachedCount} cached");
+                    }
                     return true;
                 }
 
@@ -589,8 +574,9 @@ namespace LandingZone.Core.Filtering
 
             /// <summary>
             /// Computes membership-based score for a tile using continuous fuzzy logic.
+            /// Returns tuple: (critScore, prefScore, penalty, finalScore, detailedBreakdown)
             /// </summary>
-            private (float critScore, float prefScore, float penalty, float finalScore) ComputeMembershipScoreForTile(int tileId)
+            private (float critScore, float prefScore, float penalty, float finalScore, MatchBreakdownV2 breakdown) ComputeMembershipScoreForTile(int tileId)
             {
                 // Collect membership scores
                 float[] critMemberships = new float[_criticalFilters.Count];
@@ -642,7 +628,135 @@ namespace LandingZone.Core.Filtering
                     lambdaMut
                 );
 
-                return (critScore, prefScore, penalty, finalScore);
+                // Build detailed breakdown
+                var breakdown = BuildDetailedBreakdown(
+                    tileId,
+                    critMemberships,
+                    prefMemberships,
+                    critScore,
+                    prefScore,
+                    mutatorScore,
+                    penalty,
+                    finalScore
+                );
+
+                return (critScore, prefScore, penalty, finalScore, breakdown);
+            }
+
+            /// <summary>
+            /// Builds detailed breakdown with per-filter match info and mutator contributions.
+            /// </summary>
+            private MatchBreakdownV2 BuildDetailedBreakdown(
+                int tileId,
+                float[] critMemberships,
+                float[] prefMemberships,
+                float critScore,
+                float prefScore,
+                float mutatorScore,
+                float penalty,
+                float finalScore)
+            {
+                var matched = new List<FilterMatchInfo>();
+                var missed = new List<FilterMatchInfo>();
+
+                // Process critical filters
+                for (int i = 0; i < _criticalFilters.Count; i++)
+                {
+                    var filter = _criticalFilters[i];
+                    float membership = critMemberships[i];
+                    bool isMatched = membership >= 0.9f; // Match threshold
+                    bool isRangeFilter = IsRangeFilter(filter);
+                    float filterPenalty = isMatched ? 0f : (1f - membership) * (1f - membership);
+
+                    var info = new FilterMatchInfo(
+                        filter.Id,
+                        FilterImportance.Critical,
+                        membership,
+                        isMatched,
+                        isRangeFilter,
+                        filterPenalty
+                    );
+
+                    if (isMatched)
+                        matched.Add(info);
+                    else
+                        missed.Add(info);
+                }
+
+                // Process preferred filters
+                for (int i = 0; i < _preferredFilters.Count; i++)
+                {
+                    var filter = _preferredFilters[i];
+                    float membership = prefMemberships[i];
+                    bool isMatched = membership >= 0.9f;
+                    bool isRangeFilter = IsRangeFilter(filter);
+                    float filterPenalty = isMatched ? 0f : (1f - membership) * 0.5f; // Preferred penalty is softer
+
+                    var info = new FilterMatchInfo(
+                        filter.Id,
+                        FilterImportance.Preferred,
+                        membership,
+                        isMatched,
+                        isRangeFilter,
+                        filterPenalty
+                    );
+
+                    if (isMatched)
+                        matched.Add(info);
+                    else
+                        missed.Add(info);
+                }
+
+                // Collect mutator contributions (excluding explicitly selected Critical/Preferred)
+                var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
+                var mutatorContributions = new List<MutatorContribution>();
+                var mapFeaturesFilter = _state.Preferences.Filters.MapFeatures;
+
+                if (tileMutators != null)
+                {
+                    foreach (var mutator in tileMutators)
+                    {
+                        // Skip mutators that were explicitly marked as Critical or Preferred
+                        // These are already counted in the matched/missed sections, not as "bonus" modifiers
+                        var importance = mapFeaturesFilter.GetImportance(mutator);
+                        if (importance == FilterImportance.Critical || importance == FilterImportance.Preferred)
+                            continue;
+
+                        int quality = MutatorQualityRatings.GetQuality(mutator);
+                        if (quality != 0) // Only include non-neutral
+                        {
+                            // Approximate contribution (actual is more complex)
+                            float contribution = quality * 0.01f; // Rough estimate
+                            mutatorContributions.Add(new MutatorContribution(mutator, quality, contribution));
+                        }
+                    }
+                }
+
+                return new MatchBreakdownV2(
+                    matched,
+                    missed,
+                    mutatorContributions,
+                    critScore,
+                    prefScore,
+                    mutatorScore,
+                    penalty,
+                    finalScore
+                );
+            }
+
+            /// <summary>
+            /// Determines if a filter uses range-based matching (vs boolean).
+            /// </summary>
+            private static bool IsRangeFilter(ISiteFilter filter)
+            {
+                // Range filters have continuous membership scores
+                string id = filter.Id.ToLowerInvariant();
+                return id.Contains("temperature") ||
+                       id.Contains("rainfall") ||
+                       id.Contains("growing") ||
+                       id.Contains("forage") ||
+                       id.Contains("pollution") ||
+                       id.Contains("movement");
             }
 
             public float Progress
@@ -689,7 +803,7 @@ namespace LandingZone.Core.Filtering
                             {
                                 "SpecificStone" => "Stone types",
                                 "StoneCount" => "Stone count",
-                                "Cave" => "Cave systems",
+                                "Caves" => "Cave systems",
                                 "Landmark" => "Landmarks",
                                 "WorldFeature" => "World features",
                                 "MapFeature" => "Map features",
@@ -719,15 +833,17 @@ namespace LandingZone.Core.Filtering
 
     public readonly struct TileScore
     {
-        public TileScore(int tileId, float score, MatchBreakdown breakdown)
+        public TileScore(int tileId, float score, MatchBreakdown breakdown, MatchBreakdownV2? breakdownV2 = null)
         {
             TileId = tileId;
             Score = score;
             Breakdown = breakdown;
+            BreakdownV2 = breakdownV2;
         }
 
         public int TileId { get; }
         public float Score { get; }
-        public MatchBreakdown Breakdown { get; }
+        public MatchBreakdown Breakdown { get; } // Legacy
+        public MatchBreakdownV2? BreakdownV2 { get; } // New detailed breakdown
     }
 }

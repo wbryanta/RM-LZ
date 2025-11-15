@@ -46,15 +46,11 @@ namespace LandingZone.Core.UI
 
             listing.Gap(20f);
 
-            // Action buttons
-            if (listing.ButtonText("Search for Landing Zones"))
-            {
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
-            }
-
+            // Reset button only - Search button is in main toolbar
             if (listing.ButtonText("Reset to Defaults"))
             {
                 preferences.Filters.Reset();
+                Messages.Message("Filter settings reset to defaults", MessageTypeDefOf.NeutralEvent, false);
             }
 
             listing.End();
@@ -178,10 +174,8 @@ namespace LandingZone.Core.UI
             filters.RainfallImportance = rainfallImportance;
             listing.Gap(10f);
 
-            // 4. Coastal
-            var coastalImportance = filters.CoastalImportance;
-            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Coastal (Ocean)", ref coastalImportance);
-            filters.CoastalImportance = coastalImportance;
+            // 4. Coastal (Any - ocean or lake)
+            DrawCoastalControl(listing.GetRect(30f), filters);
             listing.Gap(10f);
 
             // 5. Rivers (Any)
@@ -193,9 +187,9 @@ namespace LandingZone.Core.UI
             listing.Gap(10f);
 
             // 7. Caves (via MapFeatures)
-            var caveImportance = filters.MapFeatures.GetImportance("Cave");
+            var caveImportance = filters.MapFeatures.GetImportance("Caves");
             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Caves", ref caveImportance);
-            filters.MapFeatures.SetImportance("Cave", caveImportance);
+            filters.MapFeatures.SetImportance("Caves", caveImportance);
             listing.Gap(10f);
 
             // 8. Hilliness
@@ -245,6 +239,23 @@ namespace LandingZone.Core.UI
             }
         }
 
+        private static void DrawCoastalControl(Rect rect, FilterSettings filters)
+        {
+            // Simple importance selector for "any coastal" (ocean or lake)
+            // When set, applies importance to both CoastalImportance and CoastalLakeImportance
+            var currentImportance = GetAnyCoastalImportance(filters);
+            var newImportance = currentImportance;
+
+            UIHelpers.DrawImportanceSelector(rect, "Coastal (Any)", ref newImportance);
+
+            if (newImportance != currentImportance)
+            {
+                // Set both ocean and lake coastal to the same importance
+                filters.CoastalImportance = newImportance;
+                filters.CoastalLakeImportance = newImportance;
+            }
+        }
+
         private static void DrawRiversControl(Rect rect, FilterSettings filters)
         {
             // Simple importance selector for "any river"
@@ -259,6 +270,12 @@ namespace LandingZone.Core.UI
                 // Get all river types and set them all to the new importance
                 var allRivers = RiverFilter.GetAllRiverTypes().Select(r => r.defName);
                 filters.Rivers.SetAllTo(allRivers, newImportance);
+
+                // Set OR operator for "Any" semantics (tile must have ANY river, not ALL)
+                if (newImportance == FilterImportance.Critical || newImportance == FilterImportance.Preferred)
+                    filters.Rivers.Operator = ImportanceOperator.OR;
+                else
+                    filters.Rivers.Operator = ImportanceOperator.AND;  // Reset when ignored
             }
         }
 
@@ -276,6 +293,12 @@ namespace LandingZone.Core.UI
                 // Get all road types and set them all to the new importance
                 var allRoads = RoadFilter.GetAllRoadTypes().Select(r => r.defName);
                 filters.Roads.SetAllTo(allRoads, newImportance);
+
+                // Set OR operator for "Any" semantics (tile must have ANY road, not ALL)
+                if (newImportance == FilterImportance.Critical || newImportance == FilterImportance.Preferred)
+                    filters.Roads.Operator = ImportanceOperator.OR;
+                else
+                    filters.Roads.Operator = ImportanceOperator.AND;  // Reset when ignored
             }
         }
 
@@ -290,6 +313,21 @@ namespace LandingZone.Core.UI
             var marbleImportance = filters.Stones.GetImportance("Marble");
             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), "Marble", ref marbleImportance);
             filters.Stones.SetImportance("Marble", marbleImportance);
+        }
+
+        /// <summary>
+        /// Gets the "overall" importance for coastal - returns highest of ocean or lake importance.
+        /// </summary>
+        private static FilterImportance GetAnyCoastalImportance(FilterSettings filters)
+        {
+            // Return the highest importance between ocean and lake
+            if (filters.CoastalImportance == FilterImportance.Critical || filters.CoastalLakeImportance == FilterImportance.Critical)
+                return FilterImportance.Critical;
+
+            if (filters.CoastalImportance == FilterImportance.Preferred || filters.CoastalLakeImportance == FilterImportance.Preferred)
+                return FilterImportance.Preferred;
+
+            return FilterImportance.Ignored;
         }
 
         /// <summary>

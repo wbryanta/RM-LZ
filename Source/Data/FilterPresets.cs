@@ -157,7 +157,7 @@ namespace LandingZone.Data
             settings.AllowedHilliness.Add(Hilliness.Mountainous);
 
             // Features: Caves for defense
-            settings.MapFeatures.SetImportance("Cave", FilterImportance.Preferred);
+            settings.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);
 
             // === HIDDEN ADVANCED FEATURES (Easy Access Advanced) ===
             // Uses canonical mutator names from world cache analysis
