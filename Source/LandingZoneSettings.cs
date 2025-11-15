@@ -15,7 +15,7 @@ namespace LandingZone
         // ===== PERFORMANCE SETTINGS =====
 
         public bool AutoRunSearchOnWorldLoad = false;
-        public int EvaluationChunkSize = 250;
+        public int EvaluationChunkSize = 500;
         public static MaxCandidateTilesLimit MaxCandidates = MaxCandidateTilesLimit.Standard;
         public static bool AllowCancelSearch = true;
 
@@ -50,7 +50,7 @@ namespace LandingZone
         {
             base.ExposeData();
             Scribe_Values.Look(ref AutoRunSearchOnWorldLoad, "autoRunSearchOnWorldLoad", false);
-            Scribe_Values.Look(ref EvaluationChunkSize, "evaluationChunkSize", 250);
+            Scribe_Values.Look(ref EvaluationChunkSize, "evaluationChunkSize", 500);
             Scribe_Values.Look(ref WeightPreset, "weightPreset", ScoringWeightPreset.CriticalFocused);
             Scribe_Values.Look(ref LogLevel, "logLevel", LoggingLevel.Standard);
             Scribe_Values.Look(ref MaxCandidates, "maxCandidates", MaxCandidateTilesLimit.Standard);
@@ -75,7 +75,7 @@ namespace LandingZone
             EvaluationChunkSize = Mathf.RoundToInt(listingStandard.Slider(EvaluationChunkSize, 50, 1000));
             listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
-            listingStandard.Label("Lower values keep the UI snappier but take longer to finish.");
+            listingStandard.Label("Lower values keep UI responsive. High-end systems can use 1000 for faster searches.");
             Text.Font = GameFont.Small;
 
             listingStandard.Gap(12f);
@@ -225,14 +225,22 @@ namespace LandingZone
 
         /// <summary>
         /// Standard (100,000) - DEFAULT. Very high limit. For systems with 32GB+ RAM.
+        /// Memory/performance guardrail to prevent evaluating excessive candidates.
         /// </summary>
         Standard,
 
         /// <summary>
-        /// Maximum (150,000) - Essentially unlimited for most worlds (50% coverage = ~150k settleable tiles).
-        /// Recommended for development/testing only. Requires 32GB+ RAM.
+        /// Maximum (150,000) - Very high limit for relaxed filters or development/testing.
+        /// Requires 32GB+ RAM. May result in long search times.
         /// </summary>
-        Maximum
+        Maximum,
+
+        /// <summary>
+        /// Unlimited - Process ALL settleable tiles (no cap). Use with caution!
+        /// Can process 150k+ tiles on 50% coverage worlds. Requires 32GB+ RAM.
+        /// WARNING: May cause long delays and memory pressure on large worlds.
+        /// </summary>
+        Unlimited
     }
 
     // ===== EXTENSION METHODS =====
@@ -310,6 +318,7 @@ namespace LandingZone
                 MaxCandidateTilesLimit.High => "High (75k)",
                 MaxCandidateTilesLimit.Standard => "Standard (100k)",
                 MaxCandidateTilesLimit.Maximum => "Maximum (150k)",
+                MaxCandidateTilesLimit.Unlimited => "Unlimited (All settleable)",
                 _ => "Unknown"
             };
         }
@@ -325,9 +334,11 @@ namespace LandingZone
                 MaxCandidateTilesLimit.High =>
                     "75,000 tiles. High limit. For systems with 32GB+ RAM.",
                 MaxCandidateTilesLimit.Standard =>
-                    "100,000 tiles. DEFAULT. Very high limit. For systems with 32GB+ RAM.",
+                    "100,000 tiles. DEFAULT. Memory/performance guardrail to prevent evaluating excessive candidates. For systems with 32GB+ RAM.",
                 MaxCandidateTilesLimit.Maximum =>
-                    "150,000 tiles. Essentially unlimited for most worlds. Recommended for development. Requires 32GB+ RAM.",
+                    "150,000 tiles. Very high limit. Recommended for relaxed filters or development. Requires 32GB+ RAM.",
+                MaxCandidateTilesLimit.Unlimited =>
+                    "NO LIMIT. Process ALL settleable tiles (150k+ on large worlds). WARNING: May cause long delays and memory pressure. Use with caution!",
                 _ => ""
             };
         }
@@ -341,6 +352,7 @@ namespace LandingZone
                 MaxCandidateTilesLimit.High => 75000,
                 MaxCandidateTilesLimit.Standard => 100000,
                 MaxCandidateTilesLimit.Maximum => 150000,
+                MaxCandidateTilesLimit.Unlimited => int.MaxValue,
                 _ => 100000
             };
         }

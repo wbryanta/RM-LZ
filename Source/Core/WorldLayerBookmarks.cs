@@ -13,10 +13,34 @@ namespace LandingZone.Core
     [StaticConstructorOnStartup]
     public static class WorldLayerBookmarks
     {
-        private static readonly Material BookmarkMaterial;
+        private static Material _bookmarkMaterial;
         private static Mesh _cachedMesh;
         private static bool _meshDirty = true;
         private static float _lastAltitude = -1f;
+        private static bool _materialInitFailed = false;
+        private static bool _hasLoggedDraw = false;
+
+        static WorldLayerBookmarks()
+        {
+            // Initialize material on main thread using LongEventHandler
+            LongEventHandler.ExecuteWhenFinished(() =>
+            {
+                try
+                {
+                    // Clone RimWorld's SelectedTile material - guaranteed to work with world rendering
+                    _bookmarkMaterial = new Material(WorldMaterials.SelectedTile)
+                    {
+                        color = Color.white
+                    };
+                    _bookmarkMaterial.renderQueue = 3410; // Render after selected tile (3400) but before UI
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone] Exception creating bookmark material in static constructor: {ex}");
+                    _materialInitFailed = true;
+                }
+            });
+        }
 
         private const float BaseMarkerSize = 0.5f; // Base size of the marker in world units
         private const float MarkerHeight = 0.015f; // Height above world surface
@@ -26,14 +50,10 @@ namespace LandingZone.Core
         private const float MaxAltitude = 250f; // Camera altitude for max zoom out (markers smallest)
         private const float AltitudeChangeThreshold = 5f; // Only regenerate mesh if altitude changes by this much
 
-        static WorldLayerBookmarks()
-        {
-            // Initialize Material in static constructor (required for Unity assets)
-            BookmarkMaterial = new Material(Shader.Find("Standard"))
-            {
-                color = Color.white
-            };
-        }
+        /// <summary>
+        /// Gets the bookmark material initialized in the static constructor.
+        /// </summary>
+        private static Material BookmarkMaterial => _bookmarkMaterial;
 
         /// <summary>
         /// Called when bookmarks change to mark mesh as needing regeneration.
@@ -50,12 +70,44 @@ namespace LandingZone.Core
         public static void Draw()
         {
             var manager = BookmarkManager.Get();
-            if (manager == null || manager.Bookmarks.Count == 0)
+            if (manager == null)
+            {
+                Log.Warning("[LandingZone] BookmarkManager.Get() returned null in WorldLayerBookmarks.Draw()");
                 return;
+            }
+
+            if (manager.Bookmarks.Count == 0)
+            {
+                // No bookmarks to draw - this is normal
+                return;
+            }
 
             var worldGrid = Find.WorldGrid;
             if (worldGrid == null)
+            {
+                Log.Warning("[LandingZone] Find.WorldGrid is null in WorldLayerBookmarks.Draw()");
                 return;
+            }
+
+            // Check if material initialization succeeded
+            var material = BookmarkMaterial;
+            if (material == null)
+            {
+                // Material init failed - only draw labels, skip mesh rendering
+                if (!_hasLoggedDraw)
+                {
+                    Log.Message($"[LandingZone] Bookmark material is null, drawing {manager.Bookmarks.Count} labels only");
+                    _hasLoggedDraw = true;
+                }
+                DrawBookmarkLabels(manager, worldGrid, Find.WorldCameraDriver.altitude);
+                return;
+            }
+
+            if (!_hasLoggedDraw)
+            {
+                Log.Message($"[LandingZone] Drawing {manager.Bookmarks.Count} bookmark markers with material: {material.shader.name}");
+                _hasLoggedDraw = true;
+            }
 
             // Check if zoom level changed significantly
             float currentAltitude = Find.WorldCameraDriver.altitude;
@@ -72,11 +124,12 @@ namespace LandingZone.Core
             // Draw the mesh
             if (_cachedMesh != null && _cachedMesh.vertexCount > 0)
             {
-                Graphics.DrawMesh(_cachedMesh, Matrix4x4.identity, BookmarkMaterial, 0);
+                Graphics.DrawMesh(_cachedMesh, Matrix4x4.identity, material, 0);
             }
 
-            // Draw labels for bookmarks with ShowTitleOnGlobe enabled
-            DrawBookmarkLabels(manager, worldGrid, currentAltitude);
+            // NOTE: Labels cannot be drawn here - WorldRenderer.DrawWorldLayers is not in GUI context
+            // Labels would need to be drawn in a separate OnGUI patch, but that adds complexity
+            // For now, markers alone provide sufficient visual indication
         }
 
         /// <summary>

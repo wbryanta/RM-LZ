@@ -110,13 +110,15 @@ namespace LandingZone.Core.Filtering
                 ));
             }
 
-            Log.Message($"[LandingZone] BitsetAggregator: {candidates.Count} candidates pass strictness {strictness:F2}");
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {candidates.Count} candidates pass strictness {strictness:F2}");
 
             // Step 5: Adaptive tightening if too many candidates
-            if (candidates.Count > maxCandidates)
+            bool capHit = candidates.Count > maxCandidates;
+            if (capHit)
             {
-                Log.Message($"[LandingZone] BitsetAggregator: Too many candidates ({candidates.Count}), " +
-                           $"tightening to {maxCandidates}");
+                int originalCount = candidates.Count;
+                LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Candidate cap hit! {originalCount} candidates exceed limit of {maxCandidates}. " +
+                                              $"Tightening to top {maxCandidates} by score. Consider using stricter filters or increasing Max Candidate Tiles in settings.");
 
                 // Sort by upper bound and take top N
                 candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
@@ -125,6 +127,17 @@ namespace LandingZone.Core.Filtering
 
             // Step 6: Sort by upper bound descending for branch-and-bound
             candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
+
+            // Final summary
+            if (maxCandidates == int.MaxValue)
+            {
+                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {candidates.Count} candidates (Unlimited mode)");
+            }
+            else
+            {
+                string capStatus = capHit ? "CAP HIT" : $"{candidates.Count}/{maxCandidates}";
+                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {candidates.Count} candidates ({capStatus})");
+            }
 
             return candidates;
         }
