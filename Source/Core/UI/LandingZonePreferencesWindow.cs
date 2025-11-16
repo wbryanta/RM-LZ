@@ -25,7 +25,7 @@ namespace LandingZone.Core.UI
             doCloseX = true;
         }
 
-        public override Vector2 InitialSize => new Vector2(520f, 620f);
+        public override Vector2 InitialSize => new Vector2(640f, 720f); // Wider for 4-column preset grid
 
         public override void PreClose()
         {

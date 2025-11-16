@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using LandingZone.Core.Filtering.Filters;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -47,7 +48,101 @@ namespace LandingZone.Data
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
 
-            target.CopyFrom(Filters);
+            // Special handling for Wildcard preset
+            if (Id == "wildcard")
+            {
+                ApplyRandomFilters(target);
+            }
+            else
+            {
+                target.CopyFrom(Filters);
+            }
+        }
+
+        /// <summary>
+        /// Applies random filter configuration for Wildcard preset
+        /// </summary>
+        private static void ApplyRandomFilters(FilterSettings target)
+        {
+            // Reset to clean slate
+            target.Reset();
+
+            var rand = new System.Random();
+
+            // Pool of randomizable filters (12 total, pick 6 Critical + 6 Preferred)
+            var filterPool = new List<System.Action<FilterSettings, FilterImportance>>
+            {
+                // Temperature (random range)
+                (f, imp) => {
+                    float min = rand.Next(-50, 20);
+                    float max = min + rand.Next(10, 40);
+                    f.AverageTemperatureRange = new FloatRange(min, max);
+                    f.AverageTemperatureImportance = imp;
+                },
+                // Rainfall (random range)
+                (f, imp) => {
+                    float min = rand.Next(0, 2000);
+                    float max = min + rand.Next(500, 2000);
+                    f.RainfallRange = new FloatRange(min, max);
+                    f.RainfallImportance = imp;
+                },
+                // Growing days (random range)
+                (f, imp) => {
+                    float min = rand.Next(0, 40);
+                    float max = min + rand.Next(10, 30);
+                    f.GrowingDaysRange = new FloatRange(min, max);
+                    f.GrowingDaysImportance = imp;
+                },
+                // Coastal
+                (f, imp) => { f.CoastalImportance = imp; },
+                // Coastal Lake
+                (f, imp) => { f.CoastalLakeImportance = imp; },
+                // Rivers (random)
+                (f, imp) => {
+                    var rivers = RiverFilter.GetAllRiverTypes().Select(r => r.defName).ToList();
+                    if (rivers.Count > 0) {
+                        var picked = rivers[rand.Next(rivers.Count)];
+                        f.Rivers.SetImportance(picked, imp);
+                    }
+                },
+                // Hilliness (random)
+                (f, imp) => {
+                    var hillValues = new[] { Hilliness.Flat, Hilliness.SmallHills, Hilliness.LargeHills, Hilliness.Mountainous };
+                    f.AllowedHilliness.Clear();
+                    f.AllowedHilliness.Add(hillValues[rand.Next(hillValues.Length)]);
+                },
+                // Stones (random 2-3 types)
+                (f, imp) => {
+                    var stones = new[] { "Granite", "Limestone", "Marble", "Sandstone", "Slate" };
+                    int count = rand.Next(2, 4);
+                    for (int i = 0; i < count && i < stones.Length; i++) {
+                        f.Stones.SetImportance(stones[rand.Next(stones.Length)], imp);
+                    }
+                },
+                // Geothermal
+                (f, imp) => { f.MapFeatures.SetImportance("SteamGeysers_Increased", imp); },
+                // Caves
+                (f, imp) => { f.MapFeatures.SetImportance("Caves", imp); },
+                // AnimalLife
+                (f, imp) => { f.MapFeatures.SetImportance("AnimalLife_Increased", imp); },
+                // Fertile
+                (f, imp) => { f.MapFeatures.SetImportance("Fertile", imp); }
+            };
+
+            // Shuffle and pick 6 Critical + 6 Preferred
+            filterPool = filterPool.OrderBy(x => rand.Next()).ToList();
+
+            for (int i = 0; i < 6 && i < filterPool.Count; i++)
+            {
+                filterPool[i](target, FilterImportance.Critical);
+            }
+
+            for (int i = 6; i < 12 && i < filterPool.Count; i++)
+            {
+                filterPool[i](target, FilterImportance.Preferred);
+            }
+
+            Log.Message("[LandingZone] Wildcard preset applied random filter combination");
         }
     }
 
@@ -82,8 +177,9 @@ namespace LandingZone.Data
                 CreatePowerPreset(),
                 CreateBayouPreset(),
                 CreateSavannahPreset(),
-                CreateAquaticPreset()
-                // 7 curated + 4 specials = 11 total (leaving 1 slot for future expansion)
+                CreateAquaticPreset(),
+                CreateWildcardPreset()
+                // 8 curated + 4 specials = 12 total (perfect 3x4 grid)
             };
 
             _initialized = true;
@@ -527,6 +623,24 @@ namespace LandingZone.Data
             // Features: Wildlife and plants
             filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
+
+            return preset;
+        }
+
+        // ===== WILDCARD PRESET: Random chaos challenge =====
+        private static Preset CreateWildcardPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "wildcard",
+                Name = "Wildcard",
+                Description = "Random challenge generator - 6 random Critical filters + 6 random Preferred. Every search is unpredictable!",
+                Category = "Special",
+                FilterSummary = "Random on each apply"
+            };
+
+            // NOTE: Filters are randomized when ApplyTo() is called, not here
+            // This preset acts as a template that triggers randomization
 
             return preset;
         }
