@@ -711,10 +711,29 @@ namespace LandingZone.Core.UI
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // Line 3: Biome name
-            var biomeRect = new Rect(rect.x + leftPad, rect.y + 50f, rect.width - leftPad - rightPad, 16f);
+            // Line 3: Biome name with rarity badge
+            var biomeRect = new Rect(rect.x + leftPad, rect.y + 50f, rect.width - leftPad - rightPad - 60f, 16f);
             Text.Font = GameFont.Tiny;
             Widgets.Label(biomeRect, biomeLabel);
+
+            // Rarity badge (right side of biome line)
+            var (probability, rarity) = RarityCalculator.ComputeTileRarity(score.TileId);
+            if (rarity >= TileRarity.Rare) // Only show badge for Rare and above
+            {
+                var rarityBadgeRect = new Rect(rect.xMax - 58f - rightPad, rect.y + 48f, 58f, 18f);
+                var rarityColor = rarity.ToColor();
+                var rarityLabel = rarity.ToLabel();
+
+                Widgets.DrawBoxSolid(rarityBadgeRect, rarityColor * 0.6f);
+                Widgets.DrawBox(rarityBadgeRect);
+
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.white;
+                Widgets.Label(rarityBadgeRect, rarityLabel);
+                GUI.color = Color.white;
+                Text.Anchor = TextAnchor.UpperLeft;
+            }
 
             float curY = rect.y + 70f;
 

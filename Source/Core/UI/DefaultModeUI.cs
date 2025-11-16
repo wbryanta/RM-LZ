@@ -69,13 +69,14 @@ namespace LandingZone.Core.UI
         private static void DrawPresetCards(Listing_Standard listing, UserPreferences preferences)
         {
             var filters = preferences.GetActiveFilters();
-            var presets = FilterPresets.AllPresets;
+            var curatedPresets = PresetLibrary.GetCurated();
+            var userPresets = PresetLibrary.GetUserPresets();
 
-            // Draw preset cards in a horizontal row
+            // Draw curated presets in a horizontal row
             Rect presetRowRect = listing.GetRect(PresetCardHeight + 10f);
             float cardX = presetRowRect.x;
 
-            foreach (var preset in presets)
+            foreach (var preset in curatedPresets)
             {
                 if (cardX + PresetCardWidth > presetRowRect.xMax)
                     break; // Don't overflow, wrap in future if needed
@@ -85,9 +86,39 @@ namespace LandingZone.Core.UI
 
                 cardX += PresetCardWidth + PresetCardSpacing;
             }
+
+            // Draw user presets on next row if any exist
+            if (userPresets.Count > 0)
+            {
+                listing.Gap(10f);
+                Text.Font = GameFont.Tiny;
+                listing.Label("My Presets:");
+                Text.Font = GameFont.Small;
+
+                Rect userRowRect = listing.GetRect(PresetCardHeight + 10f);
+                cardX = userRowRect.x;
+
+                foreach (var preset in userPresets)
+                {
+                    if (cardX + PresetCardWidth > userRowRect.xMax)
+                        break;
+
+                    Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
+                    DrawPresetCard(cardRect, preset, filters);
+
+                    cardX += PresetCardWidth + PresetCardSpacing;
+                }
+            }
+
+            // Add "Save as Preset" button
+            listing.Gap(10f);
+            if (listing.ButtonText("💾 Save Current Filters as Preset"))
+            {
+                Find.WindowStack.Add(new Dialog_SavePreset(filters));
+            }
         }
 
-        private static void DrawPresetCard(Rect rect, PresetDefinition preset, FilterSettings filters)
+        private static void DrawPresetCard(Rect rect, Preset preset, FilterSettings filters)
         {
             // Draw card background
             Widgets.DrawBoxSolid(rect, new Color(0.15f, 0.15f, 0.15f));
@@ -98,11 +129,31 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
 
+            // Rarity badge (top-right corner)
+            if (preset.TargetRarity.HasValue)
+            {
+                var rarity = preset.TargetRarity.Value;
+                var badgeColor = rarity.ToColor();
+                var badgeLabel = rarity.ToLabel();
+
+                Rect badgeRect = new Rect(rect.xMax - 42f, rect.y + 4f, 38f, 16f);
+                Widgets.DrawBoxSolid(badgeRect, badgeColor * 0.7f);
+                Widgets.DrawBox(badgeRect);
+
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.white;
+                Widgets.Label(badgeRect, badgeLabel);
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.UpperLeft;
+            }
+
             // Title
-            Rect titleRect = new Rect(contentRect.x, contentRect.y, contentRect.width, 20f);
+            Rect titleRect = new Rect(contentRect.x, contentRect.y, contentRect.width - 40f, 20f);
             Widgets.Label(titleRect, preset.Name);
 
-            // Description
+            // Description (truncated to fit)
             Text.Font = GameFont.Tiny;
             Rect descRect = new Rect(contentRect.x, contentRect.y + 22f, contentRect.width, 30f);
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
@@ -115,12 +166,19 @@ namespace LandingZone.Core.UI
             // Click to apply preset
             if (Widgets.ButtonInvisible(rect))
             {
-                preset.Apply(filters);
+                preset.ApplyTo(filters);
                 Messages.Message($"Applied preset: {preset.Name}", MessageTypeDefOf.NeutralEvent, false);
             }
 
-            // Tooltip
-            TooltipHandler.TipRegion(rect, $"{preset.Name}\n\n{preset.Description}\n\nClick to apply this preset.");
+            // Tooltip with filter summary
+            string tooltip = $"{preset.Name}\n\n{preset.Description}\n\n";
+            if (!string.IsNullOrEmpty(preset.FilterSummary))
+                tooltip += $"Filters: {preset.FilterSummary}\n\n";
+            if (preset.TargetRarity.HasValue)
+                tooltip += $"Target Rarity: {preset.TargetRarity.Value.ToLabel()}\n\n";
+            tooltip += "Click to apply this preset.";
+
+            TooltipHandler.TipRegion(rect, tooltip);
         }
 
         private static void DrawKeyFilters(Listing_Standard listing, UserPreferences preferences)
