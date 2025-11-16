@@ -63,9 +63,9 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 
 ### Simple Mode
 - Simplified interface for casual users
-- **Preset System**: 4-column grid with 11 curated presets + up to 4 user presets
+- **Preset System**: 4-column grid with 12 curated presets + up to 4 user presets
   - **Special Tier** (Row 1): Elysian (perfect QoL), Exotic (rare combos), SubZero (frozen), Scorched Hell (heat)
-  - **Playstyle Tier** (Rows 2-3): Desert Oasis, Defense, Agrarian, Power, Bayou, Savannah, Aquatic
+  - **Playstyle Tier** (Rows 2-3): Desert Oasis, Defense, Agrarian, Power, Bayou, Savannah, Aquatic, Wildcard (random filters)
 - **User Presets**: Save your current Simple mode filters as custom presets for reuse
 - **Rarity Badges**: Presets show target rarity tier (Common → Mythic) based on probabilistic rarity scoring
 - 8 essential filters: Biomes, Temperature, Rainfall, Coastal, Growing Season, Rivers, Roads, Stones
