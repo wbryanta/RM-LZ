@@ -5,6 +5,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 using LandingZone.Core;
+using LandingZone.Data;
 using Verse.Sound;
 
 namespace LandingZone.Core.UI
@@ -175,10 +176,14 @@ namespace LandingZone.Core.UI
             float searchButtonWidth = filtersRect.x - innerGap - (leftNavRect.xMax + innerGap);
             var searchButtonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, searchButtonWidth, rect.height);
 
-            // Search button (green when active)
+            // Search button (green when active, shows current mode context)
+            var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
+            string modeLabel = currentMode == UIMode.Simple ? "Simple" : "Advanced";
+            string searchLabel = $"Search Landing Zones ({modeLabel})";
+
             var prevColor = GUI.color;
             GUI.color = isShowing ? new Color(0.55f, 0.85f, 0.55f) : Color.white;
-            if (Widgets.ButtonText(searchButtonRect, "Search Landing Zones"))
+            if (Widgets.ButtonText(searchButtonRect, searchLabel))
             {
                 if (highlightState != null)
                 {
@@ -186,7 +191,7 @@ namespace LandingZone.Core.UI
                 }
             }
             GUI.color = prevColor;
-            TooltipHandler.TipRegion(searchButtonRect, "Search for best landing sites based on current filters");
+            TooltipHandler.TipRegion(searchButtonRect, $"Search for best landing sites using {modeLabel} mode filters");
 
             // Filters button (opens preferences/filters window)
             if (Widgets.ButtonText(filtersRect, "Filters"))
@@ -197,7 +202,7 @@ namespace LandingZone.Core.UI
 
             // Top (XX) button - opens results window
             bool hasResults = LandingZoneContext.HasMatches;
-            int maxResults = LandingZoneContext.State?.Preferences?.Filters?.MaxResults ?? 20;
+            int maxResults = LandingZoneContext.State?.Preferences?.GetActiveFilters()?.MaxResults ?? 20;
             string topLabel = $"Top ({maxResults})";
 
             var topPrevEnabled = GUI.enabled;
@@ -232,7 +237,7 @@ namespace LandingZone.Core.UI
             var state = LandingZoneContext.State;
             if (state == null) return "default";
 
-            var filters = state.Preferences.Filters;
+            var filters = state.Preferences.GetActiveFilters();
 
             // Check if user has modified any filter values from defaults
             bool isCustom =

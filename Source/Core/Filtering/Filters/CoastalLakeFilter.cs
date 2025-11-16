@@ -17,7 +17,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.CoastalLakeImportance == FilterImportance.Ignored)
                 return inputTiles;
 
@@ -31,7 +31,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             return filters.CoastalLakeImportance switch
             {
                 FilterImportance.Ignored => "Lake adjacency not considered",

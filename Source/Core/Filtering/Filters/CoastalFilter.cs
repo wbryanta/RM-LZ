@@ -13,7 +13,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var importance = context.State.Preferences.Filters.CoastalImportance;
+            var importance = context.Filters.CoastalImportance;
             if (importance != FilterImportance.Critical)
                 return inputTiles;
 
@@ -27,7 +27,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var importance = context.State.Preferences.Filters.CoastalImportance;
+            var importance = context.Filters.CoastalImportance;
             return importance switch
             {
                 FilterImportance.Critical => "Coastal required",

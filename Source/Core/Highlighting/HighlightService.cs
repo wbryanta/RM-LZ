@@ -29,7 +29,7 @@ namespace LandingZone.Core.Highlighting
             _scores.Clear();
             _scores.AddRange(cachedScores);
             _topMatches.Clear();
-            var limit = Mathf.Clamp(state.Preferences.Filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
+            var limit = Mathf.Clamp(state.Preferences.GetActiveFilters().MaxResults, 1, FilterSettings.MaxResultsLimit);
             var topCount = Mathf.Min(limit, _scores.Count);
             for (var i = 0; i < topCount; i++)
             {

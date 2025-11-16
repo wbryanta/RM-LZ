@@ -58,7 +58,7 @@ namespace LandingZone.Core.Filtering
             var cheap = new List<IFilterPredicate>();
             var heavy = new List<IFilterPredicate>();
 
-            var filters = state.Preferences.Filters;
+            var filters = state.Preferences.GetActiveFilters();
 
             foreach (var filter in _filters)
             {

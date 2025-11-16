@@ -29,7 +29,7 @@ namespace LandingZone.Core.UI
 
         public override void PreClose()
         {
-            // Both Default and Advanced modes modify FilterSettings directly - no persistence needed
+            // Both Simple and Advanced modes modify FilterSettings directly - no persistence needed
             // Old legacy code persisted local variables which would overwrite direct modifications
         }
 
@@ -39,7 +39,7 @@ namespace LandingZone.Core.UI
             var currentMode = options.PreferencesUIMode;
 
             // Mode toggle header (before scroll view)
-            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 40f);
+            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 60f);
             DrawModeToggle(headerRect, ref currentMode);
 
             // Save mode change if toggled
@@ -49,13 +49,13 @@ namespace LandingZone.Core.UI
             }
 
             // Content area (below mode toggle)
-            var contentRect = new Rect(inRect.x, inRect.y + 50f, inRect.width, inRect.height - 50f);
+            var contentRect = new Rect(inRect.x, inRect.y + 70f, inRect.width, inRect.height - 70f);
 
             // Render appropriate mode UI
-            if (currentMode == UIMode.Default)
+            if (currentMode == UIMode.Simple)
             {
-                // Default mode: Use new simplified UI
-                DrawDefaultModeContent(contentRect);
+                // Simple mode: Use new simplified UI
+                DrawSimpleModeContent(contentRect);
             }
             else
             {
@@ -66,30 +66,30 @@ namespace LandingZone.Core.UI
 
         private void DrawModeToggle(Rect rect, ref UIMode currentMode)
         {
-            // Mode toggle buttons (Default | Advanced)
+            // Mode toggle buttons (Simple | Advanced)
             var buttonWidth = 120f;
             var spacing = 10f;
             var totalWidth = (buttonWidth * 2) + spacing;
             var startX = rect.x + (rect.width - totalWidth) / 2f;
 
-            var defaultRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
+            var simpleRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
             var advancedRect = new Rect(startX + buttonWidth + spacing, rect.y + 5f, buttonWidth, 30f);
 
-            // Default button - draw with visual highlight if active, but only switch if NOT already default
-            var isDefault = currentMode == UIMode.Default;
+            // Simple button - draw with visual highlight if active, but only switch if NOT already simple
+            var isSimple = currentMode == UIMode.Simple;
 
             // Visual styling for active button
             var prevColor = GUI.color;
-            if (isDefault)
+            if (isSimple)
             {
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
             }
 
-            if (Widgets.ButtonText(defaultRect, "Default"))
+            if (Widgets.ButtonText(simpleRect, "Simple"))
             {
-                if (!isDefault)
+                if (!isSimple)
                 {
-                    currentMode = UIMode.Default;
+                    currentMode = UIMode.Simple;
                 }
             }
 
@@ -112,11 +112,22 @@ namespace LandingZone.Core.UI
             }
 
             GUI.color = prevColor;
+
+            // Helper text explaining mode independence
+            var helpTextRect = new Rect(rect.x, rect.y + 40f, rect.width, 18f);
+            Text.Font = GameFont.Tiny;
+            var prevTextColor = GUI.color;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(helpTextRect, "Each mode maintains its own filter settings that persist across sessions.");
+            GUI.color = prevTextColor;
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
         }
 
-        private void DrawDefaultModeContent(Rect contentRect)
+        private void DrawSimpleModeContent(Rect contentRect)
         {
-            // Use new DefaultModeUI renderer
+            // Use new DefaultModeUI renderer (still named DefaultModeUI for now)
             var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
 
             // Dynamic height: let DefaultModeUI calculate its own content height
@@ -162,8 +173,29 @@ namespace LandingZone.Core.UI
 
             if (listing.ButtonText("Reset to defaults"))
             {
-                preferences.Filters.Reset();
+                preferences.ResetActiveFilters();
                 Messages.Message("Filters reset to defaults", MessageTypeDefOf.NeutralEvent, false);
+            }
+
+            listing.Gap(8f);
+
+            // Import/Export between modes
+            var currentUIMode = preferences.Options.PreferencesUIMode;
+            if (currentUIMode == UIMode.Simple)
+            {
+                if (listing.ButtonText("Copy to Advanced mode"))
+                {
+                    preferences.CopySimpleToAdvanced();
+                    Messages.Message("Simple mode settings copied to Advanced mode", MessageTypeDefOf.NeutralEvent, false);
+                }
+            }
+            else
+            {
+                if (listing.ButtonText("Copy to Simple mode"))
+                {
+                    preferences.CopyAdvancedToSimple();
+                    Messages.Message("Advanced mode settings copied to Simple mode", MessageTypeDefOf.NeutralEvent, false);
+                }
             }
 
             // Dev mode: Performance test button

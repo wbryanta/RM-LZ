@@ -19,7 +19,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var adjacentBiomes = filters.AdjacentBiomes;
 
             // If no adjacent biomes configured, pass all tiles through
@@ -44,7 +44,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var adjacentBiomes = filters.AdjacentBiomes;
 
             if (!adjacentBiomes.HasAnyImportance)
@@ -115,7 +115,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var adjacentBiomes = context.State.Preferences.Filters.AdjacentBiomes;
+            var adjacentBiomes = context.Filters.AdjacentBiomes;
 
             // If no adjacent biomes configured, no membership
             if (!adjacentBiomes.HasAnyImportance)

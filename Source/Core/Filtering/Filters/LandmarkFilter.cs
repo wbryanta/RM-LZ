@@ -19,7 +19,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var importance = filters.LandmarkImportance;
 
             Log.Message($"[LandingZone] LandmarkFilter.Apply: importance={importance}");
@@ -48,7 +48,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var importance = filters.LandmarkImportance;
 
             return importance switch

@@ -12,5 +12,11 @@ namespace LandingZone.Core.Filtering
 
         public GameState State { get; }
         public TileDataCache TileCache { get; }
+
+        /// <summary>
+        /// Convenience accessor for the active FilterSettings based on current UI mode.
+        /// Equivalent to State.Preferences.GetActiveFilters().
+        /// </summary>
+        public FilterSettings Filters => State.Preferences.GetActiveFilters();
     }
 }

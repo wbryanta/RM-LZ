@@ -17,7 +17,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.ForageableFoodImportance == FilterImportance.Ignored)
                 return inputTiles;
 
@@ -43,7 +43,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.ForageableFoodImportance == FilterImportance.Ignored || string.IsNullOrEmpty(filters.ForageableFoodDefName))
                 return "Any forageable food";
 
@@ -111,7 +111,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var requiredFoodDef = filters.ForageableFoodDefName;
 
             // If no specific food required, use general forageability from cache

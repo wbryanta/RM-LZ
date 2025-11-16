@@ -16,7 +16,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.MinimumTemperatureImportance == FilterImportance.Ignored)
                 return inputTiles;
 
@@ -38,7 +38,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.MinimumTemperatureImportance == FilterImportance.Ignored)
                 return "Any minimum temperature";
 
@@ -49,7 +49,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var range = context.State.Preferences.Filters.MinimumTemperatureRange;
+            var range = context.Filters.MinimumTemperatureRange;
             var tile = Find.World.grid[tileId];
             if (tile == null) return 0.0f;
 

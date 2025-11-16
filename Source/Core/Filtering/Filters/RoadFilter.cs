@@ -18,7 +18,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var roads = filters.Roads;
 
             // If no roads configured, pass all tiles through
@@ -44,7 +44,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var roads = filters.Roads;
 
             if (!roads.HasAnyImportance)
@@ -93,7 +93,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var roads = context.State.Preferences.Filters.Roads;
+            var roads = context.Filters.Roads;
 
             // If no roads configured, no membership
             if (!roads.HasAnyImportance)

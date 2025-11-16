@@ -96,7 +96,7 @@ namespace LandingZone.Core.UI
                     continue;
 
                 // Count active filters
-                var (totalActive, criticalCount, preferredCount) = CountActiveFilters(group, preferences.Filters);
+                var (totalActive, criticalCount, preferredCount) = CountActiveFilters(group, preferences.GetActiveFilters());
 
                 // Draw collapsible group header with counts
                 bool isCollapsed = _collapsedGroups.Contains(group.Id);
@@ -127,7 +127,7 @@ namespace LandingZone.Core.UI
                             continue;
 
                         // Draw the filter control
-                        filter.DrawAction(listing, preferences.Filters);
+                        filter.DrawAction(listing, preferences.GetActiveFilters());
                         listing.Gap(5f);
                     }
                     listing.Gap(10f);

@@ -72,7 +72,7 @@ namespace LandingZone.Core.Filtering
         /// </summary>
         public (float estimatedSeconds, string warningMessage, bool shouldWarn) EstimateSearchComplexity(GameState state)
         {
-            var filters = state.Preferences.Filters;
+            var filters = state.Preferences.GetActiveFilters();
             var (cheapPredicates, heavyPredicates) = _registry.GetAllPredicates(state);
 
             int heavyCriticals = heavyPredicates.Count(p => p.Importance == FilterImportance.Critical);
@@ -274,7 +274,7 @@ namespace LandingZone.Core.Filtering
             {
                 _owner = owner;
                 _state = state;
-                var filters = state.Preferences.Filters;
+                var filters = state.Preferences.GetActiveFilters();
                 _strictness = filters.CriticalStrictness;
                 _currentStrictness = _strictness; // Initialize current strictness
                 _maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
@@ -710,7 +710,7 @@ namespace LandingZone.Core.Filtering
                 // Collect mutator contributions (excluding explicitly selected Critical/Preferred)
                 var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
                 var mutatorContributions = new List<MutatorContribution>();
-                var mapFeaturesFilter = _state.Preferences.Filters.MapFeatures;
+                var mapFeaturesFilter = _state.Preferences.GetActiveFilters().MapFeatures;
 
                 if (tileMutators != null)
                 {

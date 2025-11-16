@@ -737,7 +737,7 @@ namespace LandingZone.Core.UI
                 if (hasInfo)
                 {
                     var extended = LandingZoneContext.Filters?.TileCache.GetOrCompute(score.TileId) ?? default;
-                    var filters = LandingZoneContext.State?.Preferences?.Filters;
+                    var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
 
                     // Climate line - draw colored segments
                     DrawColoredClimateLine(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), score.TileId, tile, extended, filters);
@@ -933,7 +933,7 @@ namespace LandingZone.Core.UI
         /// </summary>
         private static string FormatFilterDisplayName(string filterId, int tileId, bool isMatched = true)
         {
-            var filters = LandingZoneContext.State?.Preferences?.Filters;
+            var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
 
             // Handle multi-select filters
             switch (filterId.ToLowerInvariant())
@@ -943,20 +943,26 @@ namespace LandingZone.Core.UI
                     {
                         if (isMatched)
                         {
-                            // MATCHED: Show specific features on this tile
+                            // MATCHED: Show specific features on this tile with friendly labels
                             var tileFeatures = MapFeatureFilter.GetTileMapFeatures(tileId).ToList();
                             var selectedFeatures = tileFeatures.Where(f => filters.MapFeatures.GetImportance(f) != FilterImportance.Ignored).ToList();
                             if (selectedFeatures.Any())
-                                return string.Join(", ", selectedFeatures);
+                            {
+                                var friendlyLabels = selectedFeatures.Select(MapFeatureFilter.GetMutatorFriendlyLabel);
+                                return string.Join(", ", friendlyLabels);
+                            }
                         }
                         else
                         {
-                            // MISSED: Show what user configured (critical/preferred features)
+                            // MISSED: Show what user configured (critical/preferred features) with friendly labels
                             var criticalFeatures = filters.MapFeatures.GetCriticalItems().ToList();
                             var preferredFeatures = filters.MapFeatures.GetPreferredItems().ToList();
                             var allConfigured = criticalFeatures.Concat(preferredFeatures).ToList();
                             if (allConfigured.Any())
-                                return string.Join(", ", allConfigured);
+                            {
+                                var friendlyLabels = allConfigured.Select(MapFeatureFilter.GetMutatorFriendlyLabel);
+                                return string.Join(", ", friendlyLabels);
+                            }
                         }
                     }
                     return "Map Features";

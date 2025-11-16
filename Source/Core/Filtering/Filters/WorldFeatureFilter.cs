@@ -17,7 +17,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var importance = filters.FeatureImportance;
 
             if (importance == FilterImportance.Ignored)
@@ -51,7 +51,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var importance = filters.FeatureImportance;
 
             if (importance == FilterImportance.Ignored)
@@ -101,7 +101,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var requiredFeatureDefName = filters.RequiredFeatureDefName;
 
             // Build feature lookup

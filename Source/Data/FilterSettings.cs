@@ -230,6 +230,27 @@ namespace LandingZone.Data
             // For k-of-n scoring (legacy), 1.0 means all critical filters must match.
             CriticalStrictness = 0.0f;
         }
+
+        /// <summary>
+        /// Copies all filter settings from another FilterSettings instance.
+        /// Uses reflection to copy all public properties.
+        /// </summary>
+        public void CopyFrom(FilterSettings source)
+        {
+            if (source == null) return;
+
+            var properties = typeof(FilterSettings).GetProperties(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            foreach (var prop in properties)
+            {
+                if (prop.CanWrite && prop.CanRead)
+                {
+                    var value = prop.GetValue(source);
+                    prop.SetValue(this, value);
+                }
+            }
+        }
     }
 
     public enum FilterImportance : byte

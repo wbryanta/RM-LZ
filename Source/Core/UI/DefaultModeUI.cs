@@ -49,8 +49,17 @@ namespace LandingZone.Core.UI
             // Reset button only - Search button is in main toolbar
             if (listing.ButtonText("Reset to Defaults"))
             {
-                preferences.Filters.Reset();
+                preferences.ResetActiveFilters();
                 Messages.Message("Filter settings reset to defaults", MessageTypeDefOf.NeutralEvent, false);
+            }
+
+            listing.Gap(8f);
+
+            // Import from Advanced mode
+            if (listing.ButtonText("Copy from Advanced mode"))
+            {
+                preferences.CopyAdvancedToSimple();
+                Messages.Message("Advanced mode settings copied to Simple mode", MessageTypeDefOf.NeutralEvent, false);
             }
 
             listing.End();
@@ -59,7 +68,7 @@ namespace LandingZone.Core.UI
 
         private static void DrawPresetCards(Listing_Standard listing, UserPreferences preferences)
         {
-            var filters = preferences.Filters;
+            var filters = preferences.GetActiveFilters();
             var presets = FilterPresets.AllPresets;
 
             // Draw preset cards in a horizontal row
@@ -116,7 +125,7 @@ namespace LandingZone.Core.UI
 
         private static void DrawKeyFilters(Listing_Standard listing, UserPreferences preferences)
         {
-            var filters = preferences.Filters;
+            var filters = preferences.GetActiveFilters();
 
             // 1. Temperature (honor user's C/F/K preference)
             var tempMode = Prefs.TemperatureMode;

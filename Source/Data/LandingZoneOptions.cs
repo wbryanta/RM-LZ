@@ -8,7 +8,7 @@ namespace LandingZone.Data
         public bool AutoOpenWindow { get; set; } = true;
         public bool LiveFiltering { get; set; } = true;
         public bool HighlightMatches { get; set; } = true;
-        public UIMode PreferencesUIMode { get; set; } = UIMode.Default;
+        public UIMode PreferencesUIMode { get; set; } = UIMode.Simple;
 
         /// <summary>
         /// Enable new membership-based scoring system (fuzzy preferences).
@@ -22,23 +22,26 @@ namespace LandingZone.Data
             AutoOpenWindow = true;
             LiveFiltering = true;
             HighlightMatches = true;
-            PreferencesUIMode = UIMode.Default;
+            PreferencesUIMode = UIMode.Simple;
             UseNewScoring = true;
         }
     }
 
     /// <summary>
     /// UI presentation mode for Landing Zone preferences window.
+    /// Each mode maintains independent filter settings that persist across sessions.
     /// </summary>
     public enum UIMode : byte
     {
         /// <summary>
-        /// Simplified UI with preset cards and 6-8 key filters for casual users.
+        /// Simplified UI with preset cards and essential filters for casual users.
+        /// Maintains separate FilterSettings from Advanced mode.
         /// </summary>
-        Default = 0,
+        Simple = 0,
 
         /// <summary>
-        /// Full-featured UI with all 40+ filters organized by groups for power users.
+        /// Full-featured UI with all 40+ filters organized by categories for power users.
+        /// Maintains separate FilterSettings from Simple mode.
         /// </summary>
         Advanced = 1
     }

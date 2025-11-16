@@ -27,8 +27,9 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 - **Configurable Weights**: 5 scoring presets (Balanced, Critical Focused, Strict Hierarchy, Ultra Critical, Precision Match)
 
 ### Dual-Mode Interface
-- **Default Mode**: Simplified UI with 8 essential filters and preset cards (Temperate, Arctic Challenge, Desert Oasis)
+- **Simple Mode**: Simplified UI with 8 essential filters and preset cards (Temperate, Arctic Challenge, Desert Oasis)
 - **Advanced Mode**: Full control with 40+ filters organized into collapsible sections
+- **Mode Independence**: Each mode maintains its own filter settings that persist across sessions. Copy settings between modes as needed.
 - **Stone Selector**: Per-stone importance (Granite=Critical, Marble=Preferred) dynamically loaded from DefDatabase
 - **Results Window**: Top-N matches with detailed tile information, click to jump to location on world map
 
@@ -51,17 +52,18 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 ### Quick Start
 1. Generate or load a RimWorld world
 2. Click **"Filters"** button in bottom panel on "Select Starting Site" screen
-3. Choose **Default** or **Advanced** mode
+3. Choose **Simple** or **Advanced** mode
 4. Set your preferences (temperature, biome, coastal, etc.)
-5. Click **">>"** to start search
+5. Click **"Search Landing Zones (Simple/Advanced)"** to start search
 6. Click **"Top (20)"** to view results
 7. Click any result to jump to that tile on the world map
 
-### Default Mode
+### Simple Mode
 - Simplified interface for casual users
 - 3 preset cards (click to apply)
 - 8 essential filters: Biomes, Temperature, Rainfall, Coastal, Growing Season, Rivers, Roads, Stones
 - Tri-state toggles: Ignored | Preferred | Critical
+- **Independent settings**: Simple mode maintains its own filter preferences that persist across sessions
 
 ### Advanced Mode
 - Full filter control for power users
@@ -69,6 +71,9 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 - Per-item importance for stones, rivers, roads, biomes, features
 - Stone Count mode: "Any 3 types" instead of specific stones
 - All numeric filters have range sliders with fuzzy margins
+- **Independent settings**: Advanced mode maintains its own filter preferences that persist across sessions
+
+**Mode Independence**: Simple and Advanced modes each maintain their own independent filter settings. You can copy settings between modes using the "Copy to/from" buttons in each mode.
 
 ### Understanding Scores
 - **1.0 = Perfect match** - all criticals excellent, all preferreds met

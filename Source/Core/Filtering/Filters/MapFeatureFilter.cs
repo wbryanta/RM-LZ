@@ -19,7 +19,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var mapFeatures = filters.MapFeatures;
 
             // If no features configured, pass all tiles through
@@ -70,7 +70,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             var mapFeatures = filters.MapFeatures;
 
             if (!mapFeatures.HasAnyImportance)
@@ -200,9 +200,68 @@ namespace LandingZone.Core.Filtering.Filters
             return featureTypes.OrderBy(f => f == "Caves" ? "0" : f);
         }
 
+        /// <summary>
+        /// Converts mutator defName to user-friendly label.
+        /// Attempts to load from DefDatabase and get .label property, falls back to defName if unavailable.
+        /// </summary>
+        public static string GetMutatorFriendlyLabel(string defName)
+        {
+            if (string.IsNullOrEmpty(defName))
+                return defName;
+
+            try
+            {
+                // Try to get the Def from DefDatabase using generic GetNamed
+                var defDatabaseType = typeof(DefDatabase<>);
+                var worldTileDefType = GenTypes.GetTypeInAnyAssembly("RimWorld.Planet.WorldTileDef");
+
+                if (worldTileDefType != null)
+                {
+                    var specificDefDatabase = defDatabaseType.MakeGenericType(worldTileDefType);
+                    var getNamedMethod = specificDefDatabase.GetMethod("GetNamedSilentFail");
+
+                    if (getNamedMethod != null)
+                    {
+                        var mutatorDef = getNamedMethod.Invoke(null, new object[] { defName });
+
+                        if (mutatorDef != null)
+                        {
+                            // Try to get label or LabelCap property
+                            var labelCapProp = mutatorDef.GetType().GetProperty("LabelCap");
+                            if (labelCapProp != null)
+                            {
+                                var labelCap = labelCapProp.GetValue(mutatorDef);
+                                if (labelCap != null)
+                                    return labelCap.ToString();
+                            }
+
+                            var labelProp = mutatorDef.GetType().GetProperty("label");
+                            if (labelProp != null)
+                            {
+                                var label = labelProp.GetValue(mutatorDef);
+                                if (label != null && !string.IsNullOrEmpty(label.ToString()))
+                                    return GenText.ToTitleCaseSmart(label.ToString());
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                // Silently fail - this is just for friendly labels
+                if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
+                    LandingZoneLogger.LogVerbose($"[LandingZone] GetMutatorFriendlyLabel({defName}): {ex.Message}");
+            }
+
+            // Fallback: Convert defName to friendly format
+            // "SteamGeysers_Increased" → "Steam Geysers Increased"
+            return System.Text.RegularExpressions.Regex.Replace(defName, "([a-z])([A-Z])", "$1 $2")
+                .Replace("_", " ");
+        }
+
         public float Membership(int tileId, FilterContext context)
         {
-            var mapFeatures = context.State.Preferences.Filters.MapFeatures;
+            var mapFeatures = context.Filters.MapFeatures;
 
             // If no features configured, no membership
             if (!mapFeatures.HasAnyImportance)

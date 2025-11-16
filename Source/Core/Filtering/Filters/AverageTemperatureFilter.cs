@@ -15,7 +15,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.AverageTemperatureImportance == FilterImportance.Ignored)
                 return inputTiles;
 
@@ -37,7 +37,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public string Describe(FilterContext context)
         {
-            var filters = context.State.Preferences.Filters;
+            var filters = context.Filters;
             if (filters.AverageTemperatureImportance == FilterImportance.Ignored)
                 return "Any average temperature";
 
@@ -48,7 +48,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var range = context.State.Preferences.Filters.AverageTemperatureRange;
+            var range = context.Filters.AverageTemperatureRange;
             var tile = Find.World.grid[tileId];
             if (tile == null) return 0.0f;
 
