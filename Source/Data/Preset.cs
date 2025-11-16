@@ -183,7 +183,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "angel",
-                Name = "🌟 Angel",
+                Name = "Angel",
                 Description = "Perfect quality of life - temperate, fertile, resources abundant. Targets rare combinations (0.1-1% of tiles).",
                 Category = "Special",
                 TargetRarity = TileRarity.Rare,
@@ -226,7 +226,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "unicorn",
-                Name = "🦄 Unicorn",
+                Name = "Unicorn",
                 Description = "Extremely rare combinations - Archean trees, headwaters, multiple rare features. Targets epic/legendary tiles (<0.01% of tiles).",
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
@@ -259,7 +259,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "demon",
-                Name = "😈 Demon",
+                Name = "Demon",
                 Description = "Extreme survival challenge - ice sheets, extreme deserts, or hostile combinations. For masochists only.",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
@@ -290,7 +290,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "scorched_hell",
-                Name = "🔥 Scorched Hell",
+                Name = "Scorched Hell",
                 Description = "Extreme heat survival - scorching deserts, volcanic activity, toxic features. Lava and fire everywhere.",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
@@ -383,7 +383,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "defense",
-                Name = "🏰 Defense",
+                Name = "Defense",
                 Description = "Defensible position - mountains, caves, chokepoints. Build an impenetrable fortress.",
                 Category = "Curated",
                 FilterSummary = "Mountainous | Caves | Stone Rich"
@@ -417,7 +417,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "agrarian",
-                Name = "🌾 Agrarian",
+                Name = "Agrarian",
                 Description = "Perfect farming conditions - long growing season, fertile soil, abundant resources. Feed the world.",
                 Category = "Curated",
                 FilterSummary = "50-60 days grow | Fertile | WildPlants | Temperate"
@@ -452,7 +452,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "power",
-                Name = "⚡ Power",
+                Name = "Power",
                 Description = "Energy independence - geothermal vents, rivers for hydro, sunny for solar. Unlimited electricity.",
                 Category = "Curated",
                 FilterSummary = "Geothermal | Rivers | Sunny"
@@ -481,7 +481,7 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "bayou",
-                Name = "🐊 Bayou",
+                Name = "Bayou",
                 Description = "Swamplands - high rainfall, wetlands, rich biodiversity. Hunt, fish, and survive in the marsh.",
                 Category = "Curated",
                 FilterSummary = "Swamp | High Rain | Coastal | Warm"
