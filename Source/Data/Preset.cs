@@ -69,22 +69,21 @@ namespace LandingZone.Data
 
             _curated = new List<Preset>
             {
-                // Special presets (Elysian/Exotic/Perilous/Scorched)
+                // Special presets (4-column row 1)
                 CreateElysianPreset(),
                 CreateExoticPreset(),
-                CreatePerilousPreset(),
+                CreateSubZeroPreset(),
                 CreateScorchedHellPreset(),
 
-                // Classic presets
-                CreateTemperatePreset(),
-                CreateArcticChallengePreset(),
+                // Curated playstyle presets (4-column rows 2-3)
                 CreateDesertOasisPreset(),
-
-                // New playstyle presets
                 CreateDefensePreset(),
                 CreateAgrarianPreset(),
                 CreatePowerPreset(),
-                CreateBayouPreset()
+                CreateBayouPreset(),
+                CreateSavannahPreset(),
+                CreateAquaticPreset()
+                // 7 curated + 4 specials = 11 total (leaving 1 slot for future expansion)
             };
 
             _initialized = true;
@@ -92,7 +91,7 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Gets all curated presets (Elysian, Exotic, Perilous, and classic bundles)
+        /// Gets all curated presets (Elysian, Exotic, SubZero, Scorched Hell + 7 curated playstyles)
         /// </summary>
         public static IReadOnlyList<Preset> GetCurated()
         {
@@ -253,14 +252,14 @@ namespace LandingZone.Data
             return preset;
         }
 
-        // ===== PERILOUS PRESET: Extreme challenges =====
-        private static Preset CreatePerilousPreset()
+        // ===== SUBZERO PRESET: Extreme cold challenge =====
+        private static Preset CreateSubZeroPreset()
         {
             var preset = new Preset
             {
-                Id = "perilous",
-                Name = "Perilous",
-                Description = "Extreme survival challenge - ice sheets, extreme deserts, or hostile combinations. For masochists only.",
+                Id = "subzero",
+                Name = "SubZero",
+                Description = "Extreme cold survival - ice sheets, frozen wastelands. For masochists only.",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
                 FilterSummary = "Ice Sheet OR Extreme Desert | Hostile Features"
@@ -315,43 +314,68 @@ namespace LandingZone.Data
             return preset;
         }
 
-        // ===== Classic curated presets from existing FilterPresets =====
-        private static Preset CreateTemperatePreset()
+        // ===== SAVANNAH PRESET: Animals, wind, warmth =====
+        private static Preset CreateSavannahPreset()
         {
             var preset = new Preset
             {
-                Id = "temperate",
-                Name = "Temperate",
-                Description = "Balanced temperate climate with good growing season and rainfall",
+                Id = "savannah",
+                Name = "Savannah",
+                Description = "Open grasslands with abundant wildlife and wind - warm climate, great for hunting and wind power.",
                 Category = "Curated",
-                FilterSummary = "10-32°C | 40-60 days grow | 1000-2200mm rain"
+                FilterSummary = "25-40°C | AnimalLife | Low Rain | Flat"
             };
 
-            preset.Filters.AverageTemperatureRange = new FloatRange(10f, 32f);
-            preset.Filters.AverageTemperatureImportance = FilterImportance.Preferred;
-            preset.Filters.RainfallRange = new FloatRange(1000f, 2200f);
-            preset.Filters.RainfallImportance = FilterImportance.Preferred;
-            preset.Filters.GrowingDaysRange = new FloatRange(40f, 60f);
-            preset.Filters.GrowingDaysImportance = FilterImportance.Preferred;
+            var filters = preset.Filters;
+
+            // Climate: Warm and dry
+            filters.AverageTemperatureRange = new FloatRange(25f, 40f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+            filters.RainfallRange = new FloatRange(400f, 1200f);
+            filters.RainfallImportance = FilterImportance.Preferred;
+            filters.GrowingDaysRange = new FloatRange(30f, 50f);
+            filters.GrowingDaysImportance = FilterImportance.Preferred;
+
+            // Features: Animals and wind
+            filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("AnimalHabitat", FilterImportance.Preferred);
+
+            // Terrain: Flat grasslands
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Flat);
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
 
             return preset;
         }
 
-        private static Preset CreateArcticChallengePreset()
+        private static Preset CreateAquaticPreset()
         {
             var preset = new Preset
             {
-                Id = "arctic_challenge",
-                Name = "Arctic Challenge",
-                Description = "Extreme cold survival test with minimal growing season",
+                Id = "aquatic",
+                Name = "Aquatic",
+                Description = "Maximum water access - ocean shores, rivers, headwaters, lakes. Fish, trade, and naval supremacy.",
                 Category = "Curated",
-                FilterSummary = "-50 to -10°C | 0-20 days grow"
+                FilterSummary = "Coastal | Rivers | Lakes | Headwater"
             };
 
-            preset.Filters.AverageTemperatureRange = new FloatRange(-50f, -10f);
-            preset.Filters.AverageTemperatureImportance = FilterImportance.Critical;
-            preset.Filters.GrowingDaysRange = new FloatRange(0f, 20f);
-            preset.Filters.GrowingDaysImportance = FilterImportance.Preferred;
+            var filters = preset.Filters;
+
+            // Geography: All water features
+            filters.CoastalImportance = FilterImportance.Critical; // Ocean shore
+            filters.CoastalLakeImportance = FilterImportance.Preferred; // Lake shore
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
+            filters.Rivers.Operator = ImportanceOperator.OR;
+
+            // Features: Headwaters and water-related
+            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);
+
+            // Climate: Temperate for habitability
+            filters.AverageTemperatureRange = new FloatRange(10f, 30f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+            filters.RainfallRange = new FloatRange(800f, 2500f);
+            filters.RainfallImportance = FilterImportance.Preferred;
 
             return preset;
         }

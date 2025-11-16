@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using LandingZone.Core.Filtering.Filters;
 using LandingZone.Data;
@@ -72,47 +73,45 @@ namespace LandingZone.Core.UI
             var curatedPresets = PresetLibrary.GetCurated();
             var userPresets = PresetLibrary.GetUserPresets();
 
-            // Draw curated presets in a horizontal row
-            Rect presetRowRect = listing.GetRect(PresetCardHeight + 10f);
-            float cardX = presetRowRect.x;
+            const int columns = 4;
+            const float totalWidth = (PresetCardWidth * columns) + (PresetCardSpacing * (columns - 1));
 
-            foreach (var preset in curatedPresets)
+            // Draw curated presets in 4-column grid
+            int curatedRows = (curatedPresets.Count + columns - 1) / columns; // Ceiling division
+            for (int row = 0; row < curatedRows; row++)
             {
-                if (cardX + PresetCardWidth > presetRowRect.xMax)
-                    break; // Don't overflow, wrap in future if needed
+                Rect rowRect = listing.GetRect(PresetCardHeight + PresetCardSpacing);
 
-                Rect cardRect = new Rect(cardX, presetRowRect.y, PresetCardWidth, PresetCardHeight);
-                DrawPresetCard(cardRect, preset, filters);
+                for (int col = 0; col < columns; col++)
+                {
+                    int index = row * columns + col;
+                    if (index >= curatedPresets.Count) break;
 
-                cardX += PresetCardWidth + PresetCardSpacing;
+                    float cardX = rowRect.x + col * (PresetCardWidth + PresetCardSpacing);
+                    Rect cardRect = new Rect(cardX, rowRect.y, PresetCardWidth, PresetCardHeight);
+                    DrawPresetCard(cardRect, curatedPresets[index], filters);
+                }
             }
 
-            // Draw user presets on next row if any exist
-            if (userPresets.Count > 0)
+            // Draw user presets section (up to 4 slots)
+            listing.Gap(10f);
+            Text.Font = GameFont.Tiny;
+            listing.Label("My Presets:");
+            Text.Font = GameFont.Small;
+
+            Rect userRowRect = listing.GetRect(PresetCardHeight + PresetCardSpacing);
+            int userCount = Math.Min(userPresets.Count, 4); // Cap at 4 user presets
+
+            for (int i = 0; i < userCount; i++)
             {
-                listing.Gap(10f);
-                Text.Font = GameFont.Tiny;
-                listing.Label("My Presets:");
-                Text.Font = GameFont.Small;
-
-                Rect userRowRect = listing.GetRect(PresetCardHeight + 10f);
-                cardX = userRowRect.x;
-
-                foreach (var preset in userPresets)
-                {
-                    if (cardX + PresetCardWidth > userRowRect.xMax)
-                        break;
-
-                    Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
-                    DrawPresetCard(cardRect, preset, filters);
-
-                    cardX += PresetCardWidth + PresetCardSpacing;
-                }
+                float cardX = userRowRect.x + i * (PresetCardWidth + PresetCardSpacing);
+                Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
+                DrawPresetCard(cardRect, userPresets[i], filters);
             }
 
             // Add "Save as Preset" button
             listing.Gap(10f);
-            if (listing.ButtonText("💾 Save Current Filters as Preset"))
+            if (listing.ButtonText("Save Current Filters as Preset"))
             {
                 Find.WindowStack.Add(new Dialog_SavePreset(filters));
             }
