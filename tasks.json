@@ -1,8 +1,8 @@
 {
   "meta": {
-    "description": "LandingZone v0.1.3-beta development roadmap",
-    "version": "0.1.3-beta (crisis freeze)",
-    "last_updated": "2025-11-14",
+    "description": "LandingZone v0.2.x sprint toward 0.3.0",
+    "version": "0.2.1-beta",
+    "last_updated": "2025-11-15",
     "forensic_analysis_date": "2025-11-13",
     "notes": [
       "v0.1.3-beta: Mode toggle fixed, tasks board operational, max candidates configurable (25k-150k).",
@@ -12,7 +12,8 @@
       "Mutators: Quality-of-life scoring (83 mutators rated -10 to +10) integrated.",
       "UI: Default/Advanced mode toggle complete, stone selectors functional.",
       "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived.",
-      "2025-11-14: Crisis freeze – default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence."
+      "2025-11-14: Crisis freeze – default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence.",
+      "2025-11-15: Sprint Kickoff – Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -43,82 +44,105 @@
   "todo": {
     "p0_critical": [
       {
-        "id": "LZ-CRISIS-SCORING-VALIDATION",
-        "title": "Validate scoring pipeline & progress UI",
+        "id": "LZ-PRESET-HUB",
+        "title": "Preset hub, Angel/Unicorn/Demon tiles, rarity scoring",
         "priority": "P0 - Critical",
-        "estimate": "6-8 hours",
+        "estimate": "8-10 hours",
         "owner": "team",
-        "description": "Recent searches show 143k tiles evaluated with zero critical/preferred memberships yet UI reports 'Perfect Match' (see _downloads/debug-log-14112025-2004.txt).",
+        "description": "Simple mode should act as a preset launcher with curated bundles and user presets saved from Advanced. Presets leverage canonical rarity data to highlight Angel (quality), Unicorn (rarity), and Demon (challenge) tiles.",
         "deliverables": [
-          "Instrument FilterService to log per-filter candidate counts and membership summaries",
-          "Fix progress reporting so LandingZonePreferencesWindow updates past 0% and completion closes spinner",
-          "Verify MatchBreakdown displays non-zero memberships when filters are satisfied",
-          "Add regression log capturing tile IDs, selected filters, and computed scores for forensic review",
-          "Document validation steps in docs/results-window-refactor-design.md"
+          "Grid layout showing Angel/Unicorn/Demon presets plus curated bundles",
+          "Expose 'My Presets' generated from Advanced saves",
+          "Each preset card shows high-level filters and key AND/OR relationships",
+          "Compute tile rarity using aggregated world data (docs/data/canonical_world_library_aggregate.json) and log10 probabilities",
+          "Show rarity badges (Common → Mythic) on presets/results",
+          "Selecting a preset loads it into the Simple mode state and updates the search button context",
+          "Document how to save/export presets between modes"
         ],
-        "blockers": [],
-        "area": "Filtering/Diagnostics",
-        "milestone": "Crisis-Freeze",
-        "status": "todo"
-      }
-      ,
-      {
-        "id": "LZ-BOOKMARK-MATERIAL",
-        "title": "WorldLayerBookmarks static constructor",
-        "priority": "P0 - Critical",
-        "estimate": "1 hour",
-        "owner": "team",
-        "description": "Fix startup warning: WorldLayerBookmarks lazily creates Material without StaticConstructorOnStartup.",
-        "deliverables": [
-          "Add [StaticConstructorOnStartup] to WorldLayerBookmarks",
-          "Initialize _bookmarkMaterial via LongEventHandler to ensure main-thread asset creation"
+        "blockers": [
+          "LZ-SIMPLE-ADV-SEPARATION"
         ],
-        "blockers": [],
-        "area": "UI/Infrastructure",
-        "milestone": "0.1.3",
-        "status": "todo"
+        "area": "UI/UX/Data",
+        "milestone": "0.2.1"
       },
       {
-        "id": "LZ-CANDIDATE-CAP-OVERHAUL",
-        "title": "Always evaluate full tile set / clarify Max Candidate",
+        "id": "LZ-UX-REORG",
+        "title": "Advanced UI grouping & affordances",
         "priority": "P0 - Critical",
-        "estimate": "6-8 hours",
+        "estimate": "10-12 hours",
         "owner": "team",
-        "description": "Stage A already scans all tiles yet we truncate Stage B to MaxCandidates. Redesign limit into full-coverage + guardrails.",
+        "description": "Current Advanced layout mashes dozens of controls together with unclear indicators. Reorganize into logical sections with better feedback.",
         "deliverables": [
-          "Expose world settleable count and allow 'Unlimited (all tiles)' option",
-          "Warn when candidate list hits the cap and tiles are dropped",
-          "Document lower-tier settings as memory guardrails, not coverage presets",
-          "Consider advanced toggle to stream all candidates with chunked evaluation",
-          "Update UI copy/tooltips to explain trade-offs"
+          "Categories: Environment, Flora & Fauna, Geography & Access, Resources & Structures, Challenges",
+          "Show active counts that map to highlighted controls",
+          "Hilliness/stone buttons gain tri-state colors/icons for Ignored/Preferred/Critical",
+          "Range sliders grouped in bordered cards so their importance toggle is obvious",
+          "Add helper text explaining AND vs OR logic per section"
         ],
-        "blockers": [],
-        "area": "Filtering/UX",
-        "milestone": "0.2.0",
-        "status": "todo"
+        "blockers": [
+          "LZ-SIMPLE-ADV-SEPARATION"
+        ],
+        "area": "UI/UX",
+        "milestone": "0.2.2"
+      },
+      {
+        "id": "LZ-CANONICAL-COVERAGE",
+        "title": "Ensure every mutator/filter is surfaced",
+        "priority": "P0 - Critical",
+        "estimate": "8-10 hours",
+        "owner": "team",
+        "description": "Use docs/data/canonical_world_library_aggregate.json to ensure the UI exposes every discovered mutator/feature exactly once with friendly labels.",
+        "deliverables": [
+          "Create mapping (defName → friendly label, category, tooltip with rarity %)",
+          "Remove duplicates (e.g., Rivers/Roads shouldn't also be in Map Features)",
+          "Add missing entries such as LavaCrater, AncientRuins_Frozen, etc.",
+          "Show rarity tooltip (e.g., 'LavaCrater – 0.0016% of settleable tiles')",
+          "Automate future updates by loading the mapping in code"
+        ],
+        "blockers": [
+          "LZ-UX-REORG"
+        ],
+        "area": "Data/UI",
+        "milestone": "0.2.2"
       }
     ],
     "p1_high": [
       {
-        "id": "LZ-PRESETS-ANGELIC-SET",
-        "title": "Angel/Unicorn/Demon preset tiles",
+        "id": "LZ-ADV-SEARCH-FILTER",
+        "title": "Advanced search & filter controls",
         "priority": "P1 - High",
-        "estimate": "6-8 hours",
+        "estimate": "4-5 hours",
         "owner": "team",
-        "description": "Add curated preset tiles (Angel, Unicorn, Demon) above the 3x3 preset grid using canonical rarity data.",
+        "description": "Make massive lists (Map Features, Adjacent Biomes, Stones) searchable and easier to multi-select.",
         "deliverables": [
-          "Consume aggregated canonical world library stats to rank positive and negative features",
-          "Angel preset: emphasize high-quality/positive features + high scoring",
-          "Unicorn preset: require rare (<0.1%) features and highlight rarity",
-          "Demon preset: target harsh climates and negative mutators for challenge runs",
-          "UI: place the three tiles above the preset grid; grid = Angel/Unicorn/Demon + 5 built-ins + 1 user slot"
+          "Global search box that highlights matching controls across sections",
+          "Dedicated search + filter for Map Features and Adjacent Biomes (shows '12 of 83 mutators')",
+          "Two-column or chip-based layout so users aren't stuck scrolling",
+          "Clear button to reset filters",
+          "Keyboard navigation support"
         ],
         "blockers": [
-          "LZ-CRISIS-ADV-UX"
+          "LZ-UX-REORG"
         ],
         "area": "UI/UX",
-        "milestone": "0.2.0",
-        "status": "todo"
+        "milestone": "0.2.3"
+      },
+      {
+        "id": "LZ-SCORE-LABEL-VALIDATION",
+        "title": "Perfect tier validation & tests",
+        "priority": "P1 - High",
+        "estimate": "2-3 hours",
+        "owner": "team",
+        "description": "Ensure Perfect+/Perfect/Perfect- labels match base vs modifier math and never mislabel 1.000 scores.",
+        "deliverables": [
+          "Unit-style test or debug command that asserts label selection for representative tiles",
+          "Clamp logic documented (base membership vs final score)",
+          "Log entry when label is computed so QA can trace decisions",
+          "Update README/UX doc with the precise label definitions"
+        ],
+        "blockers": [],
+        "area": "Scoring/QA",
+        "milestone": "0.2.3"
       }
     ],
     "p2_medium": [
@@ -363,6 +387,59 @@
     ]
   },
   "completed": [
+    {
+      "id": "LZ-SIMPLE-ADV-SEPARATION",
+      "title": "Separate Simple vs Advanced filter states",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-15",
+      "impact": "Simple and Advanced modes now maintain independent FilterSettings that persist across sessions. Users can copy settings between modes via import/export buttons. Search button shows active mode context. Eliminates confusion from shared state.",
+      "area": "UI/Architecture",
+      "files_modified": [
+        "Source/Data/UserPreferences.cs (added SimpleFilters/AdvancedFilters with GetActiveFilters)",
+        "Source/Data/LandingZoneOptions.cs (renamed UIMode.Default → UIMode.Simple)",
+        "Source/Data/FilterSettings.cs (added CopyFrom method)",
+        "Source/Core/Filtering/FilterContext.cs (added Filters convenience property)",
+        "Source/Core/UI/LandingZonePreferencesWindow.cs (renamed methods, added import/export buttons, added helper text)",
+        "Source/Core/UI/DefaultModeUI.cs (added import from Advanced button)",
+        "Source/Core/UI/SelectStartingSiteButtonsPatch.cs (search button shows mode context)",
+        "README.md (updated with Simple/Advanced independence docs)"
+      ],
+      "description": "Renamed 'Default' to 'Simple' throughout codebase. Added dual FilterSettings (SimpleFilters/AdvancedFilters) to UserPreferences with GetActiveFilters() helper. Updated all filter references to use mode-appropriate settings via context.Filters. Added CopyFrom() reflection-based method to FilterSettings. Added import/export buttons in both modes. Added helper text explaining mode independence. Search button now displays '(Simple)' or '(Advanced)' context."
+    },
+    {
+      "id": "LZ-BOOKMARK-MATERIAL",
+      "title": "WorldLayerBookmarks static constructor",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-15",
+      "impact": "Removed startup warning by loading bookmark material on the main thread via StaticConstructorOnStartup.",
+      "area": "UI/Infrastructure",
+      "files_modified": ["Source/Core/WorldLayerBookmarks.cs"],
+      "description": "Added [StaticConstructorOnStartup] to WorldLayerBookmarks and initialized _bookmarkMaterial via LongEventHandler ExecuteWhenFinished to satisfy Unity asset loading rules."
+    },
+    {
+      "id": "LZ-CANDIDATE-CAP-OVERHAUL",
+      "title": "Max Candidate guardrails + Unlimited option",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-15",
+      "impact": "Users can choose Unlimited (all tiles) while lower presets warn when the cap truncates candidates; Stage B telemetry added.",
+      "area": "Filtering/UX",
+      "files_modified": ["Source/Core/Filtering/BitsetAggregator.cs", "Source/Core/Filtering/FilterService.cs", "Source/LandingZoneSettings.cs"],
+      "description": "Added Unlimited option with warnings/tooltips, bumped default tiles-per-frame to 500, and logged Stage B processing/time including cap hits."
+    },
+    {
+      "id": "LZ-CRISIS-SCORING-VALIDATION",
+      "title": "Membership scoring telemetry",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-15",
+      "impact": "FilterService now logs per-run candidate counts and Stage B completion, enabling QA to verify membership scoring health.",
+      "area": "Filtering/Diagnostics",
+      "files_modified": ["Source/Core/Filtering/FilterService.cs"],
+      "description": "Added Stage B telemetry, gated K-of-N logging to legacy mode, and updated results labels to align with membership scoring."
+    },
     {
       "id": "LZ-LOGIC-001",
       "title": "Fix AND/OR operator logic for IndividualImportanceContainer filters",

@@ -1,0 +1,742 @@
+{
+  "generated": "2025-11-15T14:59:43.029385",
+  "source_dump": "/Users/will/Library/Application Support/RimWorld/Config/LandingZone_FullCache_2025-11-15_14-58-06.txt",
+  "total_tiles": 295732,
+  "settleable_tiles": 139952,
+  "biomes": [
+    {
+      "name": "Ocean",
+      "count_all": 148522,
+      "percent_all": 0.5022182246087674,
+      "count_settleable": 0,
+      "percent_settleable": 0.0
+    },
+    {
+      "name": "TemperateForest",
+      "count_all": 50766,
+      "percent_all": 0.17166218062299649,
+      "count_settleable": 50766,
+      "percent_settleable": 0.36273865325254373
+    },
+    {
+      "name": "Desert",
+      "count_all": 18888,
+      "percent_all": 0.06386863782072957,
+      "count_settleable": 18888,
+      "percent_settleable": 0.13496055790556763
+    },
+    {
+      "name": "AridShrubland",
+      "count_all": 18766,
+      "percent_all": 0.06345610214653809,
+      "count_settleable": 18766,
+      "percent_settleable": 0.13408883045615638
+    },
+    {
+      "name": "TropicalRainforest",
+      "count_all": 18467,
+      "percent_all": 0.062445051600773675,
+      "count_settleable": 18467,
+      "percent_settleable": 0.13195238367440265
+    },
+    {
+      "name": "BorealForest",
+      "count_all": 10547,
+      "percent_all": 0.03566404717785022,
+      "count_settleable": 10547,
+      "percent_settleable": 0.07536155253229679
+    },
+    {
+      "name": "Tundra",
+      "count_all": 8309,
+      "percent_all": 0.028096384564402905,
+      "count_settleable": 8309,
+      "percent_settleable": 0.05937035555047445
+    },
+    {
+      "name": "SeaIce",
+      "count_all": 7141,
+      "percent_all": 0.024146862700012175,
+      "count_settleable": 0,
+      "percent_settleable": 0.0
+    },
+    {
+      "name": "Grasslands",
+      "count_all": 6741,
+      "percent_all": 0.022794286719056443,
+      "count_settleable": 6741,
+      "percent_settleable": 0.04816651423345147
+    },
+    {
+      "name": "Scarlands",
+      "count_all": 1785,
+      "percent_all": 0.006035870315014946,
+      "count_settleable": 1785,
+      "percent_settleable": 0.01275437292786098
+    },
+    {
+      "name": "TemperateSwamp",
+      "count_all": 1628,
+      "percent_all": 0.005504984242489822,
+      "count_settleable": 1628,
+      "percent_settleable": 0.011632559734766205
+    },
+    {
+      "name": "Glowforest",
+      "count_all": 1190,
+      "percent_all": 0.004023913543343297,
+      "count_settleable": 1190,
+      "percent_settleable": 0.008502915285240654
+    },
+    {
+      "name": "ExtremeDesert",
+      "count_all": 1120,
+      "percent_all": 0.0037872127466760446,
+      "count_settleable": 1120,
+      "percent_settleable": 0.008002743797873557
+    },
+    {
+      "name": "TropicalSwamp",
+      "count_all": 800,
+      "percent_all": 0.0027051519619114605,
+      "count_settleable": 800,
+      "percent_settleable": 0.005716245569909684
+    },
+    {
+      "name": "GlacialPlain",
+      "count_all": 462,
+      "percent_all": 0.0015622252580038685,
+      "count_settleable": 462,
+      "percent_settleable": 0.003301131816622842
+    },
+    {
+      "name": "LavaField",
+      "count_all": 444,
+      "percent_all": 0.0015013593388608604,
+      "count_settleable": 444,
+      "percent_settleable": 0.003172516291299874
+    },
+    {
+      "name": "Lake",
+      "count_all": 117,
+      "percent_all": 0.00039562847442955107,
+      "count_settleable": 0,
+      "percent_settleable": 0.0
+    },
+    {
+      "name": "ColdBog",
+      "count_all": 39,
+      "percent_all": 0.0001318761581431837,
+      "count_settleable": 39,
+      "percent_settleable": 0.0002786669715330971
+    }
+  ],
+  "map_features": [
+    {
+      "name": "Mountain",
+      "count_all": 24365,
+      "percent_all": 0.08238878443996592,
+      "count_settleable": 24365,
+      "percent_settleable": 0.17409540413856178
+    },
+    {
+      "name": "Caves",
+      "count_all": 11998,
+      "percent_all": 0.04057051654876713,
+      "count_settleable": 11998,
+      "percent_settleable": 0.08572939293472047
+    },
+    {
+      "name": "River",
+      "count_all": 7983,
+      "percent_all": 0.026994035139923985,
+      "count_settleable": 7983,
+      "percent_settleable": 0.05704098548073625
+    },
+    {
+      "name": "Coast",
+      "count_all": 6547,
+      "percent_all": 0.022138287368292913,
+      "count_settleable": 5986,
+      "percent_settleable": 0.04277180747684921
+    },
+    {
+      "name": "SunnyMutator",
+      "count_all": 5884,
+      "percent_all": 0.01989639267985879,
+      "count_settleable": 2725,
+      "percent_settleable": 0.01947096147250486
+    },
+    {
+      "name": "MixedBiome",
+      "count_all": 4225,
+      "percent_all": 0.0142865837988449,
+      "count_settleable": 4225,
+      "percent_settleable": 0.030188921916085514
+    },
+    {
+      "name": "AnimalLife_Decreased",
+      "count_all": 2930,
+      "percent_all": 0.009907619060500724,
+      "count_settleable": 1409,
+      "percent_settleable": 0.01006773751000343
+    },
+    {
+      "name": "AnimalHabitat",
+      "count_all": 2844,
+      "percent_all": 0.009616815224595242,
+      "count_settleable": 2844,
+      "percent_settleable": 0.020321253001028924
+    },
+    {
+      "name": "SteamGeysers_Increased",
+      "count_all": 2832,
+      "percent_all": 0.00957623794516657,
+      "count_settleable": 1308,
+      "percent_settleable": 0.009346061506802332
+    },
+    {
+      "name": "Junkyard",
+      "count_all": 2573,
+      "percent_all": 0.008700444997497734,
+      "count_settleable": 1062,
+      "percent_settleable": 0.007588315994055105
+    },
+    {
+      "name": "WildPlants",
+      "count_all": 2521,
+      "percent_all": 0.00852461011997349,
+      "count_settleable": 2521,
+      "percent_settleable": 0.01801331885217789
+    },
+    {
+      "name": "AnimalLife_Increased",
+      "count_all": 2273,
+      "percent_all": 0.007686013011780937,
+      "count_settleable": 2273,
+      "percent_settleable": 0.016241282725505887
+    },
+    {
+      "name": "PlantLife_Increased",
+      "count_all": 2146,
+      "percent_all": 0.007256570137827493,
+      "count_settleable": 2146,
+      "percent_settleable": 0.015333828741282725
+    },
+    {
+      "name": "PlantGrove",
+      "count_all": 1591,
+      "percent_all": 0.005379870964251417,
+      "count_settleable": 1591,
+      "percent_settleable": 0.011368183377157884
+    },
+    {
+      "name": "PlantLife_Decreased",
+      "count_all": 950,
+      "percent_all": 0.0032123679547698594,
+      "count_settleable": 950,
+      "percent_settleable": 0.0067880416142677485
+    },
+    {
+      "name": "FoggyMutator",
+      "count_all": 927,
+      "percent_all": 0.0031345948358649047,
+      "count_settleable": 927,
+      "percent_settleable": 0.006623699554132846
+    },
+    {
+      "name": "WetClimate",
+      "count_all": 893,
+      "percent_all": 0.0030196258774836675,
+      "count_settleable": 819,
+      "percent_settleable": 0.005852006402195038
+    },
+    {
+      "name": "Sandy",
+      "count_all": 879,
+      "percent_all": 0.002972285718150217,
+      "count_settleable": 879,
+      "percent_settleable": 0.0062807248199382645
+    },
+    {
+      "name": "Fertile",
+      "count_all": 868,
+      "percent_all": 0.0029350898786739345,
+      "count_settleable": 868,
+      "percent_settleable": 0.006202126443352007
+    },
+    {
+      "name": "Muddy",
+      "count_all": 701,
+      "percent_all": 0.002370389406624917,
+      "count_settleable": 701,
+      "percent_settleable": 0.00500886018063336
+    },
+    {
+      "name": "Marshy",
+      "count_all": 650,
+      "percent_all": 0.0021979359690530616,
+      "count_settleable": 650,
+      "percent_settleable": 0.004644449525551618
+    },
+    {
+      "name": "WindyMutator",
+      "count_all": 593,
+      "percent_all": 0.00200519389176687,
+      "count_settleable": 537,
+      "percent_settleable": 0.003837029838801875
+    },
+    {
+      "name": "DryGround",
+      "count_all": 407,
+      "percent_all": 0.0013762460606224554,
+      "count_settleable": 407,
+      "percent_settleable": 0.0029081399336915513
+    },
+    {
+      "name": "RiverIsland",
+      "count_all": 389,
+      "percent_all": 0.0013153801414794476,
+      "count_settleable": 389,
+      "percent_settleable": 0.0027795244083685835
+    },
+    {
+      "name": "Headwater",
+      "count_all": 361,
+      "percent_all": 0.0012206998228125464,
+      "count_settleable": 361,
+      "percent_settleable": 0.0025794558134217445
+    },
+    {
+      "name": "Lakeshore",
+      "count_all": 275,
+      "percent_all": 0.0009298959869070645,
+      "count_settleable": 275,
+      "percent_settleable": 0.0019649594146564538
+    },
+    {
+      "name": "RiverConfluence",
+      "count_all": 201,
+      "percent_all": 0.0006796694304302544,
+      "count_settleable": 201,
+      "percent_settleable": 0.001436206699439808
+    },
+    {
+      "name": "WildTropicalPlants",
+      "count_all": 187,
+      "percent_all": 0.0006323292710968039,
+      "count_settleable": 187,
+      "percent_settleable": 0.0013361724019663884
+    },
+    {
+      "name": "AncientRuins",
+      "count_all": 49,
+      "percent_all": 0.00016569055766707695,
+      "count_settleable": 49,
+      "percent_settleable": 0.0003501200411569681
+    },
+    {
+      "name": "Stockpile",
+      "count_all": 46,
+      "percent_all": 0.00015554623780990898,
+      "count_settleable": 46,
+      "percent_settleable": 0.0003286841202698068
+    },
+    {
+      "name": "Bay",
+      "count_all": 44,
+      "percent_all": 0.00014878335790513033,
+      "count_settleable": 44,
+      "percent_settleable": 0.0003143935063450326
+    },
+    {
+      "name": "Valley",
+      "count_all": 42,
+      "percent_all": 0.00014202047800035167,
+      "count_settleable": 42,
+      "percent_settleable": 0.00030010289242025836
+    },
+    {
+      "name": "CoastalIsland",
+      "count_all": 38,
+      "percent_all": 0.00012849471819079437,
+      "count_settleable": 38,
+      "percent_settleable": 0.00027152166457071
+    },
+    {
+      "name": "AncientUplink",
+      "count_all": 37,
+      "percent_all": 0.00012511327823840505,
+      "count_settleable": 36,
+      "percent_settleable": 0.00025723105064593576
+    },
+    {
+      "name": "Cliffs",
+      "count_all": 32,
+      "percent_all": 0.00010820607847645842,
+      "count_settleable": 32,
+      "percent_settleable": 0.00022864982279638732
+    },
+    {
+      "name": "Cove",
+      "count_all": 31,
+      "percent_all": 0.00010482463852406909,
+      "count_settleable": 31,
+      "percent_settleable": 0.00022150451583400024
+    },
+    {
+      "name": "MineralRich",
+      "count_all": 27,
+      "percent_all": 9.129887871451179e-05,
+      "count_settleable": 27,
+      "percent_settleable": 0.0001929232879844518
+    },
+    {
+      "name": "Cavern",
+      "count_all": 26,
+      "percent_all": 8.791743876212247e-05,
+      "count_settleable": 26,
+      "percent_settleable": 0.0001857779810220647
+    },
+    {
+      "name": "Peninsula",
+      "count_all": 26,
+      "percent_all": 8.791743876212247e-05,
+      "count_settleable": 26,
+      "percent_settleable": 0.0001857779810220647
+    },
+    {
+      "name": "RiverDelta",
+      "count_all": 26,
+      "percent_all": 8.791743876212247e-05,
+      "count_settleable": 26,
+      "percent_settleable": 0.0001857779810220647
+    },
+    {
+      "name": "Fjord",
+      "count_all": 26,
+      "percent_all": 8.791743876212247e-05,
+      "count_settleable": 26,
+      "percent_settleable": 0.0001857779810220647
+    },
+    {
+      "name": "Wetland",
+      "count_all": 25,
+      "percent_all": 8.453599880973314e-05,
+      "count_settleable": 25,
+      "percent_settleable": 0.00017863267405967762
+    },
+    {
+      "name": "LakeWithIslands",
+      "count_all": 23,
+      "percent_all": 7.777311890495449e-05,
+      "count_settleable": 23,
+      "percent_settleable": 0.0001643420601349034
+    },
+    {
+      "name": "Lake",
+      "count_all": 21,
+      "percent_all": 7.101023900017584e-05,
+      "count_settleable": 21,
+      "percent_settleable": 0.00015005144621012918
+    },
+    {
+      "name": "ObsidianDeposits",
+      "count_all": 20,
+      "percent_all": 6.762879904778651e-05,
+      "count_settleable": 20,
+      "percent_settleable": 0.00014290613924774207
+    },
+    {
+      "name": "Archipelago",
+      "count_all": 20,
+      "percent_all": 6.762879904778651e-05,
+      "count_settleable": 20,
+      "percent_settleable": 0.00014290613924774207
+    },
+    {
+      "name": "Pond",
+      "count_all": 20,
+      "percent_all": 6.762879904778651e-05,
+      "count_settleable": 20,
+      "percent_settleable": 0.00014290613924774207
+    },
+    {
+      "name": "CoastalAtoll",
+      "count_all": 19,
+      "percent_all": 6.424735909539719e-05,
+      "count_settleable": 19,
+      "percent_settleable": 0.000135760832285355
+    },
+    {
+      "name": "Chasm",
+      "count_all": 19,
+      "percent_all": 6.424735909539719e-05,
+      "count_settleable": 19,
+      "percent_settleable": 0.000135760832285355
+    },
+    {
+      "name": "Pollution_Increased",
+      "count_all": 18,
+      "percent_all": 6.086591914300786e-05,
+      "count_settleable": 18,
+      "percent_settleable": 0.00012861552532296788
+    },
+    {
+      "name": "LakeWithIsland",
+      "count_all": 17,
+      "percent_all": 5.7484479190618535e-05,
+      "count_settleable": 17,
+      "percent_settleable": 0.00012147021836058077
+    },
+    {
+      "name": "HotSprings",
+      "count_all": 16,
+      "percent_all": 5.410303923822921e-05,
+      "count_settleable": 16,
+      "percent_settleable": 0.00011432491139819366
+    },
+    {
+      "name": "CaveLakes",
+      "count_all": 16,
+      "percent_all": 5.410303923822921e-05,
+      "count_settleable": 16,
+      "percent_settleable": 0.00011432491139819366
+    },
+    {
+      "name": "AncientQuarry",
+      "count_all": 16,
+      "percent_all": 5.410303923822921e-05,
+      "count_settleable": 16,
+      "percent_settleable": 0.00011432491139819366
+    },
+    {
+      "name": "Hollow",
+      "count_all": 15,
+      "percent_all": 5.0721599285839884e-05,
+      "count_settleable": 15,
+      "percent_settleable": 0.00010717960443580657
+    },
+    {
+      "name": "Oasis",
+      "count_all": 14,
+      "percent_all": 4.734015933345056e-05,
+      "count_settleable": 14,
+      "percent_settleable": 0.00010003429747341946
+    },
+    {
+      "name": "Plateau",
+      "count_all": 14,
+      "percent_all": 4.734015933345056e-05,
+      "count_settleable": 14,
+      "percent_settleable": 0.00010003429747341946
+    },
+    {
+      "name": "Fish_Increased",
+      "count_all": 11,
+      "percent_all": 3.719583947628258e-05,
+      "count_settleable": 11,
+      "percent_settleable": 7.859837658625814e-05
+    },
+    {
+      "name": "AbandonedColonyOutlander",
+      "count_all": 10,
+      "percent_all": 3.3814399523893256e-05,
+      "count_settleable": 10,
+      "percent_settleable": 7.145306962387104e-05
+    },
+    {
+      "name": "Basin",
+      "count_all": 10,
+      "percent_all": 3.3814399523893256e-05,
+      "count_settleable": 10,
+      "percent_settleable": 7.145306962387104e-05
+    },
+    {
+      "name": "AncientInfestedSettlement",
+      "count_all": 9,
+      "percent_all": 3.043295957150393e-05,
+      "count_settleable": 9,
+      "percent_settleable": 6.430776266148394e-05
+    },
+    {
+      "name": "AbandonedColonyTribal",
+      "count_all": 9,
+      "percent_all": 3.043295957150393e-05,
+      "count_settleable": 9,
+      "percent_settleable": 6.430776266148394e-05
+    },
+    {
+      "name": "AncientGarrison",
+      "count_all": 9,
+      "percent_all": 3.043295957150393e-05,
+      "count_settleable": 9,
+      "percent_settleable": 6.430776266148394e-05
+    },
+    {
+      "name": "AncientChemfuelRefinery",
+      "count_all": 9,
+      "percent_all": 3.043295957150393e-05,
+      "count_settleable": 9,
+      "percent_settleable": 6.430776266148394e-05
+    },
+    {
+      "name": "IceDunes",
+      "count_all": 8,
+      "percent_all": 2.7051519619114605e-05,
+      "count_settleable": 0,
+      "percent_settleable": 0.0
+    },
+    {
+      "name": "AncientSmokeVent",
+      "count_all": 8,
+      "percent_all": 2.7051519619114605e-05,
+      "count_settleable": 8,
+      "percent_settleable": 5.716245569909683e-05
+    },
+    {
+      "name": "Harbor",
+      "count_all": 8,
+      "percent_all": 2.7051519619114605e-05,
+      "count_settleable": 8,
+      "percent_settleable": 5.716245569909683e-05
+    },
+    {
+      "name": "LavaCaves",
+      "count_all": 8,
+      "percent_all": 2.7051519619114605e-05,
+      "count_settleable": 8,
+      "percent_settleable": 5.716245569909683e-05
+    },
+    {
+      "name": "AncientLaunchSite",
+      "count_all": 8,
+      "percent_all": 2.7051519619114605e-05,
+      "count_settleable": 8,
+      "percent_settleable": 5.716245569909683e-05
+    },
+    {
+      "name": "Dunes",
+      "count_all": 7,
+      "percent_all": 2.367007966672528e-05,
+      "count_settleable": 7,
+      "percent_settleable": 5.001714873670973e-05
+    },
+    {
+      "name": "LavaFlow",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "ArcheanTrees",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "ToxicLake",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "AncientHeatVent",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "DryLake",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "AncientToxVent",
+      "count_all": 6,
+      "percent_all": 2.0288639714335953e-05,
+      "count_settleable": 6,
+      "percent_settleable": 4.2871841774322627e-05
+    },
+    {
+      "name": "TerraformingScar",
+      "count_all": 5,
+      "percent_all": 1.6907199761946628e-05,
+      "count_settleable": 5,
+      "percent_settleable": 3.572653481193552e-05
+    },
+    {
+      "name": "AncientWarehouse",
+      "count_all": 5,
+      "percent_all": 1.6907199761946628e-05,
+      "count_settleable": 5,
+      "percent_settleable": 3.572653481193552e-05
+    },
+    {
+      "name": "Iceberg",
+      "count_all": 4,
+      "percent_all": 1.3525759809557302e-05,
+      "count_settleable": 3,
+      "percent_settleable": 2.1435920887161313e-05
+    },
+    {
+      "name": "LavaCrater",
+      "count_all": 4,
+      "percent_all": 1.3525759809557302e-05,
+      "count_settleable": 4,
+      "percent_settleable": 2.8581227849548415e-05
+    },
+    {
+      "name": "Fish_Decreased",
+      "count_all": 3,
+      "percent_all": 1.0144319857167977e-05,
+      "count_settleable": 3,
+      "percent_settleable": 2.1435920887161313e-05
+    },
+    {
+      "name": "InsectMegahive",
+      "count_all": 3,
+      "percent_all": 1.0144319857167977e-05,
+      "count_settleable": 3,
+      "percent_settleable": 2.1435920887161313e-05
+    },
+    {
+      "name": "AncientRuins_Frozen",
+      "count_all": 1,
+      "percent_all": 3.3814399523893256e-06,
+      "count_settleable": 1,
+      "percent_settleable": 7.145306962387104e-06
+    },
+    {
+      "name": "Crevasse",
+      "count_all": 1,
+      "percent_all": 3.3814399523893256e-06,
+      "count_settleable": 1,
+      "percent_settleable": 7.145306962387104e-06
+    }
+  ],
+  "rivers": [
+    {
+      "name": "RimWorld.Planet.SurfaceTile+RiverLink",
+      "count_all": 17790,
+      "percent_all": 0.0601558167530061,
+      "count_settleable": 17790,
+      "percent_settleable": 0.12711501086086657
+    }
+  ],
+  "roads": [
+    {
+      "name": "RimWorld.Planet.SurfaceTile+RoadLink",
+      "count_all": 12950,
+      "percent_all": 0.043789647383441765,
+      "count_settleable": 12950,
+      "percent_settleable": 0.092531725162913
+    }
+  ]
+}
