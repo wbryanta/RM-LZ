@@ -69,10 +69,10 @@ namespace LandingZone.Data
 
             _curated = new List<Preset>
             {
-                // Special presets (Angel/Unicorn/Demon/Scorched)
-                CreateAngelPreset(),
-                CreateUnicornPreset(),
-                CreateDemonPreset(),
+                // Special presets (Elysian/Exotic/Perilous/Scorched)
+                CreateElysianPreset(),
+                CreateExoticPreset(),
+                CreatePerilousPreset(),
                 CreateScorchedHellPreset(),
 
                 // Classic presets
@@ -92,7 +92,7 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Gets all curated presets (Angel, Unicorn, Demon, and classic bundles)
+        /// Gets all curated presets (Elysian, Exotic, Perilous, and classic bundles)
         /// </summary>
         public static IReadOnlyList<Preset> GetCurated()
         {
@@ -177,13 +177,13 @@ namespace LandingZone.Data
             return string.Join(" | ", parts);
         }
 
-        // ===== ANGEL PRESET: High quality of life =====
-        private static Preset CreateAngelPreset()
+        // ===== ELYSIAN PRESET: High quality of life =====
+        private static Preset CreateElysianPreset()
         {
             var preset = new Preset
             {
-                Id = "angel",
-                Name = "Angel",
+                Id = "elysian",
+                Name = "Elysian",
                 Description = "Perfect quality of life - temperate, fertile, resources abundant. Targets rare combinations (0.1-1% of tiles).",
                 Category = "Special",
                 TargetRarity = TileRarity.Rare,
@@ -220,13 +220,13 @@ namespace LandingZone.Data
             return preset;
         }
 
-        // ===== UNICORN PRESET: Rare/mythic combinations =====
-        private static Preset CreateUnicornPreset()
+        // ===== EXOTIC PRESET: Rare/mythic combinations =====
+        private static Preset CreateExoticPreset()
         {
             var preset = new Preset
             {
-                Id = "unicorn",
-                Name = "Unicorn",
+                Id = "exotic",
+                Name = "Exotic",
                 Description = "Extremely rare combinations - Archean trees, headwaters, multiple rare features. Targets epic/legendary tiles (<0.01% of tiles).",
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
@@ -253,13 +253,13 @@ namespace LandingZone.Data
             return preset;
         }
 
-        // ===== DEMON PRESET: Extreme challenges =====
-        private static Preset CreateDemonPreset()
+        // ===== PERILOUS PRESET: Extreme challenges =====
+        private static Preset CreatePerilousPreset()
         {
             var preset = new Preset
             {
-                Id = "demon",
-                Name = "Demon",
+                Id = "perilous",
+                Name = "Perilous",
                 Description = "Extreme survival challenge - ice sheets, extreme deserts, or hostile combinations. For masochists only.",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,

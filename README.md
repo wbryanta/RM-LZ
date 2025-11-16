@@ -27,7 +27,7 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 - **Configurable Weights**: 5 scoring presets (Balanced, Critical Focused, Strict Hierarchy, Ultra Critical, Precision Match)
 
 ### Dual-Mode Interface
-- **Simple Mode**: Simplified UI with 8 essential filters and preset cards (Angel, Unicorn, Demon + curated bundles)
+- **Simple Mode**: Simplified UI with 8 essential filters and preset cards (Elysian, Exotic, Perilous + curated bundles)
 - **Advanced Mode**: Full control with 40+ filters organized into collapsible sections
 - **Mode Independence**: Each mode maintains its own filter settings that persist across sessions. Copy settings between modes as needed.
 - **Stone Selector**: Per-stone importance (Granite=Critical, Marble=Preferred) dynamically loaded from DefDatabase
@@ -64,9 +64,9 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 ### Simple Mode
 - Simplified interface for casual users
 - **Preset System**: One-click filter bundles for quick setup
-  - 🌟 **Angel**: Perfect quality of life - temperate forest, coastal, rivers, abundant resources (Rare tier)
-  - 🦄 **Unicorn**: Extremely rare combinations - Archean trees, headwaters, multiple rare features (Epic tier)
-  - 😈 **Demon**: Extreme survival challenge - ice sheets, hostile features (Very Rare tier)
+  - **Elysian**: Perfect quality of life - temperate forest, coastal, rivers, abundant resources (Rare tier)
+  - **Exotic**: Extremely rare combinations - Archean trees, headwaters, multiple rare features (Epic tier)
+  - **Perilous**: Extreme survival challenge - ice sheets, hostile features (Very Rare tier)
   - **Temperate**: Balanced climate with good growing season
   - **Arctic Challenge**: Extreme cold survival test
   - **Desert Oasis**: Hot and dry with water access
@@ -230,12 +230,12 @@ See `tasks.json` for full task list with priorities and estimates.
 ## Changelog
 
 ### v0.2.1-beta (2025-11-15)
-- Added preset system with Angel/Unicorn/Demon bundles for quick filter setup
+- Added preset system with Elysian/Exotic/Perilous bundles for quick filter setup
 - Implemented probabilistic rarity scoring based on canonical world data
 - Added user preset save/load system for custom filter configurations
 - Added rarity badges to results window (Rare → Epic → Legendary → Mythic)
 - Rarity tiers computed from biome × mutator probability multiplication
-- 6 curated presets: Angel, Unicorn, Demon, Temperate, Arctic Challenge, Desert Oasis
+- 11 curated presets: Elysian, Exotic, Perilous, Scorched Hell, Temperate, Arctic Challenge, Desert Oasis, Defense, Agrarian, Power, Bayou
 
 ### v0.1.3-beta (2025-11-13)
 - Fixed Default/Advanced mode toggle buttons (removed 'active' parameter bug)
