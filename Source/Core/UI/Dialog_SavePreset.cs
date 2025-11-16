@@ -56,9 +56,16 @@ namespace LandingZone.Core.UI
                 }
                 else
                 {
-                    PresetLibrary.SaveUserPreset(_presetName, _filters);
-                    Messages.Message($"Saved preset: {_presetName}", MessageTypeDefOf.PositiveEvent, false);
-                    Close();
+                    bool saved = PresetLibrary.SaveUserPreset(_presetName, _filters);
+                    if (saved)
+                    {
+                        Messages.Message($"Saved preset: {_presetName}", MessageTypeDefOf.PositiveEvent, false);
+                        Close();
+                    }
+                    else
+                    {
+                        Messages.Message($"Preset name '{_presetName}' already exists. Please choose a different name.", MessageTypeDefOf.RejectInput, false);
+                    }
                 }
             }
 

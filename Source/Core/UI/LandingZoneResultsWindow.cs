@@ -722,7 +722,7 @@ namespace LandingZone.Core.UI
             {
                 var rarityBadgeRect = new Rect(rect.xMax - 58f - rightPad, rect.y + 48f, 58f, 18f);
                 var rarityColor = rarity.ToColor();
-                var rarityLabel = rarity.ToLabel();
+                var rarityLabel = rarity.ToBadgeLabel();  // Use compact label to prevent wrapping
 
                 Widgets.DrawBoxSolid(rarityBadgeRect, rarityColor * 0.6f);
                 Widgets.DrawBox(rarityBadgeRect);

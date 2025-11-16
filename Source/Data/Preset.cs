@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace LandingZone.Data
@@ -66,12 +69,22 @@ namespace LandingZone.Data
 
             _curated = new List<Preset>
             {
+                // Special presets (Angel/Unicorn/Demon/Scorched)
                 CreateAngelPreset(),
                 CreateUnicornPreset(),
                 CreateDemonPreset(),
+                CreateScorchedHellPreset(),
+
+                // Classic presets
                 CreateTemperatePreset(),
                 CreateArcticChallengePreset(),
-                CreateDesertOasisPreset()
+                CreateDesertOasisPreset(),
+
+                // New playstyle presets
+                CreateDefensePreset(),
+                CreateAgrarianPreset(),
+                CreatePowerPreset(),
+                CreateBayouPreset()
             };
 
             _initialized = true;
@@ -96,10 +109,18 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Saves current Simple mode filters as a user preset
+        /// Saves current Simple mode filters as a user preset.
+        /// Returns true if saved successfully, false if name already exists.
         /// </summary>
-        public static void SaveUserPreset(string name, FilterSettings filters)
+        public static bool SaveUserPreset(string name, FilterSettings filters)
         {
+            // Check for duplicate names
+            if (_userPresets.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                Log.Warning($"[LandingZone] User preset '{name}' already exists");
+                return false;
+            }
+
             var preset = new Preset
             {
                 Id = $"user_{Guid.NewGuid():N}",
@@ -113,6 +134,22 @@ namespace LandingZone.Data
 
             _userPresets.Add(preset);
             Log.Message($"[LandingZone] Saved user preset: {name}");
+            return true;
+        }
+
+        /// <summary>
+        /// Deletes a user preset by name
+        /// </summary>
+        public static bool DeleteUserPreset(string name)
+        {
+            var preset = _userPresets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (preset != null)
+            {
+                _userPresets.Remove(preset);
+                Log.Message($"[LandingZone] Deleted user preset: {name}");
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -247,6 +284,37 @@ namespace LandingZone.Data
             return preset;
         }
 
+        // ===== SCORCHED HELL PRESET: Extreme heat variant =====
+        private static Preset CreateScorchedHellPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "scorched_hell",
+                Name = "🔥 Scorched Hell",
+                Description = "Extreme heat survival - scorching deserts, volcanic activity, toxic features. Lava and fire everywhere.",
+                Category = "Special",
+                TargetRarity = TileRarity.VeryRare,
+                FilterSummary = "Extreme Heat | Volcanic | Toxic Features"
+            };
+
+            var filters = preset.Filters;
+
+            // Climate: Extreme heat
+            filters.AverageTemperatureRange = new FloatRange(35f, 60f); // Scorching heat
+            filters.AverageTemperatureImportance = FilterImportance.Critical;
+            filters.RainfallRange = new FloatRange(0f, 400f); // Arid/desert
+            filters.RainfallImportance = FilterImportance.Preferred;
+            filters.GrowingDaysRange = new FloatRange(0f, 20f);
+            filters.GrowingDaysImportance = FilterImportance.Preferred;
+
+            // Features: Hostile/volcanic
+            filters.MapFeatures.SetImportance("ToxicRain", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Preferred); // Volcanic activity
+            filters.MapFeatures.SetImportance("Junkyard", FilterImportance.Preferred);
+
+            return preset;
+        }
+
         // ===== Classic curated presets from existing FilterPresets =====
         private static Preset CreateTemperatePreset()
         {
@@ -305,6 +373,136 @@ namespace LandingZone.Data
             preset.Filters.RainfallImportance = FilterImportance.Preferred;
             preset.Filters.CoastalImportance = FilterImportance.Preferred;
             preset.Filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
+
+            return preset;
+        }
+
+        // ===== NEW CURATED PRESETS: Diverse playstyles =====
+        private static Preset CreateDefensePreset()
+        {
+            var preset = new Preset
+            {
+                Id = "defense",
+                Name = "🏰 Defense",
+                Description = "Defensible position - mountains, caves, chokepoints. Build an impenetrable fortress.",
+                Category = "Curated",
+                FilterSummary = "Mountainous | Caves | Stone Rich"
+            };
+
+            var filters = preset.Filters;
+
+            // Terrain: Mountainous for defense
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Mountainous);
+
+            // Features: Caves and defensible terrain
+            filters.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Cavern", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Mountain", FilterImportance.Preferred);
+
+            // Resources: Stone for building defenses
+            filters.Stones.SetImportance("Granite", FilterImportance.Preferred); // Highest HP
+            filters.Stones.SetImportance("Limestone", FilterImportance.Preferred);
+            filters.Stones.Operator = ImportanceOperator.AND;
+
+            // Climate: Survivable but not paradise
+            filters.AverageTemperatureRange = new FloatRange(-10f, 20f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+
+            return preset;
+        }
+
+        private static Preset CreateAgrarianPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "agrarian",
+                Name = "🌾 Agrarian",
+                Description = "Perfect farming conditions - long growing season, fertile soil, abundant resources. Feed the world.",
+                Category = "Curated",
+                FilterSummary = "50-60 days grow | Fertile | WildPlants | Temperate"
+            };
+
+            var filters = preset.Filters;
+
+            // Climate: Optimal for growing
+            filters.GrowingDaysRange = new FloatRange(50f, 60f);
+            filters.GrowingDaysImportance = FilterImportance.Critical;
+            filters.AverageTemperatureRange = new FloatRange(15f, 30f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+            filters.RainfallRange = new FloatRange(1000f, 2500f);
+            filters.RainfallImportance = FilterImportance.Preferred;
+
+            // Features: Fertile and plant-rich
+            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("PlantLife_Increased", FilterImportance.Preferred);
+            filters.MapFeatures.Operator = ImportanceOperator.OR;
+
+            // Terrain: Flat for farming
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Flat);
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
+
+            return preset;
+        }
+
+        private static Preset CreatePowerPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "power",
+                Name = "⚡ Power",
+                Description = "Energy independence - geothermal vents, rivers for hydro, sunny for solar. Unlimited electricity.",
+                Category = "Curated",
+                FilterSummary = "Geothermal | Rivers | Sunny"
+            };
+
+            var filters = preset.Filters;
+
+            // Features: Power-generating features
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Critical);
+            filters.MapFeatures.SetImportance("SunnyMutator", FilterImportance.Preferred);
+
+            // Geography: Rivers for hydroelectric
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
+            filters.Rivers.Operator = ImportanceOperator.OR;
+
+            // Climate: Temperate for ease of access
+            filters.AverageTemperatureRange = new FloatRange(10f, 30f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+
+            return preset;
+        }
+
+        private static Preset CreateBayouPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "bayou",
+                Name = "🐊 Bayou",
+                Description = "Swamplands - high rainfall, wetlands, rich biodiversity. Hunt, fish, and survive in the marsh.",
+                Category = "Curated",
+                FilterSummary = "Swamp | High Rain | Coastal | Warm"
+            };
+
+            var filters = preset.Filters;
+
+            // Climate: Warm and wet
+            filters.AverageTemperatureRange = new FloatRange(20f, 35f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+            filters.RainfallRange = new FloatRange(2000f, 4000f);
+            filters.RainfallImportance = FilterImportance.Critical;
+
+            // Geography: Coastal/lakes + rivers
+            filters.CoastalLakeImportance = FilterImportance.Preferred;
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
+
+            // Features: Wildlife and plants
+            filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
 
             return preset;
         }

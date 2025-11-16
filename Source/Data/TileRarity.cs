@@ -48,7 +48,7 @@ namespace LandingZone.Data
     public static class TileRarityExtensions
     {
         /// <summary>
-        /// Converts rarity tier to user-friendly display label
+        /// Converts rarity tier to user-friendly display label (full text)
         /// </summary>
         public static string ToLabel(this TileRarity rarity)
         {
@@ -60,6 +60,24 @@ namespace LandingZone.Data
                 TileRarity.VeryRare => "Very Rare",
                 TileRarity.Epic => "Epic",
                 TileRarity.Legendary => "Legendary",
+                TileRarity.Mythic => "Mythic",
+                _ => "Unknown"
+            };
+        }
+
+        /// <summary>
+        /// Converts rarity tier to compact badge label (no wrapping)
+        /// </summary>
+        public static string ToBadgeLabel(this TileRarity rarity)
+        {
+            return rarity switch
+            {
+                TileRarity.Common => "Common",
+                TileRarity.Uncommon => "Uncommon",
+                TileRarity.Rare => "Rare",
+                TileRarity.VeryRare => "V.Rare",      // Abbreviated to prevent wrapping
+                TileRarity.Epic => "Epic",
+                TileRarity.Legendary => "Legend",     // Shortened
                 TileRarity.Mythic => "Mythic",
                 _ => "Unknown"
             };

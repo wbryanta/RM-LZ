@@ -134,7 +134,7 @@ namespace LandingZone.Core.UI
             {
                 var rarity = preset.TargetRarity.Value;
                 var badgeColor = rarity.ToColor();
-                var badgeLabel = rarity.ToLabel();
+                var badgeLabel = rarity.ToBadgeLabel();  // Use compact label to prevent wrapping
 
                 Rect badgeRect = new Rect(rect.xMax - 42f, rect.y + 4f, 38f, 16f);
                 Widgets.DrawBoxSolid(badgeRect, badgeColor * 0.7f);
