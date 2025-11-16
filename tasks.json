@@ -12,8 +12,8 @@
       "Mutators: Quality-of-life scoring (83 mutators rated -10 to +10) integrated.",
       "UI: Default/Advanced mode toggle complete, stone selectors functional.",
       "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived.",
-      "2025-11-14: Crisis freeze – default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence.",
-      "2025-11-15: Sprint Kickoff – Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul."
+      "2025-11-14: Crisis freeze \u2013 default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence.",
+      "2025-11-15: Sprint Kickoff \u2013 Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -44,28 +44,6 @@
   "todo": {
     "p0_critical": [
       {
-        "id": "LZ-PRESET-HUB",
-        "title": "Preset hub, Angel/Unicorn/Demon tiles, rarity scoring",
-        "priority": "P0 - Critical",
-        "estimate": "8-10 hours",
-        "owner": "team",
-        "description": "Simple mode should act as a preset launcher with curated bundles and user presets saved from Advanced. Presets leverage canonical rarity data to highlight Angel (quality), Unicorn (rarity), and Demon (challenge) tiles.",
-        "deliverables": [
-          "Grid layout showing Angel/Unicorn/Demon presets plus curated bundles",
-          "Expose 'My Presets' generated from Advanced saves",
-          "Each preset card shows high-level filters and key AND/OR relationships",
-          "Compute tile rarity using aggregated world data (docs/data/canonical_world_library_aggregate.json) and log10 probabilities",
-          "Show rarity badges (Common → Mythic) on presets/results",
-          "Selecting a preset loads it into the Simple mode state and updates the search button context",
-          "Document how to save/export presets between modes"
-        ],
-        "blockers": [
-          "LZ-SIMPLE-ADV-SEPARATION"
-        ],
-        "area": "UI/UX/Data",
-        "milestone": "0.2.1"
-      },
-      {
         "id": "LZ-UX-REORG",
         "title": "Advanced UI grouping & affordances",
         "priority": "P0 - Critical",
@@ -93,10 +71,10 @@
         "owner": "team",
         "description": "Use docs/data/canonical_world_library_aggregate.json to ensure the UI exposes every discovered mutator/feature exactly once with friendly labels.",
         "deliverables": [
-          "Create mapping (defName → friendly label, category, tooltip with rarity %)",
+          "Create mapping (defName \u2192 friendly label, category, tooltip with rarity %)",
           "Remove duplicates (e.g., Rivers/Roads shouldn't also be in Map Features)",
           "Add missing entries such as LavaCrater, AncientRuins_Frozen, etc.",
-          "Show rarity tooltip (e.g., 'LavaCrater – 0.0016% of settleable tiles')",
+          "Show rarity tooltip (e.g., 'LavaCrater \u2013 0.0016% of settleable tiles')",
           "Automate future updates by loading the mapping in code"
         ],
         "blockers": [
@@ -397,7 +375,7 @@
       "area": "UI/Architecture",
       "files_modified": [
         "Source/Data/UserPreferences.cs (added SimpleFilters/AdvancedFilters with GetActiveFilters)",
-        "Source/Data/LandingZoneOptions.cs (renamed UIMode.Default → UIMode.Simple)",
+        "Source/Data/LandingZoneOptions.cs (renamed UIMode.Default \u2192 UIMode.Simple)",
         "Source/Data/FilterSettings.cs (added CopyFrom method)",
         "Source/Core/Filtering/FilterContext.cs (added Filters convenience property)",
         "Source/Core/UI/LandingZonePreferencesWindow.cs (renamed methods, added import/export buttons, added helper text)",
@@ -415,7 +393,9 @@
       "completed": "2025-11-15",
       "impact": "Removed startup warning by loading bookmark material on the main thread via StaticConstructorOnStartup.",
       "area": "UI/Infrastructure",
-      "files_modified": ["Source/Core/WorldLayerBookmarks.cs"],
+      "files_modified": [
+        "Source/Core/WorldLayerBookmarks.cs"
+      ],
       "description": "Added [StaticConstructorOnStartup] to WorldLayerBookmarks and initialized _bookmarkMaterial via LongEventHandler ExecuteWhenFinished to satisfy Unity asset loading rules."
     },
     {
@@ -426,7 +406,11 @@
       "completed": "2025-11-15",
       "impact": "Users can choose Unlimited (all tiles) while lower presets warn when the cap truncates candidates; Stage B telemetry added.",
       "area": "Filtering/UX",
-      "files_modified": ["Source/Core/Filtering/BitsetAggregator.cs", "Source/Core/Filtering/FilterService.cs", "Source/LandingZoneSettings.cs"],
+      "files_modified": [
+        "Source/Core/Filtering/BitsetAggregator.cs",
+        "Source/Core/Filtering/FilterService.cs",
+        "Source/LandingZoneSettings.cs"
+      ],
       "description": "Added Unlimited option with warnings/tooltips, bumped default tiles-per-frame to 500, and logged Stage B processing/time including cap hits."
     },
     {
@@ -437,7 +421,9 @@
       "completed": "2025-11-15",
       "impact": "FilterService now logs per-run candidate counts and Stage B completion, enabling QA to verify membership scoring health.",
       "area": "Filtering/Diagnostics",
-      "files_modified": ["Source/Core/Filtering/FilterService.cs"],
+      "files_modified": [
+        "Source/Core/Filtering/FilterService.cs"
+      ],
       "description": "Added Stage B telemetry, gated K-of-N logging to legacy mode, and updated results labels to align with membership scoring."
     },
     {
@@ -661,6 +647,39 @@
       "completed": "2025-11-13",
       "impact": "Fixed FilterValidator.cs to use CountByImportance(FilterImportance.Critical/Preferred) methods instead of non-existent CriticalCount/PreferredCount properties. Added comprehensive counting logic for Rivers, Roads, Stones, MapFeatures, AdjacentBiomes, WorldFeatures. Build clean: 0 errors, 0 warnings. Commit: 096d8c7",
       "area": "Validation"
+    },
+    {
+      "id": "LZ-PRESET-HUB",
+      "title": "Preset hub, Angel/Unicorn/Demon tiles, rarity scoring",
+      "priority": "P0 - Critical",
+      "estimate": "8-10 hours",
+      "owner": "team",
+      "description": "Simple mode should act as a preset launcher with curated bundles and user presets saved from Advanced. Presets leverage canonical rarity data to highlight Angel (quality), Unicorn (rarity), and Demon (challenge) tiles.",
+      "deliverables": [
+        "Grid layout showing Angel/Unicorn/Demon presets plus curated bundles",
+        "Expose 'My Presets' generated from Advanced saves",
+        "Each preset card shows high-level filters and key AND/OR relationships",
+        "Compute tile rarity using aggregated world data (docs/data/canonical_world_library_aggregate.json) and log10 probabilities",
+        "Show rarity badges (Common \u2192 Mythic) on presets/results",
+        "Selecting a preset loads it into the Simple mode state and updates the search button context",
+        "Document how to save/export presets between modes"
+      ],
+      "blockers": [
+        "LZ-SIMPLE-ADV-SEPARATION"
+      ],
+      "area": "UI/UX/Data",
+      "milestone": "0.2.1",
+      "completed_date": "2025-11-15",
+      "impact": "Added complete preset system with Angel/Unicorn/Demon bundles, probabilistic rarity scoring, user preset save/load, and rarity badges on results",
+      "files_modified": [
+        "Source/Data/TileRarity.cs",
+        "Source/Data/RarityCalculator.cs",
+        "Source/Data/Preset.cs",
+        "Source/Core/UI/DefaultModeUI.cs",
+        "Source/Core/UI/Dialog_SavePreset.cs",
+        "Source/Core/UI/LandingZoneResultsWindow.cs",
+        "README.md"
+      ]
     }
   ],
   "areas": {

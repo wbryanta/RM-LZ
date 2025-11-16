@@ -1,6 +1,6 @@
 # LandingZone
 
-**Version**: 0.2.0-beta
+**Version**: 0.2.1-beta
 **RimWorld Version**: 1.6
 **Status**: Active Development (Beta)
 
@@ -27,11 +27,14 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 - **Configurable Weights**: 5 scoring presets (Balanced, Critical Focused, Strict Hierarchy, Ultra Critical, Precision Match)
 
 ### Dual-Mode Interface
-- **Simple Mode**: Simplified UI with 8 essential filters and preset cards (Temperate, Arctic Challenge, Desert Oasis)
+- **Simple Mode**: Simplified UI with 8 essential filters and preset cards (Angel, Unicorn, Demon + curated bundles)
 - **Advanced Mode**: Full control with 40+ filters organized into collapsible sections
 - **Mode Independence**: Each mode maintains its own filter settings that persist across sessions. Copy settings between modes as needed.
 - **Stone Selector**: Per-stone importance (Granite=Critical, Marble=Preferred) dynamically loaded from DefDatabase
-- **Results Window**: Top-N matches with detailed tile information, click to jump to location on world map
+- **Results Window**: Top-N matches with detailed tile information and rarity badges
+  - **Rarity Badges**: Tiles with Rare or higher combinations show color-coded badges (Rare → Epic → Legendary → Mythic)
+  - **Probabilistic Rarity**: Computed from canonical world data - multiplies biome × mutator probabilities
+  - Click any result to jump to that tile on the world map
 
 ### Performance & Customization
 - **Max Candidate Tiles**: Configurable Conservative (25k) through Unlimited (all settleable), default Standard (100k). Unlimited mode processes all tiles but may cause delays on large worlds.
@@ -60,7 +63,15 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Find your 
 
 ### Simple Mode
 - Simplified interface for casual users
-- 3 preset cards (click to apply)
+- **Preset System**: One-click filter bundles for quick setup
+  - 🌟 **Angel**: Perfect quality of life - temperate forest, coastal, rivers, abundant resources (Rare tier)
+  - 🦄 **Unicorn**: Extremely rare combinations - Archean trees, headwaters, multiple rare features (Epic tier)
+  - 😈 **Demon**: Extreme survival challenge - ice sheets, hostile features (Very Rare tier)
+  - **Temperate**: Balanced climate with good growing season
+  - **Arctic Challenge**: Extreme cold survival test
+  - **Desert Oasis**: Hot and dry with water access
+- **User Presets**: Save your current Simple mode filters as custom presets for reuse
+- **Rarity Badges**: Presets show target rarity tier (Common → Mythic) based on probabilistic rarity scoring
 - 8 essential filters: Biomes, Temperature, Rainfall, Coastal, Growing Season, Rivers, Roads, Stones
 - Tri-state toggles: Ignored | Preferred | Critical
 - **Independent settings**: Simple mode maintains its own filter preferences that persist across sessions
@@ -178,9 +189,14 @@ See `VERSIONING.md` for workflow details.
 - ✅ Configurable max candidates
 - ✅ Stop button for canceling searches
 
-**In Progress (v0.2.0-beta)**:
+**Completed (v0.2.1-beta)**:
+- ✅ Preset system with Angel/Unicorn/Demon bundles
+- ✅ Rarity scoring based on canonical world data
+- ✅ User preset save/load system
+- ✅ Rarity badges on results window
+
+**In Progress (v0.3.0+)**:
 - 🔨 Documentation cleanup and architecture alignment
-- 📋 Preset save/load system
 - 📋 Score breakdown transparency UI
 - 📋 Results window UX refactor
 
@@ -212,6 +228,14 @@ See `tasks.json` for full task list with priorities and estimates.
 - **Source**: [GitHub Repository](https://github.com/wbryanta/RM-LZ)
 
 ## Changelog
+
+### v0.2.1-beta (2025-11-15)
+- Added preset system with Angel/Unicorn/Demon bundles for quick filter setup
+- Implemented probabilistic rarity scoring based on canonical world data
+- Added user preset save/load system for custom filter configurations
+- Added rarity badges to results window (Rare → Epic → Legendary → Mythic)
+- Rarity tiers computed from biome × mutator probability multiplication
+- 6 curated presets: Angel, Unicorn, Demon, Temperate, Arctic Challenge, Desert Oasis
 
 ### v0.1.3-beta (2025-11-13)
 - Fixed Default/Advanced mode toggle buttons (removed 'active' parameter bug)
