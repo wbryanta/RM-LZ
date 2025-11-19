@@ -558,106 +558,7 @@ namespace LandingZone.Core.UI
         // DATA TYPE GROUPS (alternative organization)
         // ============================================================================
 
-        private static List<FilterGroup> GetDataTypeGroups()
-        {
-            return new List<FilterGroup>
-            {
-                GetClimateGroup(),
-                GetGeographyGroup(),
-                GetWaterRoutesGroup(),
-                GetResourcesGroup(),
-                GetFeaturesBiomesGroup()
-            };
-        }
-
-        private static FilterGroup GetClimateGroup()
-        {
-            // Same filters as Climate Comfort, just different grouping context
-            var comfortGroup = GetClimateComfortGroup();
-            return new FilterGroup("climate", "Climate", comfortGroup.Filters);
-        }
-
-        private static FilterGroup GetGeographyGroup()
-        {
-            var filters = new List<FilterControl>
-            {
-                FloatRangeControl(
-                    "Elevation",
-                    f => f.ElevationRange,
-                    (f, v) => f.ElevationRange = v,
-                    f => f.ElevationImportance,
-                    (f, v) => f.ElevationImportance = v,
-                    0f, 3100f, " m"
-                ),
-                new FilterControl(
-                    "Hilliness",
-                    (listing, filters) =>
-                    {
-                        listing.Label("Hilliness (select allowed types):");
-                        var rect = listing.GetRect(30f);
-                        DrawHillinessToggles(rect, filters);
-                    },
-                    filters => (filters.AllowedHilliness.Count < 4, FilterImportance.Critical)
-                ),
-                FloatRangeControl(
-                    "Swampiness",
-                    f => f.SwampinessRange,
-                    (f, v) => f.SwampinessRange = v,
-                    f => f.SwampinessImportance,
-                    (f, v) => f.SwampinessImportance = v,
-                    0f, 1.2f
-                ),
-                FloatRangeControl(
-                    "Movement Difficulty",
-                    f => f.MovementDifficultyRange,
-                    (f, v) => f.MovementDifficultyRange = v,
-                    f => f.MovementDifficultyImportance,
-                    (f, v) => f.MovementDifficultyImportance = v,
-                    0f, 2f
-                ),
-                ImportanceOnlyControl(
-                    "Coastal (Ocean)",
-                    f => f.CoastalImportance,
-                    (f, v) => f.CoastalImportance = v
-                ),
-                ImportanceOnlyControl(
-                    "Coastal (Lake)",
-                    f => f.CoastalLakeImportance,
-                    (f, v) => f.CoastalLakeImportance = v
-                )
-            };
-
-            return new FilterGroup("geography", "Geography", filters);
-        }
-
-        private static FilterGroup GetWaterRoutesGroup()
-        {
-            // Extract Rivers and Roads from Terrain Access group
-            var terrainGroup = GetTerrainAccessGroup();
-            var riversRoads = terrainGroup.Filters.Where(f => f.Label == "Rivers" || f.Label == "Roads").ToList();
-
-            return new FilterGroup("water_routes", "Water & Routes", riversRoads);
-        }
-
-        private static FilterGroup GetResourcesGroup()
-        {
-            // Same as Resources & Production
-            var productionGroup = GetResourcesProductionGroup();
-            return new FilterGroup("resources", "Resources", productionGroup.Filters);
-        }
-
-        private static FilterGroup GetFeaturesBiomesGroup()
-        {
-            // Combine Special Features + Biome Control
-            var specialFilters = GetSpecialFeaturesGroup().Filters;
-            var biomeFilters = GetBiomeControlGroup().Filters;
-
-            var combined = new List<FilterControl>();
-            combined.AddRange(specialFilters);
-            combined.AddRange(biomeFilters);
-
-            return new FilterGroup("features_biomes", "Features & Biomes", combined);
-        }
+        // GetDataTypeGroups removed - no longer using Data Type organization toggle
 
         // ============================================================================
         // HELPER UI METHODS
@@ -697,15 +598,21 @@ namespace LandingZone.Core.UI
 
         private static List<string> GetAllStoneTypes()
         {
-            // Get all stone types from ThingDef where category is Building and stuffCategories contains Stony
-            return DefDatabase<ThingDef>.AllDefsListForReading
-                .Where(def => def.building != null &&
-                              def.stuffProps != null &&
-                              def.stuffProps.categories != null &&
-                              def.stuffProps.categories.Contains(StuffCategoryDefOf.Stony))
+            // Get all natural rock types from ThingDef (Granite, Marble, Sandstone, Limestone, Slate, etc.)
+            // These are the construction materials, not mineable ores
+            var stoneTypes = DefDatabase<ThingDef>.AllDefsListForReading
+                .Where(def => def.building != null && def.building.isNaturalRock)
                 .Select(def => def.defName)
                 .OrderBy(name => name)
                 .ToList();
+
+            // Fallback: if no rocks found, return common known types
+            if (stoneTypes.Count == 0)
+            {
+                stoneTypes = new List<string> { "Granite", "Limestone", "Marble", "Sandstone", "Slate" };
+            }
+
+            return stoneTypes;
         }
 
         private static List<BiomeDef> GetAllBiomes()

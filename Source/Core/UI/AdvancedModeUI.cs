@@ -19,7 +19,6 @@ namespace LandingZone.Core.UI
 
         // UI State
         private static string _searchText = "";
-        private static FilterOrganization _currentOrganization = FilterOrganization.UserIntent;
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
@@ -60,13 +59,8 @@ namespace LandingZone.Core.UI
             DrawSearchBox(searchRect);
             listing.Gap(10f);
 
-            // Organization mode toggle (User Intent vs Data Type)
-            var toggleRect = listing.GetRect(GroupToggleHeight);
-            DrawOrganizationToggle(toggleRect);
-            listing.Gap(10f);
-
             // Grouped filters (collapsible sections)
-            var groups = GetFilterGroups(_currentOrganization);
+            var groups = GetFilterGroups();
             DrawFilterGroups(listing, groups, preferences);
 
             listing.End();
@@ -76,34 +70,6 @@ namespace LandingZone.Core.UI
         private static void DrawSearchBox(Rect rect)
         {
             _searchText = UIHelpers.DrawSearchBox(new Listing_Standard { ColumnWidth = rect.width }, _searchText, "Search filters...");
-        }
-
-        private static void DrawOrganizationToggle(Rect rect)
-        {
-            // Split rect into two buttons
-            float buttonWidth = rect.width / 2f - 2f;
-            Rect intentRect = new Rect(rect.x, rect.y, buttonWidth, rect.height);
-            Rect dataTypeRect = new Rect(rect.x + buttonWidth + 4f, rect.y, buttonWidth, rect.height);
-
-            bool isUserIntent = _currentOrganization == FilterOrganization.UserIntent;
-
-            if (Widgets.ButtonText(intentRect, "User Intent", active: isUserIntent))
-            {
-                if (_currentOrganization != FilterOrganization.UserIntent)
-                {
-                    _currentOrganization = FilterOrganization.UserIntent;
-                    _collapsedGroups.Clear(); // Reset collapse state when switching
-                }
-            }
-
-            if (Widgets.ButtonText(dataTypeRect, "Data Type", active: !isUserIntent))
-            {
-                if (_currentOrganization != FilterOrganization.DataType)
-                {
-                    _currentOrganization = FilterOrganization.DataType;
-                    _collapsedGroups.Clear(); // Reset collapse state when switching
-                }
-            }
         }
 
         private static void DrawFilterGroups(Listing_Standard listing, List<FilterGroup> groups, UserPreferences preferences)
@@ -185,21 +151,15 @@ namespace LandingZone.Core.UI
             return (total, critical, preferred);
         }
 
-        private static List<FilterGroup> GetFilterGroups(FilterOrganization organization)
+        private static List<FilterGroup> GetFilterGroups()
         {
-            return organization == FilterOrganization.UserIntent
-                ? GetUserIntentGroups()
-                : GetDataTypeGroups();
+            // Use UserIntent organization (Climate, Terrain, Resources, Special Features, Biome Control)
+            return GetUserIntentGroups();
         }
 
-        // NOTE: GetUserIntentGroups() and GetDataTypeGroups() are implemented in AdvancedModeUI_Controls.cs
+        // NOTE: GetUserIntentGroups() is implemented in AdvancedModeUI_Controls.cs
 
         // Data structures
-        private enum FilterOrganization
-        {
-            UserIntent,
-            DataType
-        }
 
         private class FilterGroup
         {
