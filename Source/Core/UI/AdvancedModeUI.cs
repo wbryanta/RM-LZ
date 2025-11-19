@@ -8,21 +8,34 @@ namespace LandingZone.Core.UI
 {
     /// <summary>
     /// Full-featured UI renderer for power users.
-    /// Shows all 40+ filters organized by user intent groups, with search and data type grouping.
+    /// Shows all 40+ filters organized by user intent groups, with tabbed layout.
     /// </summary>
     public static partial class AdvancedModeUI
     {
         private const float SearchBoxHeight = 30f;
-        private const float GroupToggleHeight = 30f;
+        private const float TabHeight = 32f;
         private const float GroupHeaderHeight = 32f;
         private const float FilterItemHeight = 30f;
 
         // UI State
         private static string _searchText = "";
+        private static AdvancedTab _selectedTab = AdvancedTab.Climate;
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
         private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
+
+        /// <summary>
+        /// Tab categories for Advanced mode (Tier 3).
+        /// </summary>
+        private enum AdvancedTab
+        {
+            Climate,
+            Geography,
+            Resources,
+            Features,
+            Results
+        }
 
         /// <summary>
         /// Gets the currently detected conflicts for use by filter controls.
@@ -30,7 +43,7 @@ namespace LandingZone.Core.UI
         internal static List<FilterConflict> GetActiveConflicts() => _activeConflicts;
 
         /// <summary>
-        /// Renders the Advanced mode UI (search + grouped filters).
+        /// Renders the Advanced mode UI (tabs + search + grouped filters).
         /// </summary>
         /// <param name="inRect">Available drawing area</param>
         /// <param name="preferences">User preferences containing filter settings</param>
@@ -54,13 +67,18 @@ namespace LandingZone.Core.UI
                 listing.Gap(8f);
             }
 
+            // Tab navigation (Tier 3)
+            var tabRect = listing.GetRect(TabHeight);
+            DrawTabs(tabRect, preferences.GetActiveFilters());
+            listing.Gap(10f);
+
             // Search box for filtering visible controls
             var searchRect = listing.GetRect(SearchBoxHeight);
             DrawSearchBox(searchRect);
             listing.Gap(10f);
 
-            // Grouped filters (collapsible sections)
-            var groups = GetFilterGroups();
+            // Grouped filters (collapsible sections) - filtered by selected tab
+            var groups = GetFilterGroupsForTab(_selectedTab);
             DrawFilterGroups(listing, groups, preferences);
 
             listing.End();
@@ -70,6 +88,123 @@ namespace LandingZone.Core.UI
         private static void DrawSearchBox(Rect rect)
         {
             _searchText = UIHelpers.DrawSearchBox(new Listing_Standard { ColumnWidth = rect.width }, _searchText, "Search filters...");
+        }
+
+        private static void DrawTabs(Rect rect, FilterSettings filters)
+        {
+            const int tabCount = 5;
+            float tabWidth = rect.width / tabCount;
+
+            // Count active filters per tab for badges
+            var tabCounts = GetActiveFilterCountsPerTab(filters);
+
+            for (int i = 0; i < tabCount; i++)
+            {
+                var tab = (AdvancedTab)i;
+                Rect tabRect = new Rect(rect.x + i * tabWidth, rect.y, tabWidth, rect.height);
+
+                // Tab label with active count badge
+                string label = GetTabLabel(tab);
+                if (tabCounts.TryGetValue(tab, out int count) && count > 0)
+                {
+                    label += $" ({count})";
+                }
+
+                // Selected tab styling
+                bool isSelected = tab == _selectedTab;
+                Color bgColor = isSelected
+                    ? new Color(0.3f, 0.3f, 0.3f)
+                    : new Color(0.15f, 0.15f, 0.15f);
+
+                Widgets.DrawBoxSolid(tabRect, bgColor);
+                Widgets.DrawBox(tabRect);
+
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = isSelected ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+                Widgets.Label(tabRect, label);
+                GUI.color = Color.white;
+                Text.Anchor = TextAnchor.UpperLeft;
+
+                if (Widgets.ButtonInvisible(tabRect))
+                {
+                    _selectedTab = tab;
+                    // Clear search when switching tabs for cleaner UX
+                    _searchText = "";
+                }
+
+                // Tooltip
+                string tooltip = GetTabTooltip(tab);
+                if (!string.IsNullOrEmpty(tooltip))
+                {
+                    TooltipHandler.TipRegion(tabRect, tooltip);
+                }
+            }
+        }
+
+        private static string GetTabLabel(AdvancedTab tab)
+        {
+            return tab switch
+            {
+                AdvancedTab.Climate => "Climate",
+                AdvancedTab.Geography => "Geography",
+                AdvancedTab.Resources => "Resources",
+                AdvancedTab.Features => "Features",
+                AdvancedTab.Results => "Results",
+                _ => tab.ToString()
+            };
+        }
+
+        private static string GetTabTooltip(AdvancedTab tab)
+        {
+            return tab switch
+            {
+                AdvancedTab.Climate => "Temperature, rainfall, growing days, pollution",
+                AdvancedTab.Geography => "Hilliness, coastal access, movement difficulty, swampiness",
+                AdvancedTab.Resources => "Stones, forageability, plant/animal density, fish, grazing",
+                AdvancedTab.Features => "Map features (mutators), rivers, roads, biomes",
+                AdvancedTab.Results => "Result count, strictness, fallback tiers",
+                _ => ""
+            };
+        }
+
+        private static Dictionary<AdvancedTab, int> GetActiveFilterCountsPerTab(FilterSettings filters)
+        {
+            var counts = new Dictionary<AdvancedTab, int>();
+
+            // Get all groups and count active filters per tab
+            var allGroups = GetUserIntentGroups();
+            foreach (var group in allGroups)
+            {
+                var tab = MapGroupToTab(group.Id);
+                if (!counts.ContainsKey(tab))
+                    counts[tab] = 0;
+
+                var (total, _, _) = CountActiveFilters(group, filters);
+                counts[tab] += total;
+            }
+
+            return counts;
+        }
+
+        private static AdvancedTab MapGroupToTab(string groupId)
+        {
+            return groupId switch
+            {
+                "climate_comfort" => AdvancedTab.Climate,
+                "terrain_access" => AdvancedTab.Geography,
+                "resources_production" => AdvancedTab.Resources,
+                "special_features" => AdvancedTab.Features,
+                "biome_control" => AdvancedTab.Features,
+                "results_control" => AdvancedTab.Results,
+                _ => AdvancedTab.Climate
+            };
+        }
+
+        private static List<FilterGroup> GetFilterGroupsForTab(AdvancedTab tab)
+        {
+            var allGroups = GetUserIntentGroups();
+            return allGroups.Where(g => MapGroupToTab(g.Id) == tab).ToList();
         }
 
         private static void DrawFilterGroups(Listing_Standard listing, List<FilterGroup> groups, UserPreferences preferences)

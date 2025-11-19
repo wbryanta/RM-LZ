@@ -101,7 +101,8 @@ namespace LandingZone.Core.UI
                 GetTerrainAccessGroup(),
                 GetResourcesProductionGroup(),
                 GetSpecialFeaturesGroup(),
-                GetBiomeControlGroup()
+                GetBiomeControlGroup(),
+                GetResultsControlGroup()
             };
         }
 
@@ -581,6 +582,79 @@ namespace LandingZone.Core.UI
             };
 
             return new FilterGroup("biome_control", "Biome Control", filters);
+        }
+
+        private static FilterGroup GetResultsControlGroup()
+        {
+            var filters = new List<FilterControl>
+            {
+                new FilterControl(
+                    "Result Limit",
+                    (listing, filters) =>
+                    {
+                        listing.Label($"Result Limit: {filters.MaxResults}");
+                        var sliderRect = listing.GetRect(30f);
+                        int resultCount = (int)Widgets.HorizontalSlider(
+                            sliderRect,
+                            filters.MaxResults,
+                            FilterSettings.MinMaxResults,
+                            FilterSettings.MaxResultsLimit,
+                            true,
+                            $"{filters.MaxResults} results",
+                            $"{FilterSettings.MinMaxResults}",
+                            $"{FilterSettings.MaxResultsLimit}"
+                        );
+                        filters.MaxResults = resultCount;
+
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        listing.Label("Number of top-scored tiles to return from search");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                    },
+                    filters => (true, FilterImportance.Ignored) // Always active, not a filter
+                ),
+                new FilterControl(
+                    "Strictness (Legacy k-of-n)",
+                    (listing, filters) =>
+                    {
+                        listing.Label($"Critical Strictness: {filters.CriticalStrictness:F2}");
+                        var sliderRect = listing.GetRect(30f);
+                        float strictness = Widgets.HorizontalSlider(
+                            sliderRect,
+                            filters.CriticalStrictness,
+                            0f,
+                            1f,
+                            true,
+                            $"{filters.CriticalStrictness:F2}",
+                            "0.0 (fuzzy)",
+                            "1.0 (hard)"
+                        );
+                        filters.CriticalStrictness = strictness;
+
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        listing.Label("0.0 = fuzzy matching (k-of-n), 1.0 = all critical filters must match (legacy)");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                    },
+                    filters => (filters.CriticalStrictness < 1.0f, FilterImportance.Ignored)
+                ),
+                new FilterControl(
+                    "_ResultsInfo",
+                    (listing, filters) =>
+                    {
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                        listing.Label("Note: Fallback tier system coming soon for ultra-rare feature hunting.");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                    },
+                    filters => (false, FilterImportance.Ignored)
+                )
+            };
+
+            return new FilterGroup("results_control", "Results Control", filters);
         }
 
         // ============================================================================
