@@ -187,19 +187,22 @@ namespace LandingZone
     public enum LoggingLevel
     {
         /// <summary>
-        /// Verbose - Log every tile evaluation. Floods log with thousands of lines. Use for debugging.
+        /// Verbose - Full diagnostic logging: all match dumps, progress ticks, stack traces, deep predicate logs.
+        /// Use for debugging and forensic analysis. Floods log with thousands of lines.
         /// </summary>
         Verbose,
 
         /// <summary>
-        /// Standard (DEFAULT) - Log phase summaries only. ~10-20 lines per search. Recommended for normal use.
+        /// Standard (DEFAULT) - Balanced logging: start/complete lines, one filter summary block, top-3 DEBUG dump.
+        /// Recommended for normal use. ~10-20 lines per search.
         /// </summary>
         Standard,
 
         /// <summary>
-        /// Brief - Log only final results count and timing. ~3-5 lines per search. Minimal noise.
+        /// Minimal - Only start/complete lines with preset, mode, strictness, duration, best score.
+        /// No filter dumps, no progress, no stack traces. ~2-4 lines per search. Minimal noise.
         /// </summary>
-        Brief
+        Minimal
     }
 
     /// <summary>
@@ -287,7 +290,7 @@ namespace LandingZone
             {
                 LoggingLevel.Verbose => "Verbose",
                 LoggingLevel.Standard => "Standard",
-                LoggingLevel.Brief => "Brief",
+                LoggingLevel.Minimal => "Minimal",
                 _ => "Unknown"
             };
         }
@@ -297,11 +300,11 @@ namespace LandingZone
             return level switch
             {
                 LoggingLevel.Verbose =>
-                    "Log every tile evaluation. Floods log with thousands of lines. Use for debugging.",
+                    "Full diagnostic logging: all match dumps, progress ticks, stack traces, deep logs. Use for debugging.",
                 LoggingLevel.Standard =>
-                    "Log phase summaries only. ~10-20 lines per search. DEFAULT. Recommended for normal use.",
-                LoggingLevel.Brief =>
-                    "Log only final results count and timing. ~3-5 lines per search. Minimal noise.",
+                    "Balanced logging: start/complete + filter summary + top-3 DEBUG dump. DEFAULT. Recommended for normal use.",
+                LoggingLevel.Minimal =>
+                    "Only start/complete lines with key metrics. No dumps, no progress. ~2-4 lines per search. Minimal noise.",
                 _ => ""
             };
         }

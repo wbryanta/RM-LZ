@@ -76,9 +76,11 @@ namespace LandingZone.Data
             settings.MapFeatures.SetImportance("AncientRuins", FilterImportance.Preferred);
             settings.MapFeatures.SetImportance("Junkyard", FilterImportance.Preferred);
 
-            // Preferred stones for construction
-            settings.Stones.SetImportance("Granite", FilterImportance.Preferred);
-            settings.Stones.SetImportance("Marble", FilterImportance.Preferred);
+            // Preferred ores for balanced settlement (trading OR components)
+            settings.Stones.SetImportance("MineableGold", FilterImportance.Preferred);      // Trading wealth
+            settings.Stones.SetImportance("MineableSilver", FilterImportance.Preferred);    // Trading wealth
+            settings.Stones.SetImportance("MineableComponentsIndustrial", FilterImportance.Preferred); // Advanced components
+            settings.Stones.Operator = ImportanceOperator.OR;  // Accept any (tiles only have 1 ore)
         }
 
         private static void ApplyArcticChallenge(FilterSettings settings)
@@ -107,8 +109,8 @@ namespace LandingZone.Data
             settings.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);  // More hunting
             settings.MapFeatures.SetImportance("HotSprings", FilterImportance.Preferred);  // Natural heating
 
-            // Preferred stones
-            settings.Stones.SetImportance("Granite", FilterImportance.Preferred);
+            // Preferred ores for arctic survival (power + advanced tech)
+            settings.Stones.SetImportance("MineableUranium", FilterImportance.Preferred);   // Reactors for heat/power
         }
 
         private static void ApplyDesertOasis(FilterSettings settings)
@@ -139,9 +141,11 @@ namespace LandingZone.Data
             settings.MapFeatures.SetImportance("Oasis", FilterImportance.Preferred);  // Water source
             settings.MapFeatures.SetImportance("SunnyMutator", FilterImportance.Preferred);  // Great for solar
 
-            // Preferred stones
-            settings.Stones.SetImportance("Granite", FilterImportance.Preferred);
-            settings.Stones.SetImportance("Sandstone", FilterImportance.Preferred);  // Common in deserts
+            // Preferred ores for desert survival (trading OR components)
+            settings.Stones.SetImportance("MineableSilver", FilterImportance.Preferred);    // Trading for resources
+            settings.Stones.SetImportance("MineableGold", FilterImportance.Preferred);      // Trading wealth
+            settings.Stones.SetImportance("MineableComponentsIndustrial", FilterImportance.Preferred); // Advanced components
+            settings.Stones.Operator = ImportanceOperator.OR;  // Accept any (tiles only have 1 ore)
         }
 
         private static void ApplyMountainFortress(FilterSettings settings)
@@ -167,9 +171,10 @@ namespace LandingZone.Data
             settings.MapFeatures.SetImportance("MineralRich", FilterImportance.Preferred);  // Extra ore/stone
             settings.MapFeatures.SetImportance("Cavern", FilterImportance.Preferred);  // Large defensive space
 
-            // Preferred stones for defense and construction
-            settings.Stones.SetImportance("Granite", FilterImportance.Preferred);  // Highest HP
-            settings.Stones.SetImportance("Marble", FilterImportance.Preferred);  // Beauty bonus
+            // Preferred ores for mountain fortress (advanced fortifications OR tech)
+            settings.Stones.SetImportance("MineablePlasteel", FilterImportance.Preferred);  // Advanced fortifications
+            settings.Stones.SetImportance("MineableUranium", FilterImportance.Preferred);   // Power for defenses
+            settings.Stones.Operator = ImportanceOperator.OR;  // Accept either (tiles only have 1 ore)
         }
 
         private static void ApplyCoastalTradeHub(FilterSettings settings)
@@ -206,9 +211,10 @@ namespace LandingZone.Data
             settings.MapFeatures.SetImportance("AncientRuins", FilterImportance.Preferred);  // Salvage for trade
             settings.MapFeatures.SetImportance("Junkyard", FilterImportance.Preferred);  // Salvage for trade
 
-            // Preferred stones for construction
-            settings.Stones.SetImportance("Granite", FilterImportance.Preferred);
-            settings.Stones.SetImportance("Marble", FilterImportance.Preferred);  // Beauty for wealthy trade town
+            // Preferred ores for trade hub (valuable trading commodities)
+            settings.Stones.SetImportance("MineableGold", FilterImportance.Preferred);      // Trading wealth
+            settings.Stones.SetImportance("MineableJade", FilterImportance.Preferred);      // Luxury trade good
+            settings.Stones.Operator = ImportanceOperator.OR;  // Accept either (tiles only have 1 ore)
         }
     }
 

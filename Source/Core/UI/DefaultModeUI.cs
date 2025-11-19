@@ -89,7 +89,7 @@ namespace LandingZone.Core.UI
 
                     float cardX = rowRect.x + col * (PresetCardWidth + PresetCardSpacing);
                     Rect cardRect = new Rect(cardX, rowRect.y, PresetCardWidth, PresetCardHeight);
-                    DrawPresetCard(cardRect, curatedPresets[index], filters);
+                    DrawPresetCard(cardRect, curatedPresets[index], filters, preferences);
                 }
             }
 
@@ -106,18 +106,18 @@ namespace LandingZone.Core.UI
             {
                 float cardX = userRowRect.x + i * (PresetCardWidth + PresetCardSpacing);
                 Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
-                DrawPresetCard(cardRect, userPresets[i], filters);
+                DrawPresetCard(cardRect, userPresets[i], filters, preferences);
             }
 
             // Add "Save as Preset" button
             listing.Gap(10f);
             if (listing.ButtonText("Save Current Filters as Preset"))
             {
-                Find.WindowStack.Add(new Dialog_SavePreset(filters));
+                Find.WindowStack.Add(new Dialog_SavePreset(filters, preferences.ActivePreset));
             }
         }
 
-        private static void DrawPresetCard(Rect rect, Preset preset, FilterSettings filters)
+        private static void DrawPresetCard(Rect rect, Preset preset, FilterSettings filters, UserPreferences preferences)
         {
             // Draw card background
             Widgets.DrawBoxSolid(rect, new Color(0.15f, 0.15f, 0.15f));
@@ -166,6 +166,7 @@ namespace LandingZone.Core.UI
             if (Widgets.ButtonInvisible(rect))
             {
                 preset.ApplyTo(filters);
+                preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
                 Messages.Message($"Applied preset: {preset.Name}", MessageTypeDefOf.NeutralEvent, false);
             }
 

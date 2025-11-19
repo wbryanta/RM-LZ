@@ -19,6 +19,13 @@ namespace LandingZone.Data
         public LandingZoneOptions Options { get; } = new LandingZoneOptions();
 
         /// <summary>
+        /// The currently active preset (if any).
+        /// Used for preset-specific mutator quality overrides during scoring.
+        /// Set when a preset is applied, cleared when filters are manually modified.
+        /// </summary>
+        public Preset? ActivePreset { get; set; } = null;
+
+        /// <summary>
         /// Gets the active filter settings based on current UI mode
         /// </summary>
         public FilterSettings GetActiveFilters()
@@ -33,6 +40,7 @@ namespace LandingZone.Data
             SimpleFilters.Reset();
             AdvancedFilters.Reset();
             Options.Reset();
+            ActivePreset = null; // Clear preset tracking on reset
         }
 
         /// <summary>
@@ -41,6 +49,7 @@ namespace LandingZone.Data
         public void ResetActiveFilters()
         {
             GetActiveFilters().Reset();
+            ActivePreset = null; // Clear preset tracking - user is manually resetting
         }
 
         /// <summary>
@@ -49,6 +58,7 @@ namespace LandingZone.Data
         public void CopySimpleToAdvanced()
         {
             AdvancedFilters.CopyFrom(SimpleFilters);
+            ActivePreset = null; // Clear preset tracking - copied filters are manual edits
         }
 
         /// <summary>
@@ -57,6 +67,7 @@ namespace LandingZone.Data
         public void CopyAdvancedToSimple()
         {
             SimpleFilters.CopyFrom(AdvancedFilters);
+            ActivePreset = null; // Clear preset tracking - copied filters are manual edits
         }
     }
 }

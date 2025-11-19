@@ -184,7 +184,9 @@ namespace LandingZone.Core
             {
                 EvaluationProgress = _activeJob.Progress;
                 CurrentPhaseDescription = _activeJob.CurrentPhaseDescription;
-                if (Find.TickManager.TicksGame % 500 == 0)
+
+                // Progress spam only in verbose mode; default logs stay concise
+                if (LandingZoneLogger.IsVerbose && Find.TickManager.TicksGame % 500 == 0)
                 {
                     LogMessage($"Search progress {(EvaluationProgress * 100f):F1}% - {CurrentPhaseDescription}");
                 }
@@ -198,6 +200,16 @@ namespace LandingZone.Core
             LastEvaluationCount = list.Count;
             LastEvaluationMs = job.ElapsedMs;
             UpdateBreakdowns(list);
+
+            // Concise completion summary for diagnostics
+            var preset = State?.Preferences?.ActivePreset;
+            var modeLabel = State?.Preferences?.Options?.PreferencesUIMode.ToString() ?? "Unknown";
+            var presetLabel = preset != null
+                ? $"{preset.Id} ({preset.Name})"
+                : (State?.Preferences?.Options?.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
+            LandingZoneLogger.LogStandard(
+                $"[LandingZone] Search complete: preset={presetLabel}, mode={modeLabel}, results={list.Count}, best={(list.Count > 0 ? list[0].Score.ToString("F2") : "n/a")}, duration_ms={job.ElapsedMs:F0}"
+            );
             if (list.Count > 0)
             {
                 _currentMatchIndex = Mathf.Clamp(_currentMatchIndex, 0, list.Count - 1);

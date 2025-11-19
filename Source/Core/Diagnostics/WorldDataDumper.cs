@@ -295,6 +295,327 @@ namespace LandingZone.Core.Diagnostics
                 sb.AppendLine("=".PadRight(80, '='));
                 sb.AppendLine();
 
+                // INSPECT WORLD OBJECT - DUMP ALL FIELDS AND PROPERTIES
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine("WORLD OBJECT INSPECTION (ALL fields/properties)");
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine();
+
+                try
+                {
+                    var worldType = world.GetType();
+
+                    // Dump ALL fields
+                    var worldFields = worldType.GetFields(
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    sb.AppendLine($"--- WORLD FIELDS ({worldFields.Length} total) ---");
+                    sb.AppendLine();
+
+                    foreach (var field in worldFields)
+                    {
+                        try
+                        {
+                            var value = field.GetValue(world);
+                            sb.AppendLine($"WORLD.{field.Name} ({field.FieldType.Name}):");
+
+                            // For any complex object (not primitive, not string), dump its internals
+                            bool shouldInspectInternals = value != null &&
+                                                         !field.FieldType.IsPrimitive &&
+                                                         !field.FieldType.IsEnum &&
+                                                         field.FieldType != typeof(string) &&
+                                                         !(value is System.Collections.IDictionary) &&
+                                                         !(value is System.Collections.IList);
+
+                            if (shouldInspectInternals)
+                            {
+                                var objType = value.GetType();
+                                sb.AppendLine($"  {objType.FullName}");
+                                sb.AppendLine($"  --- Internals of {field.Name} ---");
+
+                                var objFields = objType.GetFields(
+                                    System.Reflection.BindingFlags.Public |
+                                    System.Reflection.BindingFlags.NonPublic |
+                                    System.Reflection.BindingFlags.Instance);
+
+                                foreach (var objField in objFields)
+                                {
+                                    try
+                                    {
+                                        var objValue = objField.GetValue(value);
+
+                                        if (objValue is System.Collections.IDictionary objDict)
+                                        {
+                                            sb.AppendLine($"    {objField.Name}: Dictionary with {objDict.Count} entries");
+                                            int showCount = Math.Min(10, objDict.Count);
+                                            int dictCount = 0;
+                                            foreach (System.Collections.DictionaryEntry entry in objDict)
+                                            {
+                                                if (dictCount >= showCount)
+                                                {
+                                                    sb.AppendLine($"      ... and {objDict.Count - dictCount} more");
+                                                    break;
+                                                }
+                                                sb.AppendLine($"      [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                                dictCount++;
+                                            }
+                                        }
+                                        else if (objValue is System.Collections.ICollection objColl && !(objValue is string))
+                                        {
+                                            sb.AppendLine($"    {objField.Name}: Collection with {objColl.Count} items (first 5)");
+                                            int collCount = 0;
+                                            foreach (var collItem in objColl)
+                                            {
+                                                if (collCount >= 5)
+                                                {
+                                                    sb.AppendLine($"      ... and {objColl.Count - 5} more");
+                                                    break;
+                                                }
+                                                sb.AppendLine($"      [{collCount}] = {DumpValue(collItem, depth: 0)}");
+                                                collCount++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sb.AppendLine($"    {objField.Name}: {DumpValue(objValue, depth: 0)}");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        sb.AppendLine($"    {objField.Name}: <error: {ex.Message}>");
+                                    }
+                                }
+                                sb.AppendLine();
+                            }
+                            // Special handling for WorldGenData - dump its internals
+                            else if ((field.Name == "genData" || field.Name == "worldGenData") && value != null)
+                            {
+                                var genDataType = value.GetType();
+                                sb.AppendLine($"  {genDataType.FullName}");
+
+                                var genDataFields = genDataType.GetFields(
+                                    System.Reflection.BindingFlags.Public |
+                                    System.Reflection.BindingFlags.NonPublic |
+                                    System.Reflection.BindingFlags.Instance);
+
+                                foreach (var genField in genDataFields)
+                                {
+                                    try
+                                    {
+                                        var genValue = genField.GetValue(value);
+
+                                        if (genValue is System.Collections.IDictionary genDict)
+                                        {
+                                            sb.AppendLine($"    {genField.Name}: Dictionary with {genDict.Count} entries");
+                                            int showCount = Math.Min(10, genDict.Count);
+                                            int dictCount = 0;
+                                            foreach (System.Collections.DictionaryEntry entry in genDict)
+                                            {
+                                                if (dictCount >= showCount)
+                                                {
+                                                    sb.AppendLine($"      ... and {genDict.Count - dictCount} more");
+                                                    break;
+                                                }
+                                                sb.AppendLine($"      [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                                dictCount++;
+                                            }
+                                        }
+                                        else if (genValue is System.Collections.ICollection genColl && !(genValue is string))
+                                        {
+                                            sb.AppendLine($"    {genField.Name}: Collection with {genColl.Count} items (first 5)");
+                                            int collCount = 0;
+                                            foreach (var collItem in genColl)
+                                            {
+                                                if (collCount >= 5)
+                                                {
+                                                    sb.AppendLine($"      ... and {genColl.Count - 5} more");
+                                                    break;
+                                                }
+                                                sb.AppendLine($"      [{collCount}] = {DumpValue(collItem, depth: 0)}");
+                                                collCount++;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sb.AppendLine($"    {genField.Name}: {DumpValue(genValue, depth: 0)}");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        sb.AppendLine($"    {genField.Name}: <error: {ex.Message}>");
+                                    }
+                                }
+                                sb.AppendLine();
+                            }
+                            // Special handling for WorldComponents - dump their internals
+                            else if (field.Name == "components" && value is System.Collections.IList componentList)
+                            {
+                                sb.AppendLine($"  Collection with {componentList.Count} items");
+                                for (int i = 0; i < componentList.Count; i++)
+                                {
+                                    var component = componentList[i];
+                                    if (component == null) continue;
+
+                                    var componentType = component.GetType();
+                                    sb.AppendLine($"  [{i}] = {componentType.FullName}");
+
+                                    // Dump all fields of this component
+                                    var componentFields = componentType.GetFields(
+                                        System.Reflection.BindingFlags.Public |
+                                        System.Reflection.BindingFlags.NonPublic |
+                                        System.Reflection.BindingFlags.Instance);
+
+                                    foreach (var compField in componentFields)
+                                    {
+                                        try
+                                        {
+                                            var compValue = compField.GetValue(component);
+
+                                            if (compValue is System.Collections.IDictionary compDict)
+                                            {
+                                                sb.AppendLine($"      {compField.Name}: Dictionary with {compDict.Count} entries");
+                                                int showCount = Math.Min(10, compDict.Count);
+                                                int dictCount = 0;
+                                                foreach (System.Collections.DictionaryEntry entry in compDict)
+                                                {
+                                                    if (dictCount >= showCount)
+                                                    {
+                                                        sb.AppendLine($"        ... and {compDict.Count - dictCount} more");
+                                                        break;
+                                                    }
+                                                    sb.AppendLine($"        [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                                    dictCount++;
+                                                }
+                                            }
+                                            else if (compValue is System.Collections.ICollection compColl && !(compValue is string))
+                                            {
+                                                sb.AppendLine($"      {compField.Name}: Collection with {compColl.Count} items (first 5)");
+                                                int collCount = 0;
+                                                foreach (var collItem in compColl)
+                                                {
+                                                    if (collCount >= 5)
+                                                    {
+                                                        sb.AppendLine($"        ... and {compColl.Count - 5} more");
+                                                        break;
+                                                    }
+                                                    sb.AppendLine($"        [{collCount}] = {DumpValue(collItem, depth: 0)}");
+                                                    collCount++;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                sb.AppendLine($"      {compField.Name}: {DumpValue(compValue, depth: 0)}");
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            sb.AppendLine($"      {compField.Name}: <error: {ex.Message}>");
+                                        }
+                                    }
+                                    sb.AppendLine();
+                                }
+                            }
+                            // If it's a dictionary, dump ALL entries
+                            else if (value is System.Collections.IDictionary dict)
+                            {
+                                sb.AppendLine($"  Total entries: {dict.Count}");
+                                foreach (System.Collections.DictionaryEntry entry in dict)
+                                {
+                                    sb.AppendLine($"  [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                }
+                            }
+                            // If it's a collection (but not dictionary), dump ALL items
+                            else if (value is System.Collections.ICollection collection)
+                            {
+                                sb.AppendLine($"  Collection with {collection.Count} items");
+                                int count = 0;
+                                foreach (var item in collection)
+                                {
+                                    sb.AppendLine($"  [{count}] = {DumpValue(item, depth: 0)}");
+                                    count++;
+                                }
+                            }
+                            else
+                            {
+                                sb.AppendLine($"  {DumpValue(value, depth: 0)}");
+                            }
+                            sb.AppendLine();
+                        }
+                        catch (Exception ex)
+                        {
+                            sb.AppendLine($"WORLD.{field.Name}: <error: {ex.Message}>");
+                            sb.AppendLine();
+                        }
+                    }
+
+                    // Dump ALL properties
+                    var worldProps = worldType.GetProperties(
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic |
+                        System.Reflection.BindingFlags.Instance);
+
+                    sb.AppendLine($"--- WORLD PROPERTIES ({worldProps.Length} total) ---");
+                    sb.AppendLine();
+
+                    foreach (var prop in worldProps)
+                    {
+                        try
+                        {
+                            // Skip indexed properties (they require parameters)
+                            if (prop.GetIndexParameters().Length > 0)
+                            {
+                                sb.AppendLine($"WORLD.{prop.Name} (indexed property - skipped)");
+                                sb.AppendLine();
+                                continue;
+                            }
+
+                            var value = prop.GetValue(world);
+                            sb.AppendLine($"WORLD.{prop.Name} ({prop.PropertyType.Name}):");
+
+                            // Same logic as fields - dump EVERYTHING
+                            if (value is System.Collections.IDictionary dict)
+                            {
+                                sb.AppendLine($"  Total entries: {dict.Count}");
+                                foreach (System.Collections.DictionaryEntry entry in dict)
+                                {
+                                    sb.AppendLine($"  [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                }
+                            }
+                            else if (value is System.Collections.ICollection collection)
+                            {
+                                sb.AppendLine($"  Collection with {collection.Count} items");
+                                int count = 0;
+                                foreach (var item in collection)
+                                {
+                                    sb.AppendLine($"  [{count}] = {DumpValue(item, depth: 0)}");
+                                    count++;
+                                }
+                            }
+                            else
+                            {
+                                sb.AppendLine($"  {DumpValue(value, depth: 0)}");
+                            }
+                            sb.AppendLine();
+                        }
+                        catch (Exception ex)
+                        {
+                            sb.AppendLine($"WORLD.{prop.Name}: <error: {ex.Message}>");
+                            sb.AppendLine();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"Error inspecting World object: {ex.Message}");
+                }
+
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine("TILE DATA");
+                sb.AppendLine("=".PadRight(80, '='));
+                sb.AppendLine();
+
                 // Dump EVERY tile in the world
                 for (int tileId = 0; tileId < world.grid.TilesCount; tileId++)
                 {

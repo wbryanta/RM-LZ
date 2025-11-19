@@ -65,6 +65,18 @@ namespace LandingZone.Core.Filtering.Filters
             if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
                 LandingZoneLogger.LogStandard($"[LandingZone] MapFeatureFilter.Apply: Filtered {inputTiles.Count()} → {result.Count} tiles");
 
+            // Diagnostic: Log first 20 passing tiles and their features (helps debug Exotic/rare feature presets)
+            if (Prefs.DevMode && LandingZoneLogger.IsVerbose && result.Count > 0)
+            {
+                LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: First {System.Math.Min(20, result.Count)} passing tiles:");
+                foreach (var tileId in result.Take(20))
+                {
+                    var tileFeatures = GetTileMapFeatures(tileId).ToList();
+                    var featureList = tileFeatures.Count > 0 ? string.Join(", ", tileFeatures) : "(no features)";
+                    LandingZoneLogger.LogVerbose($"[LandingZone]   Tile {tileId}: [{featureList}]");
+                }
+            }
+
             return result;
         }
 

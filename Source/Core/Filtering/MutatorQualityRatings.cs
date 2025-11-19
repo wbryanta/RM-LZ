@@ -130,9 +130,18 @@ namespace LandingZone.Core.Filtering
         /// Returns 0 if mutator not found (treat as neutral).
         /// </summary>
         /// <param name="mutatorName">Mutator defName</param>
+        /// <param name="activePreset">Optional preset - if provided, checks for preset-specific overrides first</param>
         /// <returns>Quality rating from -10 (very bad) to +10 (very good)</returns>
-        public static int GetQuality(string mutatorName)
+        public static int GetQuality(string mutatorName, LandingZone.Data.Preset? activePreset = null)
         {
+            // Check preset-specific overrides first
+            if (activePreset?.MutatorQualityOverrides != null
+                && activePreset.MutatorQualityOverrides.TryGetValue(mutatorName, out int overrideQuality))
+            {
+                return overrideQuality;
+            }
+
+            // Fall back to global rating
             return _ratings.TryGetValue(mutatorName, out int quality) ? quality : 0;
         }
 
@@ -158,17 +167,18 @@ namespace LandingZone.Core.Filtering
         /// </summary>
         /// <param name="mutators">List of mutator defNames on tile</param>
         /// <param name="beta">Sensitivity parameter (default 0.25)</param>
+        /// <param name="activePreset">Optional preset for quality overrides</param>
         /// <returns>Mutator quality score [0,1]</returns>
-        public static float ComputeMutatorScore(IEnumerable<string> mutators, float beta = 0.25f)
+        public static float ComputeMutatorScore(IEnumerable<string> mutators, float beta = 0.25f, LandingZone.Data.Preset? activePreset = null)
         {
             if (mutators == null)
                 return 0.5f; // Neutral baseline
 
-            // Sum quality ratings
+            // Sum quality ratings (using preset-specific overrides if provided)
             float qRaw = 0f;
             foreach (var mutator in mutators)
             {
-                qRaw += GetQuality(mutator);
+                qRaw += GetQuality(mutator, activePreset);
             }
 
             // Squash via tanh: S_mut = 0.5 × (1 + tanh(β × Q_raw))

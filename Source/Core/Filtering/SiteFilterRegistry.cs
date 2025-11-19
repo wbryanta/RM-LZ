@@ -107,6 +107,7 @@ namespace LandingZone.Core.Filtering
                 "movement_difficulty" => settings.MovementDifficultyImportance,
                 "coastal" => settings.CoastalImportance,
                 "coastal_lake" => settings.CoastalLakeImportance,
+                "water_access" => settings.WaterAccessImportance, // Coastal OR any river
 
                 // Individual importance filters: Use max importance (Critical > Preferred > Ignored)
                 "river" => settings.Rivers.HasCritical ? FilterImportance.Critical :
@@ -128,6 +129,9 @@ namespace LandingZone.Core.Filtering
                 "adjacent_biomes" => settings.AdjacentBiomes.HasCritical ? FilterImportance.Critical :
                                      settings.AdjacentBiomes.HasPreferred ? FilterImportance.Preferred :
                                      FilterImportance.Ignored,
+                "stone" => settings.Stones.HasCritical ? FilterImportance.Critical :
+                           settings.Stones.HasPreferred ? FilterImportance.Preferred :
+                           FilterImportance.Ignored,
 
                 // Biome filter is always Critical if LockedBiome is set
                 "biome" => settings.LockedBiome != null ? FilterImportance.Critical : FilterImportance.Ignored,

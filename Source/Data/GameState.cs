@@ -10,15 +10,18 @@ namespace LandingZone.Data
             DefCache = defCache;
             Preferences = preferences;
             BestSiteProfile = profile;
+            MineralStockpileCache = new MineralStockpileCache();
         }
 
         public DefCache DefCache { get; }
         public UserPreferences Preferences { get; }
         public BestSiteProfile BestSiteProfile { get; }
+        public MineralStockpileCache MineralStockpileCache { get; }
 
         public void RefreshAll()
         {
             DefCache.Refresh();
+            MineralStockpileCache.Clear();
         }
     }
 }

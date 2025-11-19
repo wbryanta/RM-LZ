@@ -7,11 +7,12 @@ namespace LandingZone.Core.Filtering.Filters
 {
     /// <summary>
     /// Filters tiles by average temperature.
+    /// Uses RimWorld's native cached grid data - O(1) access, no computation required.
     /// </summary>
     public sealed class AverageTemperatureFilter : ISiteFilter
     {
         public string Id => "average_temperature";
-        public FilterHeaviness Heaviness => FilterHeaviness.Medium;
+        public FilterHeaviness Heaviness => FilterHeaviness.Light;
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {

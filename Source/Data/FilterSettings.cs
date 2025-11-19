@@ -82,6 +82,9 @@ namespace LandingZone.Data
         // Coastal (lake) - separate from ocean
         public FilterImportance CoastalLakeImportance { get; set; } = FilterImportance.Ignored;
 
+        // Water access (coastal OR any river) - symmetric helper for water-themed presets
+        public FilterImportance WaterAccessImportance { get; set; } = FilterImportance.Ignored;
+
         // Rivers (individual importance per river type)
         public IndividualImportanceContainer<string> Rivers { get; set; } = new IndividualImportanceContainer<string>();
 
@@ -197,6 +200,7 @@ namespace LandingZone.Data
 
             CoastalImportance = FilterImportance.Ignored;
             CoastalLakeImportance = FilterImportance.Ignored;
+            WaterAccessImportance = FilterImportance.Ignored;
 
             Rivers.Reset();
             Roads.Reset();

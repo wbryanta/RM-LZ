@@ -1318,15 +1318,24 @@ namespace LandingZone.Core.UI
             var allMatches = LandingZoneContext.LatestResults;
             var matches = GetFilteredAndSortedMatches(allMatches);
             var sb = new System.Text.StringBuilder();
+            var preset = LandingZoneContext.State?.Preferences?.ActivePreset;
+            var modeLabel = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode.ToString() ?? "Unknown";
+            var presetLabel = preset != null ? $"{preset.Id} ({preset.Name})" : (LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
 
             sb.AppendLine("========================================");
-            sb.AppendLine("LANDING ZONE MATCH DATA DUMP");
+            sb.AppendLine("LANDING ZONE [DEBUG] MATCH DATA DUMP");
             sb.AppendLine($"Total matches: {matches.Count} (filtered from {allMatches.Count})");
             sb.AppendLine($"Min score filter: {(_minScoreFilter > 0 ? $"{_minScoreFilter:P0}" : "All")}");
             sb.AppendLine($"Sort mode: {_sortMode}");
+            sb.AppendLine($"Preset: {presetLabel} | Mode: {modeLabel}");
+            if (preset != null)
+                sb.AppendLine($"Mutator overrides: Using ActivePreset ({preset.MutatorQualityOverrides.Count} overrides)");
+            sb.AppendLine($"Logging tier: {LandingZoneSettings.LogLevel} (dumping {(LandingZoneLogger.IsVerbose ? "ALL" : "top-3")} matches)");
             sb.AppendLine("========================================\n");
 
-            for (int i = 0; i < matches.Count && i < 50; i++) // Limit to first 50 for log size
+            int dumpLimit = LandingZoneLogger.IsVerbose ? matches.Count : Math.Min(3, matches.Count);
+
+            for (int i = 0; i < dumpLimit; i++)
             {
                 var match = matches[i];
                 var worldGrid = Find.World?.grid;
@@ -1394,9 +1403,10 @@ namespace LandingZone.Core.UI
                 sb.AppendLine(); // Blank line between matches
             }
 
-            if (matches.Count > 50)
+            int remaining = matches.Count - dumpLimit;
+            if (remaining > 0)
             {
-                sb.AppendLine($"... and {matches.Count - 50} more matches (truncated for log size)");
+                sb.AppendLine($"... and {remaining} more matches (truncated; enable verbose to log all)");
             }
 
             sb.AppendLine("========================================");

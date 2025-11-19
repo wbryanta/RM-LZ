@@ -11,11 +11,13 @@ namespace LandingZone.Core.UI
     public class Dialog_SavePreset : Window
     {
         private readonly FilterSettings _filters;
+        private readonly Preset? _activePreset;
         private string _presetName = "";
 
-        public Dialog_SavePreset(FilterSettings filters)
+        public Dialog_SavePreset(FilterSettings filters, Preset? activePreset = null)
         {
             _filters = filters;
+            _activePreset = activePreset;
             doCloseX = true;
             forcePause = true;
             absorbInputAroundWindow = true;
@@ -56,7 +58,7 @@ namespace LandingZone.Core.UI
                 }
                 else
                 {
-                    bool saved = PresetLibrary.SaveUserPreset(_presetName, _filters);
+                    bool saved = PresetLibrary.SaveUserPreset(_presetName, _filters, _activePreset);
                     if (saved)
                     {
                         Messages.Message($"Saved preset: {_presetName}", MessageTypeDefOf.PositiveEvent, false);

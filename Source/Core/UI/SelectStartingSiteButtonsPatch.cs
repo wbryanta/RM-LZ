@@ -165,14 +165,28 @@ namespace LandingZone.Core.UI
 
             const float navWidth = 44f;
             const float filtersWidth = 80f;
+            const float devWidth = 60f;
             const float topButtonWidth = 90f;
             const float innerGap = 6f;
 
-            // Top row: [ < ][ Search Landing Zones ][ Filters ][ Top (XX) ][ > ]
+            // Top row: [ < ][ Search Landing Zones ][ Filters ][ Dev? ][ Top (XX) ][ > ]
             var leftNavRect = new Rect(rect.x, rect.y, navWidth, rect.height);
             var rightNavRect = new Rect(rect.xMax - navWidth, rect.y, navWidth, rect.height);
             var topButtonRect = new Rect(rightNavRect.x - topButtonWidth - innerGap, rect.y, topButtonWidth, rect.height);
-            var filtersRect = new Rect(topButtonRect.x - filtersWidth - innerGap, rect.y, filtersWidth, rect.height);
+
+            // Insert Dev button if in dev mode
+            Rect devRect = default;
+            Rect filtersRect;
+            if (Prefs.DevMode)
+            {
+                devRect = new Rect(topButtonRect.x - devWidth - innerGap, rect.y, devWidth, rect.height);
+                filtersRect = new Rect(devRect.x - filtersWidth - innerGap, rect.y, filtersWidth, rect.height);
+            }
+            else
+            {
+                filtersRect = new Rect(topButtonRect.x - filtersWidth - innerGap, rect.y, filtersWidth, rect.height);
+            }
+
             float searchButtonWidth = filtersRect.x - innerGap - (leftNavRect.xMax + innerGap);
             var searchButtonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, searchButtonWidth, rect.height);
 
@@ -199,6 +213,19 @@ namespace LandingZone.Core.UI
                 TogglePreferencesWindow();
             }
             TooltipHandler.TipRegion(filtersRect, "Configure search filters and preferences");
+
+            // Dev button (Dev Mode only)
+            if (Prefs.DevMode)
+            {
+                var devPrevColor = GUI.color;
+                GUI.color = new Color(1f, 0.7f, 0.7f); // Pinkish to indicate dev-only
+                if (Widgets.ButtonText(devRect, "Dev"))
+                {
+                    Find.WindowStack.Add(new DevToolsWindow());
+                }
+                GUI.color = devPrevColor;
+                TooltipHandler.TipRegion(devRect, "Developer tools: logging, cache dump, performance test");
+            }
 
             // Top (XX) button - opens results window
             bool hasResults = LandingZoneContext.HasMatches;

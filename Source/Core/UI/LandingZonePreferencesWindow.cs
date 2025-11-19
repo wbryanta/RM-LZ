@@ -46,6 +46,13 @@ namespace LandingZone.Core.UI
             if (currentMode != options.PreferencesUIMode)
             {
                 options.PreferencesUIMode = currentMode;
+
+                // Clear ActivePreset when switching to Advanced mode
+                // (Advanced mode doesn't use presets, so quality overrides shouldn't apply)
+                if (currentMode == UIMode.Advanced && LandingZoneContext.State?.Preferences != null)
+                {
+                    LandingZoneContext.State.Preferences.ActivePreset = null;
+                }
             }
 
             // Content area (below mode toggle)
@@ -198,14 +205,60 @@ namespace LandingZone.Core.UI
                 }
             }
 
-            // Dev mode: Performance test button
+            // Dev mode: Developer tools section
             if (Prefs.DevMode)
             {
                 listing.GapLine(12f);
                 Text.Font = GameFont.Small;
                 listing.Label("=== DEVELOPER TOOLS ===");
-                listing.Gap(4f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Dev Mode only - hidden in release builds.");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
 
+                // Logging level selector
+                listing.Label($"Logging Level: {LandingZoneSettings.LogLevel.ToLabel()}");
+                if (listing.ButtonTextLabeled("Current level:", LandingZoneSettings.LogLevel.ToLabel()))
+                {
+                    var options = new System.Collections.Generic.List<FloatMenuOption>();
+                    foreach (LoggingLevel level in System.Enum.GetValues(typeof(LoggingLevel)))
+                    {
+                        options.Add(new FloatMenuOption(level.ToLabel() + " - " + level.GetTooltip(), () => {
+                            LandingZoneSettings.LogLevel = level;
+                            Messages.Message($"Logging level set to {level.ToLabel()}", MessageTypeDefOf.NeutralEvent, false);
+                        }));
+                    }
+                    Find.WindowStack.Add(new FloatMenu(options));
+                }
+
+                listing.Gap(4f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label(LandingZoneSettings.LogLevel.GetTooltip());
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+
+                listing.Gap(12f);
+
+                // Cache dump button
+                if (listing.ButtonText("[DEV] Dump FULL World Cache"))
+                {
+                    Log.Message("[LandingZone] Dumping FULL world cache (this may take a while)...");
+                    Diagnostics.WorldDataDumper.DumpWorldData();
+                }
+
+                listing.Gap(4f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Dumps all ~295k tiles with full property reflection to Config folder");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+
+                listing.Gap(12f);
+
+                // Performance test button
                 if (listing.ButtonText("[DEV] Run Performance Test"))
                 {
                     Log.Message("[LandingZone] Running performance test...");
@@ -214,12 +267,20 @@ namespace LandingZone.Core.UI
                 }
 
                 listing.Gap(4f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Benchmarks filter performance on current world");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
 
-                if (listing.ButtonText("[DEV] Dump FULL World Cache"))
-                {
-                    Log.Message("[LandingZone] Dumping FULL world cache (this may take a while)...");
-                    Diagnostics.WorldDataDumper.DumpWorldData();
-                }
+                listing.Gap(12f);
+
+                // Note about Results window DEBUG dump
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Note: [DEBUG] Dump button also available in Results window (top-right)");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
 
                 listing.Gap(12f);
             }

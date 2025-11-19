@@ -73,7 +73,7 @@ namespace LandingZone.Data
             var growingDays = (growingTwelfths?.Count ?? 0) * daysPerTwelfth;
 
             // EXPENSIVE: Stone types query (1-2ms per tile)
-            var stoneDefNames = world.NaturalRockTypesIn(tileId)?
+            var stoneDefNames = world.NaturalRockTypesIn(planetTile)?
                 .Where(t => t != null)
                 .Select(t => t.defName)
                 .ToArray() ?? System.Array.Empty<string>();

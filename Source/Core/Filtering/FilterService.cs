@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -45,14 +46,16 @@ namespace LandingZone.Core.Filtering
 
             // Geography filters
             _registry.Register(new Filters.CoastalFilter());
+            _registry.Register(new Filters.CoastalLakeFilter());
+            _registry.Register(new Filters.WaterAccessFilter()); // Coastal OR river helper for symmetric water requirements
             _registry.Register(new Filters.RiverFilter());
             _registry.Register(new Filters.RoadFilter());
             _registry.Register(new Filters.ElevationFilter());
-            _registry.Register(new Filters.CoastalLakeFilter());
 
             // Resource filters
             _registry.Register(new Filters.GrazeFilter());
             _registry.Register(new Filters.ForageableFoodFilter());
+            _registry.Register(new Filters.StoneFilter());
 
             // World features and landmarks (1.6+)
             _registry.Register(new Filters.WorldFeatureFilter());
@@ -243,12 +246,13 @@ namespace LandingZone.Core.Filtering
         {
             private readonly FilterService _owner;
             private readonly GameState _state;
-            private readonly List<CandidateTile> _candidates;
+            private readonly Data.Preset? _preset; // Track active preset for fallback logic
+            private List<CandidateTile> _candidates;
             private readonly List<IFilterPredicate> _heavyCriticals;
             private readonly List<IFilterPredicate> _heavyPreferreds;
-            private readonly int _totalCriticals;
-            private readonly int _totalPreferreds;
-            private readonly float _kappa;
+            private int _totalCriticals; // Not readonly - updated when fallback tiers activate
+            private int _totalPreferreds; // Not readonly - updated when fallback tiers activate
+            private float _kappa; // Not readonly - updated when fallback tiers activate
             private readonly float _strictness;
             private readonly FilterContext _context;
             private readonly PrecomputedBitsetCache _heavyBitsets = new PrecomputedBitsetCache();
@@ -263,21 +267,41 @@ namespace LandingZone.Core.Filtering
             private bool _precomputationComplete;
             private float _minInHeap;
             private float _currentStrictness; // Mutable strictness for auto-relax
+            private int _fallbackTierUsed = 0; // 0 = primary, 1+ = fallback tier index
 
             // For membership scoring
             private readonly List<ISiteFilter> _criticalFilters;
             private readonly List<ISiteFilter> _preferredFilters;
-            private readonly float[] _criticalWeights;
-            private readonly float[] _preferredWeights;
+            private float[] _criticalWeights; // Not readonly - updated when fallback tiers activate
+            private float[] _preferredWeights; // Not readonly - updated when fallback tiers activate
 
             internal FilterEvaluationJob(FilterService owner, GameState state)
             {
                 _owner = owner;
                 _state = state;
+                _preset = state.Preferences.ActivePreset; // Store preset for fallback logic
                 var filters = state.Preferences.GetActiveFilters();
                 _strictness = filters.CriticalStrictness;
+
+                // Apply preset's minimum strictness override if set
+                if (_preset?.MinimumStrictness != null)
+                {
+                    _strictness = Mathf.Max(_strictness, _preset.MinimumStrictness.Value);
+                    LandingZoneLogger.LogStandard($"[LandingZone] Preset '{_preset.Id}' enforces MinimumStrictness={_preset.MinimumStrictness:F2}");
+                }
+
                 _currentStrictness = _strictness; // Initialize current strictness
                 _maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
+                var preset = state.Preferences.ActivePreset;
+                var modeLabel = state.Preferences.Options.PreferencesUIMode.ToString();
+                var presetLabel = preset != null
+                    ? $"{preset.Id} ({preset.Name})"
+                    : (state.Preferences.Options.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
+
+                // Minimal/Standard/Verbose: Always log search start with key parameters
+                LandingZoneLogger.LogMinimal(
+                    $"[LandingZone] Search start: preset={presetLabel}, mode={modeLabel}, strictness={_strictness:F2}, maxResults={_maxResults}"
+                );
 
                 var grid = Find.World?.grid ?? throw new System.InvalidOperationException("World grid unavailable.");
                 _tileCount = grid.TilesCount;
@@ -286,8 +310,9 @@ namespace LandingZone.Core.Filtering
                 var worldSeed = Find.World?.info?.seedString ?? string.Empty;
                 _owner._tileCache.ResetIfWorldChanged(worldSeed);
 
-                // Log active filter configuration
+                // Standard/Verbose: Log filter configuration (Verbose gets detailed dump, Standard gets summary)
                 LogActiveFilters(filters);
+                LogActiveFiltersSummary(filters);
 
                 // STAGE A: Cheap aggregate gate (synchronous - fast enough)
                 var (cheapPredicates, heavyPredicates) = owner._registry.GetAllPredicates(state);
@@ -302,6 +327,13 @@ namespace LandingZone.Core.Filtering
                 _totalPreferreds = cheapPreferreds + _heavyPreferreds.Count;
                 _kappa = ScoringWeights.ComputeKappa(_totalCriticals, _totalPreferreds);
                 _context = new FilterContext(state, owner._tileCache);
+
+                // Eager-build MineralStockpileCache if StoneFilter is active (prevents lazy build during tile evaluation)
+                if (filters.Stones.HasAnyImportance)
+                {
+                    LandingZoneLogger.LogStandard("[LandingZone] Pre-building MineralStockpileCache for StoneFilter...");
+                    state.MineralStockpileCache.EnsureBuilt();
+                }
 
                 // Initialize membership scoring data structures
                 _criticalFilters = new List<ISiteFilter>();
@@ -337,6 +369,98 @@ namespace LandingZone.Core.Filtering
 
                 LandingZoneLogger.LogStandard($"[LandingZone] FilterEvaluationJob: Stage A complete, {_candidates.Count} candidates");
 
+                // FALLBACK LOGIC: If zero candidates and preset has fallback tiers, try them
+                if (_candidates.Count == 0 && _preset?.FallbackTiers != null && _preset.FallbackTiers.Count > 0)
+                {
+                    LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Primary filters yielded zero results. Trying fallback tiers...");
+
+                    // Special warning for Exotic preset - ArcheanTrees might be missing
+                    if (_preset.Id == "exotic")
+                    {
+                        LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Exotic preset: ArcheanTrees anchor yielded zero results.");
+                        LandingZoneLogger.LogStandard($"[LandingZone]    → Possible causes: Biotech DLC not installed, or ArcheanTrees def missing from mod loadout.");
+                    }
+
+                    foreach (var (tier, index) in _preset.FallbackTiers.Select((t, i) => (t, i)))
+                    {
+                        LandingZoneLogger.LogStandard($"[LandingZone] Attempting Tier {index + 2}: {tier.Name}");
+
+                        // Create temporary state with fallback filters
+                        var tempPrefs = new UserPreferences();
+                        tempPrefs.SimpleFilters.CopyFrom(tier.Filters);
+                        var tempState = new GameState(_state.DefCache, tempPrefs, _state.BestSiteProfile);
+
+                        // Get predicates for fallback filters
+                        var (cheapFallback, heavyFallback) = owner._registry.GetAllPredicates(tempState);
+                        int fallbackTotalCrits = cheapFallback.Count(p => p.Importance == FilterImportance.Critical) +
+                                                  heavyFallback.Count(p => p.Importance == FilterImportance.Critical);
+                        int fallbackTotalPrefs = cheapFallback.Count(p => p.Importance == FilterImportance.Preferred) +
+                                                  heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
+                        int fallbackHeavyCrits = heavyFallback.Count(p => p.Importance == FilterImportance.Critical);
+                        int fallbackHeavyPrefs = heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
+
+                        // Re-run aggregator with fallback predicates
+                        var fallbackAggregator = new BitsetAggregator(
+                            cheapFallback,
+                            fallbackHeavyCrits,
+                            fallbackHeavyPrefs,
+                            _context,
+                            _tileCount
+                        );
+
+                        _candidates = fallbackAggregator.GetCandidates(_strictness, maxCandidates);
+
+                        if (_candidates.Count > 0)
+                        {
+                            _fallbackTierUsed = index + 1; // 1-indexed (Tier 2 = index 0 in list)
+                            LandingZoneLogger.LogStandard($"[LandingZone] ✓ Tier {index + 2} ({tier.Name}) yielded {_candidates.Count} candidates");
+
+                            // CRITICAL: Update scoring context to use fallback tier's filters
+                            // Otherwise, scoring phase still checks against original preset's Critical requirements
+                            _state.Preferences.SimpleFilters.CopyFrom(tier.Filters);
+
+                            // Re-initialize scoring filters from fallback tier
+                            _criticalFilters.Clear();
+                            _preferredFilters.Clear();
+                            var fallbackFilters = tier.Filters;
+
+                            foreach (var filter in owner._registry.Filters)
+                            {
+                                var importance = SiteFilterRegistry.GetFilterImportance(filter.Id, fallbackFilters);
+
+                                if (importance == FilterImportance.Critical)
+                                    _criticalFilters.Add(filter);
+                                else if (importance == FilterImportance.Preferred)
+                                    _preferredFilters.Add(filter);
+                            }
+
+                            // Update weights (equal weights for now)
+                            Array.Resize(ref _criticalWeights, _criticalFilters.Count);
+                            Array.Resize(ref _preferredWeights, _preferredFilters.Count);
+                            for (int i = 0; i < _criticalWeights.Length; i++) _criticalWeights[i] = 1f;
+                            for (int i = 0; i < _preferredWeights.Length; i++) _preferredWeights[i] = 1f;
+
+                            // Update totals
+                            _totalCriticals = fallbackTotalCrits;
+                            _totalPreferreds = fallbackTotalPrefs;
+                            _kappa = ScoringWeights.ComputeKappa(_totalCriticals, _totalPreferreds);
+
+                            LandingZoneLogger.LogStandard($"[LandingZone] Updated scoring context: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters (from Tier {index + 2})");
+
+                            break; // Stop trying fallbacks once we have results
+                        }
+                        else
+                        {
+                            LandingZoneLogger.LogStandard($"[LandingZone] ✗ Tier {index + 2} ({tier.Name}) also yielded zero results");
+                        }
+                    }
+
+                    if (_candidates.Count == 0)
+                    {
+                        LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ All fallback tiers exhausted. No results found.");
+                    }
+                }
+
                 // Start incremental precomputation for all heavy predicates
                 _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
                 if (_heavyPredicateCount > 0)
@@ -358,13 +482,13 @@ namespace LandingZone.Core.Filtering
 
             private static void LogActiveFilters(FilterSettings filters)
             {
-                // Only log filter configuration in Standard or Verbose mode
-                if (!LandingZoneLogger.IsStandardOrVerbose)
+                // Only log detailed filter configuration in Verbose mode
+                if (!LandingZoneLogger.IsVerbose)
                     return;
 
-                LandingZoneLogger.LogStandard($"[LandingZone] === Active Filter Configuration ===");
-                LandingZoneLogger.LogStandard($"[LandingZone] Strictness: {filters.CriticalStrictness:F2} (1.0 = all criticals required)");
-                LandingZoneLogger.LogStandard($"[LandingZone] MaxResults: {filters.MaxResults}");
+                LandingZoneLogger.LogVerbose($"[LandingZone] === Active Filter Configuration ===");
+                LandingZoneLogger.LogVerbose($"[LandingZone] Strictness: {filters.CriticalStrictness:F2} (1.0 = all criticals required)");
+                LandingZoneLogger.LogVerbose($"[LandingZone] MaxResults: {filters.MaxResults}");
 
                 // Critical filters
                 var criticals = new List<string>();
@@ -378,9 +502,9 @@ namespace LandingZone.Core.Filtering
                 if (filters.GrazeImportance == FilterImportance.Critical) criticals.Add("Graze");
 
                 if (criticals.Count > 0)
-                    LandingZoneLogger.LogStandard($"[LandingZone] Critical filters: {string.Join(", ", criticals)}");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Critical filters: {string.Join(", ", criticals)}");
                 else
-                    LandingZoneLogger.LogStandard($"[LandingZone] Critical filters: (none)");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Critical filters: (none)");
 
                 // Preferred filters
                 var preferreds = new List<string>();
@@ -401,11 +525,77 @@ namespace LandingZone.Core.Filtering
                 if (filters.FeatureImportance == FilterImportance.Preferred) preferreds.Add("Feature");
 
                 if (preferreds.Count > 0)
-                    LandingZoneLogger.LogStandard($"[LandingZone] Preferred filters: {string.Join(", ", preferreds)}");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Preferred filters: {string.Join(", ", preferreds)}");
                 else
-                    LandingZoneLogger.LogStandard($"[LandingZone] Preferred filters: (none)");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Preferred filters: (none)");
 
-                LandingZoneLogger.LogStandard($"[LandingZone] =====================================");
+                LandingZoneLogger.LogVerbose($"[LandingZone] =====================================");
+            }
+
+            /// <summary>
+            /// Standard mode: Log concise filter summary (one block, no stack traces)
+            /// </summary>
+            private static void LogActiveFiltersSummary(FilterSettings filters)
+            {
+                // Only in Standard mode (not Minimal, not Verbose - Verbose has its own detailed dump)
+                if (!LandingZoneLogger.IsStandardOrVerbose || LandingZoneLogger.IsVerbose)
+                    return;
+
+                var criticals = new List<string>();
+                var preferreds = new List<string>();
+
+                // Climate & Environment
+                if (filters.AverageTemperatureImportance == FilterImportance.Critical) criticals.Add($"AvgTemp[{filters.AverageTemperatureRange.min:F0}-{filters.AverageTemperatureRange.max:F0}°C]");
+                else if (filters.AverageTemperatureImportance == FilterImportance.Preferred) preferreds.Add("AvgTemp");
+
+                if (filters.RainfallImportance == FilterImportance.Critical) criticals.Add($"Rain[{filters.RainfallRange.min:F0}-{filters.RainfallRange.max:F0}mm]");
+                else if (filters.RainfallImportance == FilterImportance.Preferred) preferreds.Add("Rain");
+
+                if (filters.GrowingDaysImportance == FilterImportance.Critical) criticals.Add($"Growing[{filters.GrowingDaysRange.min:F0}-{filters.GrowingDaysRange.max:F0}d]");
+                else if (filters.GrowingDaysImportance == FilterImportance.Preferred) preferreds.Add("Growing");
+
+                // Water
+                if (filters.WaterAccessImportance == FilterImportance.Critical) criticals.Add("WaterAccess");
+                else if (filters.CoastalImportance == FilterImportance.Critical) criticals.Add("Coastal");
+                else if (filters.CoastalImportance == FilterImportance.Preferred) preferreds.Add("Coastal");
+
+                // Map features - show specific features if small set (<=3 Critical)
+                if (filters.MapFeatures.HasCritical)
+                {
+                    var critFeatures = filters.MapFeatures.ItemImportance
+                        .Where(kvp => kvp.Value == FilterImportance.Critical)
+                        .Select(kvp => kvp.Key)
+                        .ToList();
+
+                    if (critFeatures.Count <= 3)
+                        criticals.Add($"MapFeatures[{string.Join("+", critFeatures)}]({filters.MapFeatures.Operator})");
+                    else
+                        criticals.Add($"MapFeatures({filters.MapFeatures.Operator}, {critFeatures.Count} critical)");
+                }
+                else if (filters.MapFeatures.HasPreferred) preferreds.Add("MapFeatures");
+
+                // Biome lock
+                if (filters.LockedBiome != null) criticals.Add($"Biome[{filters.LockedBiome.label}]");
+
+                // Rivers
+                if (filters.Rivers.HasCritical) criticals.Add($"Rivers({filters.Rivers.Operator})");
+                else if (filters.Rivers.HasPreferred) preferreds.Add("Rivers");
+
+                // Landmark
+                if (filters.LandmarkImportance == FilterImportance.Critical) criticals.Add("Landmark");
+                else if (filters.LandmarkImportance == FilterImportance.Preferred) preferreds.Add("Landmark");
+
+                // Stones
+                if (filters.Stones.HasCritical) criticals.Add($"Stones({filters.Stones.Operator})");
+                else if (filters.Stones.HasPreferred) preferreds.Add("Stones");
+
+                // Build summary
+                string critSummary = criticals.Count > 0 ? string.Join(", ", criticals) : "(none)";
+                string prefSummary = preferreds.Count > 0 ? string.Join(", ", preferreds) : "(none)";
+
+                LandingZoneLogger.LogStandard($"[LandingZone] Active filters - Critical: {critSummary}");
+                if (preferreds.Count > 0)
+                    LandingZoneLogger.LogStandard($"[LandingZone] Active filters - Preferred: {prefSummary}");
             }
 
             public bool Step(int iterations)
@@ -534,23 +724,36 @@ namespace LandingZone.Core.Filtering
                     _stopwatch.Stop();
                     _completed = true;
 
-                    // Always show final results (Brief, Standard, Verbose)
+                    // Compute best score (top result's score, or 0 if no results)
+                    float bestScore = _results.Count > 0 ? _results[0].Score : 0f;
+
+                    // Get preset label for completion line
+                    var preset = _state.Preferences.ActivePreset;
+                    var presetLabel = preset != null
+                        ? $"{preset.Id} ({preset.Name})"
+                        : (_state.Preferences.Options.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
+                    var modeLabel = _state.Preferences.Options.PreferencesUIMode.ToString();
+
+                    // CRITICAL=0 WARNING: If we have zero critical filters, warn user
+                    if (_totalCriticals == 0)
+                    {
+                        LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ No Critical filters active (preset={presetLabel}). Results are unfiltered!");
+                    }
+
+                    // Minimal/Standard/Verbose: Always log completion with key metrics
+                    string tierSuffix = _fallbackTierUsed > 0 ? $", tier={_fallbackTierUsed + 1}" : "";
+                    LandingZoneLogger.LogMinimal(
+                        $"[LandingZone] Search complete: preset={presetLabel}, mode={modeLabel}, results={_results.Count}, " +
+                        $"bestScore={bestScore:F4}, strictness={_currentStrictness:F2}, duration={_stopwatch.ElapsedMilliseconds}ms{tierSuffix}"
+                    );
+
+                    // Standard/Verbose: Additional context about relaxed strictness
                     if (_results.Count > 0 && _currentStrictness < 1.0f)
                     {
                         int requiredMatches = Mathf.CeilToInt(_totalCriticals * _currentStrictness);
                         LandingZoneLogger.LogStandard($"[LandingZone] 💡 No tiles matched all {_totalCriticals} criticals. Showing tiles matching {requiredMatches} of {_totalCriticals}.");
                     }
 
-                    // Final result summary - show appropriate message based on scoring system
-                    if (_state.Preferences.Options.UseNewScoring)
-                    {
-                        LandingZoneLogger.LogStandard($"[LandingZone] Membership-based scoring complete: {_results.Count} results in {_stopwatch.ElapsedMilliseconds}ms");
-                    }
-                    else
-                    {
-                        // Legacy k-of-n scoring
-                        LandingZoneContext.LogMessage($"K-of-N evaluation: {_results.Count} results, {_owner._tileCache.CachedCount} cached");
-                    }
                     return true;
                 }
 
@@ -613,9 +816,10 @@ namespace LandingZone.Core.Filtering
                     mutatorWeight
                 );
 
-                // Compute mutator quality score
+                // Compute mutator quality score (with preset-specific overrides if active)
                 var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
-                float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators);
+                var activePreset = _context.State.Preferences.ActivePreset;
+                float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators, 0.25f, activePreset);
 
                 // Compute final membership score
                 float finalScore = ScoringWeights.ComputeMembershipScore(
@@ -711,6 +915,7 @@ namespace LandingZone.Core.Filtering
                 var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
                 var mutatorContributions = new List<MutatorContribution>();
                 var mapFeaturesFilter = _state.Preferences.GetActiveFilters().MapFeatures;
+                var activePreset = _state.Preferences.ActivePreset; // Get active preset for quality overrides
 
                 if (tileMutators != null)
                 {
@@ -722,12 +927,43 @@ namespace LandingZone.Core.Filtering
                         if (importance == FilterImportance.Critical || importance == FilterImportance.Preferred)
                             continue;
 
-                        int quality = MutatorQualityRatings.GetQuality(mutator);
+                        // Use preset-specific quality overrides if active preset exists
+                        int quality = MutatorQualityRatings.GetQuality(mutator, activePreset);
                         if (quality != 0) // Only include non-neutral
                         {
                             // Approximate contribution (actual is more complex)
                             float contribution = quality * 0.01f; // Rough estimate
                             mutatorContributions.Add(new MutatorContribution(mutator, quality, contribution));
+                        }
+                    }
+                }
+
+                // Collect stone/mineral contributions (from MineralStockpileCache)
+                var stonesFilter = _state.Preferences.GetActiveFilters().Stones;
+                var tileStones = _state.MineralStockpileCache.GetMineralTypes(tileId);
+                if (tileStones != null && tileStones.Count > 0)
+                {
+                    foreach (var stone in tileStones)
+                    {
+                        // Show stones that matched user preferences (Critical or Preferred)
+                        var importance = stonesFilter.GetImportance(stone);
+                        if (importance == FilterImportance.Critical || importance == FilterImportance.Preferred)
+                        {
+                            // Stones matched user preferences - give positive contribution
+                            // Use quality rating: Plasteel/Uranium = +8, Gold/Jade = +6, Silver/Components = +4
+                            int quality = stone switch
+                            {
+                                "MineablePlasteel" => 8,
+                                "MineableUranium" => 8,
+                                "MineableGold" => 6,
+                                "MineableJade" => 6,
+                                "MineableSilver" => 4,
+                                "MineableComponentsIndustrial" => 4,
+                                _ => 2 // Unknown ores get small bonus
+                            };
+
+                            float contribution = quality * 0.01f;
+                            mutatorContributions.Add(new MutatorContribution(stone, quality, contribution));
                         }
                     }
                 }
