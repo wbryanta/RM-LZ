@@ -38,8 +38,8 @@ namespace LandingZone.Core.UI
             var options = LandingZoneContext.State?.Preferences.Options ?? new LandingZoneOptions();
             var currentMode = options.PreferencesUIMode;
 
-            // Mode toggle header (before scroll view)
-            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 60f);
+            // Mode toggle header (before scroll view) - expanded for 3-tier layout
+            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 100f);
             DrawModeToggle(headerRect, ref currentMode);
 
             // Save mode change if toggled
@@ -55,8 +55,8 @@ namespace LandingZone.Core.UI
                 }
             }
 
-            // Content area (below mode toggle)
-            var contentRect = new Rect(inRect.x, inRect.y + 70f, inRect.width, inRect.height - 70f);
+            // Content area (below mode toggle) - adjusted for taller 3-tier header
+            var contentRect = new Rect(inRect.x, inRect.y + 110f, inRect.width, inRect.height - 110f);
 
             // Render appropriate mode UI
             if (currentMode == UIMode.Simple)
@@ -73,7 +73,7 @@ namespace LandingZone.Core.UI
 
         private void DrawModeToggle(Rect rect, ref UIMode currentMode)
         {
-            // Mode toggle buttons (Simple | Advanced)
+            // Three-tier mode toggle: Preset Hub (Tier 1) | Guided Builder (Tier 2) | Advanced Studio (Tier 3)
             var buttonWidth = 120f;
             var spacing = 10f;
             var totalWidth = (buttonWidth * 2) + spacing;
@@ -82,17 +82,15 @@ namespace LandingZone.Core.UI
             var simpleRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
             var advancedRect = new Rect(startX + buttonWidth + spacing, rect.y + 5f, buttonWidth, 30f);
 
-            // Simple button - draw with visual highlight if active, but only switch if NOT already simple
+            // Preset Hub button (Tier 1)
             var isSimple = currentMode == UIMode.Simple;
-
-            // Visual styling for active button
             var prevColor = GUI.color;
             if (isSimple)
             {
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
             }
 
-            if (Widgets.ButtonText(simpleRect, "Simple"))
+            if (Widgets.ButtonText(simpleRect, "Preset Hub"))
             {
                 if (!isSimple)
                 {
@@ -102,9 +100,8 @@ namespace LandingZone.Core.UI
 
             GUI.color = prevColor;
 
-            // Advanced button - same pattern
+            // Advanced Studio button (Tier 3)
             var isAdvanced = currentMode == UIMode.Advanced;
-
             if (isAdvanced)
             {
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
@@ -120,13 +117,21 @@ namespace LandingZone.Core.UI
 
             GUI.color = prevColor;
 
-            // Helper text explaining mode independence
-            var helpTextRect = new Rect(rect.x, rect.y + 40f, rect.width, 18f);
+            // Guided Builder button (Tier 2) - centered below
+            var guidedRect = new Rect(rect.x + (rect.width - buttonWidth) / 2f, rect.y + 40f, buttonWidth, 30f);
+            if (Widgets.ButtonText(guidedRect, "Guided Builder"))
+            {
+                // Open Guided Builder wizard (separate window)
+                Find.WindowStack.Add(new GuidedBuilderWindow());
+            }
+
+            // Helper text
+            var helpTextRect = new Rect(rect.x, rect.y + 75f, rect.width, 18f);
             Text.Font = GameFont.Tiny;
             var prevTextColor = GUI.color;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(helpTextRect, "Each mode maintains its own filter settings that persist across sessions.");
+            Widgets.Label(helpTextRect, "Preset Hub: Quick starts | Guided Builder: Goal-based wizard | Advanced: Full control");
             GUI.color = prevTextColor;
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
