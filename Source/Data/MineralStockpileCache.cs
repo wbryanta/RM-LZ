@@ -20,14 +20,16 @@ namespace LandingZone.Data
         private bool _isBuilding = false;
 
         /// <summary>
-        /// Details about a tile's minerals and stockpiles.
+        /// Details about a tile's minerals, stockpiles, animals, and plants.
         /// </summary>
         public readonly struct TileDetail
         {
-            public TileDetail(List<string> minerals, List<string> stockpiles)
+            public TileDetail(List<string> minerals, List<string> stockpiles, List<string> animals, List<string> plants)
             {
                 Minerals = minerals;
                 Stockpiles = stockpiles;
+                Animals = animals;
+                Plants = plants;
             }
 
             /// <summary>
@@ -36,9 +38,19 @@ namespace LandingZone.Data
             public List<string> Minerals { get; }
 
             /// <summary>
-            /// Stockpile contents (reserved for future use)
+            /// Stockpile contents from TileMutatorWorker_Stockpile.GetStockpileType (e.g., "Weapons", "Medicine", "Gravcore")
             /// </summary>
             public List<string> Stockpiles { get; }
+
+            /// <summary>
+            /// Flagship animal species from TileMutatorWorker_AnimalHabitat.GetAnimalKind (e.g., "Thrumbo", "Megasloth", "Elephant")
+            /// </summary>
+            public List<string> Animals { get; }
+
+            /// <summary>
+            /// Flagship plant species from TileMutatorWorker_PlantGrove/WildPlants.GetPlantKind (e.g., "Plant_Ambrosia", "Plant_Healroot")
+            /// </summary>
+            public List<string> Plants { get; }
         }
 
         /// <summary>
@@ -75,6 +87,50 @@ namespace LandingZone.Data
         }
 
         /// <summary>
+        /// Gets flagship animal species for a tile, or empty list if not cached.
+        /// </summary>
+        public List<string> GetAnimalSpecies(int tileId)
+        {
+            EnsureInitialized();
+            return _cache != null && _cache.TryGetValue(tileId, out var detail)
+                ? detail.Animals
+                : new List<string>();
+        }
+
+        /// <summary>
+        /// Checks if a tile has a specific animal species.
+        /// </summary>
+        public bool HasAnimal(int tileId, string defName)
+        {
+            EnsureInitialized();
+            return _cache != null
+                && _cache.TryGetValue(tileId, out var detail)
+                && detail.Animals.Contains(defName);
+        }
+
+        /// <summary>
+        /// Gets flagship plant species for a tile, or empty list if not cached.
+        /// </summary>
+        public List<string> GetPlantSpecies(int tileId)
+        {
+            EnsureInitialized();
+            return _cache != null && _cache.TryGetValue(tileId, out var detail)
+                ? detail.Plants
+                : new List<string>();
+        }
+
+        /// <summary>
+        /// Checks if a tile has a specific plant species.
+        /// </summary>
+        public bool HasPlant(int tileId, string defName)
+        {
+            EnsureInitialized();
+            return _cache != null
+                && _cache.TryGetValue(tileId, out var detail)
+                && detail.Plants.Contains(defName);
+        }
+
+        /// <summary>
         /// Clears the cache.
         /// </summary>
         public void Clear()
@@ -87,13 +143,15 @@ namespace LandingZone.Data
         /// <summary>
         /// Gets cache statistics for debugging.
         /// </summary>
-        public (int mineralTiles, int stockpileTiles) GetCacheStats()
+        public (int mineralTiles, int stockpileTiles, int animalTiles, int plantTiles) GetCacheStats()
         {
-            if (_cache == null) return (0, 0);
+            if (_cache == null) return (0, 0, 0, 0);
 
             int mineralTiles = _cache.Count(kvp => kvp.Value.Minerals.Count > 0);
             int stockpileTiles = _cache.Count(kvp => kvp.Value.Stockpiles.Count > 0);
-            return (mineralTiles, stockpileTiles);
+            int animalTiles = _cache.Count(kvp => kvp.Value.Animals.Count > 0);
+            int plantTiles = _cache.Count(kvp => kvp.Value.Plants.Count > 0);
+            return (mineralTiles, stockpileTiles, animalTiles, plantTiles);
         }
 
         /// <summary>
@@ -151,11 +209,14 @@ namespace LandingZone.Data
                 int tileCount = world.grid.TilesCount;
                 int mineralCount = 0;
                 int stockpileCount = 0;
+                int animalCount = 0;
+                int plantCount = 0;
 
                 // Whitelist of known valid ore defNames (based on canonical world data)
                 var validOres = new HashSet<string>
                 {
                     "MineableSilver",
+                    "MineableSteel",        // Core construction resource (compacted steel)
                     "MineableUranium",
                     "MineablePlasteel",
                     "MineableGold",
@@ -181,6 +242,8 @@ namespace LandingZone.Data
 
                     var minerals = new List<string>();
                     var stockpiles = new List<string>();
+                    var animals = new List<string>();
+                    var plants = new List<string>();
 
                     // Resolve MineralRich to specific ore types (valuable minerals)
                     var mineralRichMutator = mutators.FirstOrDefault(m => m.defName == "MineralRich");
@@ -210,17 +273,120 @@ namespace LandingZone.Data
                         }
                     }
 
-                    // TODO: Resolve Stockpile contents when we add that feature
-                    if (mutators.Any(m => m.defName == "Stockpile"))
+                    // Resolve Stockpile to specific loot types (Chemfuel, Component, Drugs, Gravcore, Medicine, Weapons)
+                    var stockpileMutator = mutators.FirstOrDefault(m => m.defName == "Stockpile");
+                    if (stockpileMutator != null && stockpileMutator.Worker != null)
                     {
-                        // Placeholder - we'd need to research how to resolve stockpile contents
-                        stockpileCount++;
+                        var planetTile = new PlanetTile(tileId, world.grid.Surface);
+
+                        // Use reflection to call private static GetStockpileType(PlanetTile)
+                        // Returns TileMutatorWorker_Stockpile.StockpileType enum
+                        var method = AccessTools.Method(stockpileMutator.Worker.GetType(), "GetStockpileType");
+                        if (method != null)
+                        {
+                            try
+                            {
+                                var stockpileTypeEnum = method.Invoke(null, new object[] { planetTile }); // Static method
+                                if (stockpileTypeEnum != null)
+                                {
+                                    string stockpileTypeName = stockpileTypeEnum.ToString(); // Enum to string: "Chemfuel", "Component", etc.
+                                    stockpiles.Add(stockpileTypeName);
+                                    stockpileCount++;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                if (LandingZoneSettings.LogLevel >= LoggingLevel.Verbose)
+                                    Log.Warning($"[LandingZone] MineralStockpileCache: Failed to resolve stockpile at tile {tileId}: {ex.Message}");
+                            }
+                        }
+                    }
+
+                    // Resolve AnimalHabitat to flagship species (Thrumbo, Megasloth, Elephant, etc.)
+                    var animalHabitatMutator = mutators.FirstOrDefault(m => m.defName == "AnimalHabitat");
+                    if (animalHabitatMutator != null && animalHabitatMutator.Worker != null)
+                    {
+                        var planetTile = new PlanetTile(tileId, world.grid.Surface);
+
+                        // GetAnimalKind is public instance method
+                        var method = AccessTools.Method(animalHabitatMutator.Worker.GetType(), "GetAnimalKind");
+                        if (method != null)
+                        {
+                            try
+                            {
+                                var animalDef = method.Invoke(animalHabitatMutator.Worker, new object[] { planetTile }) as Verse.PawnKindDef;
+                                if (animalDef != null)
+                                {
+                                    animals.Add(animalDef.defName); // e.g., "Thrumbo", "Megasloth", "Elephant"
+                                    animalCount++;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                if (LandingZoneSettings.LogLevel >= LoggingLevel.Verbose)
+                                    Log.Warning($"[LandingZone] MineralStockpileCache: Failed to resolve animal at tile {tileId}: {ex.Message}");
+                            }
+                        }
+                    }
+
+                    // Resolve PlantGrove to flagship plant species (Ambrosia, Healroot, Devilstrand, etc.)
+                    var plantGroveMutator = mutators.FirstOrDefault(m => m.defName == "PlantGrove");
+                    if (plantGroveMutator != null && plantGroveMutator.Worker != null)
+                    {
+                        var planetTile = new PlanetTile(tileId, world.grid.Surface);
+
+                        // GetPlantKind is private instance method
+                        var method = AccessTools.Method(plantGroveMutator.Worker.GetType(), "GetPlantKind");
+                        if (method != null)
+                        {
+                            try
+                            {
+                                var plantDef = method.Invoke(plantGroveMutator.Worker, new object[] { planetTile }) as Verse.ThingDef;
+                                if (plantDef != null)
+                                {
+                                    plants.Add(plantDef.defName); // e.g., "Plant_Ambrosia", "Plant_Healroot"
+                                    plantCount++;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                if (LandingZoneSettings.LogLevel >= LoggingLevel.Verbose)
+                                    Log.Warning($"[LandingZone] MineralStockpileCache: Failed to resolve plant grove at tile {tileId}: {ex.Message}");
+                            }
+                        }
+                    }
+
+                    // Resolve WildPlants to flagship plant species
+                    var wildPlantsMutator = mutators.FirstOrDefault(m => m.defName == "WildPlants");
+                    if (wildPlantsMutator != null && wildPlantsMutator.Worker != null)
+                    {
+                        var planetTile = new PlanetTile(tileId, world.grid.Surface);
+
+                        // GetPlantKind is private instance method
+                        var method = AccessTools.Method(wildPlantsMutator.Worker.GetType(), "GetPlantKind");
+                        if (method != null)
+                        {
+                            try
+                            {
+                                var plantDef = method.Invoke(wildPlantsMutator.Worker, new object[] { planetTile }) as Verse.ThingDef;
+                                if (plantDef != null)
+                                {
+                                    plants.Add(plantDef.defName); // e.g., "Plant_Berry", "Plant_Healroot"
+                                    plantCount++;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                if (LandingZoneSettings.LogLevel >= LoggingLevel.Verbose)
+                                    Log.Warning($"[LandingZone] MineralStockpileCache: Failed to resolve wild plants at tile {tileId}: {ex.Message}");
+                            }
+                        }
                     }
 
                     // Only cache tiles that have something
-                    if (minerals.Count > 0 || stockpiles.Count > 0)
+                    if (minerals.Count > 0 || stockpiles.Count > 0 || animals.Count > 0 || plants.Count > 0)
                     {
-                        _cache[tileId] = new TileDetail(minerals, stockpiles);
+                        _cache[tileId] = new TileDetail(minerals, stockpiles, animals, plants);
                     }
                 }
 
@@ -229,7 +395,7 @@ namespace LandingZone.Data
                 if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
                 {
                     Log.Message($"[LandingZone] MineralStockpileCache: Built cache in {sw.ElapsedMilliseconds}ms " +
-                               $"({mineralCount} MineralRich, {stockpileCount} Stockpile tiles cached)");
+                               $"({mineralCount} MineralRich, {stockpileCount} Stockpile, {animalCount} AnimalHabitat, {plantCount} PlantGrove/WildPlants tiles cached)");
 
                     // Log mineral type distribution for debugging
                     var mineralTypes = new Dictionary<string, int>();
@@ -247,6 +413,60 @@ namespace LandingZone.Data
                     {
                         var summary = string.Join(", ", mineralTypes.OrderByDescending(kvp => kvp.Value).Select(kvp => $"{kvp.Key}:{kvp.Value}"));
                         Log.Message($"[LandingZone] MineralStockpileCache: Mineral distribution: {summary}");
+                    }
+
+                    // Log stockpile type distribution for debugging
+                    var stockpileTypes = new Dictionary<string, int>();
+                    foreach (var detail in _cache.Values)
+                    {
+                        foreach (var stockpile in detail.Stockpiles)
+                        {
+                            if (!stockpileTypes.ContainsKey(stockpile))
+                                stockpileTypes[stockpile] = 0;
+                            stockpileTypes[stockpile]++;
+                        }
+                    }
+
+                    if (stockpileTypes.Count > 0)
+                    {
+                        var summary = string.Join(", ", stockpileTypes.OrderByDescending(kvp => kvp.Value).Select(kvp => $"{kvp.Key}:{kvp.Value}"));
+                        Log.Message($"[LandingZone] MineralStockpileCache: Stockpile distribution: {summary}");
+                    }
+
+                    // Log animal species distribution for debugging
+                    var animalSpecies = new Dictionary<string, int>();
+                    foreach (var detail in _cache.Values)
+                    {
+                        foreach (var animal in detail.Animals)
+                        {
+                            if (!animalSpecies.ContainsKey(animal))
+                                animalSpecies[animal] = 0;
+                            animalSpecies[animal]++;
+                        }
+                    }
+
+                    if (animalSpecies.Count > 0)
+                    {
+                        var summary = string.Join(", ", animalSpecies.OrderByDescending(kvp => kvp.Value).Select(kvp => $"{kvp.Key}:{kvp.Value}"));
+                        Log.Message($"[LandingZone] MineralStockpileCache: Animal distribution: {summary}");
+                    }
+
+                    // Log plant species distribution for debugging
+                    var plantSpecies = new Dictionary<string, int>();
+                    foreach (var detail in _cache.Values)
+                    {
+                        foreach (var plant in detail.Plants)
+                        {
+                            if (!plantSpecies.ContainsKey(plant))
+                                plantSpecies[plant] = 0;
+                            plantSpecies[plant]++;
+                        }
+                    }
+
+                    if (plantSpecies.Count > 0)
+                    {
+                        var summary = string.Join(", ", plantSpecies.OrderByDescending(kvp => kvp.Value).Select(kvp => $"{kvp.Key}:{kvp.Value}"));
+                        Log.Message($"[LandingZone] MineralStockpileCache: Plant distribution: {summary}");
                     }
 
                     // Warn about unknown ores (not in whitelist)

@@ -56,6 +56,7 @@ namespace LandingZone.Core.Filtering
             _registry.Register(new Filters.GrazeFilter());
             _registry.Register(new Filters.ForageableFoodFilter());
             _registry.Register(new Filters.StoneFilter());
+            _registry.Register(new Filters.StockpileFilter());
 
             // World features and landmarks (1.6+)
             _registry.Register(new Filters.WorldFeatureFilter());
@@ -950,7 +951,7 @@ namespace LandingZone.Core.Filtering
                         if (importance == FilterImportance.Critical || importance == FilterImportance.Preferred)
                         {
                             // Stones matched user preferences - give positive contribution
-                            // Use quality rating: Plasteel/Uranium = +8, Gold/Jade = +6, Silver/Components = +4
+                            // Use quality rating: Plasteel/Uranium = +8, Gold/Jade = +6, Silver/Components/Steel = +4
                             int quality = stone switch
                             {
                                 "MineablePlasteel" => 8,
@@ -958,6 +959,7 @@ namespace LandingZone.Core.Filtering
                                 "MineableGold" => 6,
                                 "MineableJade" => 6,
                                 "MineableSilver" => 4,
+                                "MineableSteel" => 4,         // Core construction resource
                                 "MineableComponentsIndustrial" => 4,
                                 _ => 2 // Unknown ores get small bonus
                             };
@@ -965,6 +967,54 @@ namespace LandingZone.Core.Filtering
                             float contribution = quality * 0.01f;
                             mutatorContributions.Add(new MutatorContribution(stone, quality, contribution));
                         }
+                    }
+                }
+
+                // Collect stockpile contributions (from MineralStockpileCache)
+                var stockpilesFilter = _state.Preferences.GetActiveFilters().Stockpiles;
+                var tileStockpiles = _state.MineralStockpileCache.GetStockpileTypes(tileId);
+                if (tileStockpiles != null && tileStockpiles.Count > 0)
+                {
+                    foreach (var stockpile in tileStockpiles)
+                    {
+                        // Show stockpiles that matched user preferences (Critical or Preferred)
+                        var importance = stockpilesFilter.GetImportance(stockpile);
+                        if (importance == FilterImportance.Critical || importance == FilterImportance.Preferred)
+                        {
+                            // Stockpiles matched user preferences - give positive contribution
+                            // Use StockpileFilter.GetStockpileQuality for consistent quality ratings
+                            int quality = Filters.StockpileFilter.GetStockpileQuality(stockpile);
+                            float contribution = quality * 0.01f;
+                            mutatorContributions.Add(new MutatorContribution(stockpile, quality, contribution));
+                        }
+                    }
+                }
+
+                // Collect animal species contributions (from MineralStockpileCache)
+                var tileAnimals = _state.MineralStockpileCache.GetAnimalSpecies(tileId);
+                if (tileAnimals != null && tileAnimals.Count > 0)
+                {
+                    foreach (var animal in tileAnimals)
+                    {
+                        // Always show flagship animals (no filter exists yet, but provide quality bonus)
+                        // Quality ratings based on rarity/value: Thrumbo +10, Megasloth +8, Elephant +7, etc.
+                        int quality = GetAnimalQuality(animal);
+                        float contribution = quality * 0.01f;
+                        mutatorContributions.Add(new MutatorContribution(animal, quality, contribution));
+                    }
+                }
+
+                // Collect plant species contributions (from MineralStockpileCache)
+                var tilePlants = _state.MineralStockpileCache.GetPlantSpecies(tileId);
+                if (tilePlants != null && tilePlants.Count > 0)
+                {
+                    foreach (var plant in tilePlants)
+                    {
+                        // Always show flagship plants (no filter exists yet, but provide quality bonus)
+                        // Quality ratings based on value: Ambrosia +9, Devilstrand +8, Healroot +7, etc.
+                        int quality = GetPlantQuality(plant);
+                        float contribution = quality * 0.01f;
+                        mutatorContributions.Add(new MutatorContribution(plant, quality, contribution));
                     }
                 }
 
@@ -993,6 +1043,78 @@ namespace LandingZone.Core.Filtering
                        id.Contains("forage") ||
                        id.Contains("pollution") ||
                        id.Contains("movement");
+            }
+
+            /// <summary>
+            /// Gets quality rating for animal species.
+            /// Based on rarity, value, and strategic importance.
+            /// </summary>
+            private static int GetAnimalQuality(string animalDefName)
+            {
+                return animalDefName switch
+                {
+                    // Ultra-rare legendary animals
+                    "Thrumbo" => 10,             // Ultra-rare, high value, legendary
+
+                    // Rare valuable animals
+                    "Megasloth" => 8,            // Rare, wool, meat, tanky
+                    "Elephant" => 7,             // Large, tanky, valuable tusks
+                    "Rhinoceros" => 7,           // Tanky, good for caravans
+                    "Grizzly_Bear" => 6,         // Dangerous but valuable
+                    "Polar_Bear" => 6,           // Cold biome apex predator
+
+                    // Useful domestic animals
+                    "Muffalo" => 5,              // Common but essential for caravans, wool, milk
+                    "Alpaca" => 5,               // Wool producer, pack animal
+                    "Dromedary" => 5,            // Desert specialist, pack animal
+                    "Cow" => 4,                  // Milk, leather, meat
+                    "Pig" => 4,                  // Fast breeding, meat
+
+                    // Common food animals
+                    "Deer" => 3,                 // Common hunting target
+                    "Elk" => 3,                  // Good meat yield
+                    "Turkey" => 3,               // Food, eggs
+                    "Chicken" => 2,              // Very common, eggs
+                    "Hare" => 2,                 // Common, fast breeding
+
+                    // Default for unknown species
+                    _ => 3                       // Generic animal bonus
+                };
+            }
+
+            /// <summary>
+            /// Gets quality rating for plant species.
+            /// Based on value, rarity, and utility (medicine, drugs, textiles, food).
+            /// </summary>
+            private static int GetPlantQuality(string plantDefName)
+            {
+                return plantDefName switch
+                {
+                    // Ultra-rare valuable plants
+                    "Plant_Ambrosia" => 9,       // Ultra-rare psychite drug source, high recreation value
+
+                    // Rare luxury/specialist plants
+                    "Plant_Devilstrand" => 8,    // Luxury textile, slow-growing, high value
+                    "Plant_Healroot" => 7,       // Medicine source, cannot craft early-game
+
+                    // Valuable cash crops
+                    "Plant_Smokeleaf" => 5,      // Drug, recreation, trading commodity
+                    "Plant_Psychoid" => 5,       // Psychite drug source (tea, flake, yayo)
+
+                    // Useful agricultural plants
+                    "Plant_Cotton" => 4,         // Textile production
+                    "Plant_Corn" => 4,           // High food yield
+                    "Plant_Rice" => 4,           // Fast-growing food
+                    "Plant_Potato" => 3,         // Reliable food source
+
+                    // Common foraging plants
+                    "Plant_Berry" => 3,          // Wild food source
+                    "Plant_Strawberry" => 3,     // Wild food source
+                    "Plant_TreeOak" => 2,        // Wood source (common)
+
+                    // Default for unknown species
+                    _ => 3                       // Generic plant bonus
+                };
             }
 
             public float Progress
