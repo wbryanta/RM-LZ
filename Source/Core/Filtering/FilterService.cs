@@ -243,6 +243,55 @@ namespace LandingZone.Core.Filtering
             LandingZoneLogger.LogStandard("[LandingZone] ===================================");
         }
 
+        /// <summary>
+        /// Gets selectivity data for a specific filter by ID.
+        /// Returns null if filter is ignored or not found.
+        /// Used by Advanced mode UI to show live feedback.
+        /// </summary>
+        public FilterSelectivity? GetFilterSelectivity(string filterId, GameState state)
+        {
+            var (cheap, heavy) = _registry.GetAllPredicates(state);
+            var allPredicates = cheap.Concat(heavy);
+            var predicate = allPredicates.FirstOrDefault(p => p.Id == filterId);
+
+            if (predicate == null || predicate.Importance == FilterImportance.Ignored)
+                return null;
+
+            int totalTiles = Find.WorldGrid?.TilesCount ?? 0;
+            if (totalTiles == 0)
+                return null;
+
+            var context = new FilterContext(state, _tileCache);
+            return _selectivityAnalyzer.AnalyzePredicate(predicate, context, totalTiles);
+        }
+
+        /// <summary>
+        /// Gets selectivity data for all active (non-ignored) filters.
+        /// Used by Advanced mode UI for live feedback panel.
+        /// </summary>
+        public List<FilterSelectivity> GetAllSelectivities(GameState state)
+        {
+            var (cheap, heavy) = _registry.GetAllPredicates(state);
+            var allPredicates = cheap.Concat(heavy).ToList();
+            var results = new List<FilterSelectivity>();
+
+            int totalTiles = Find.WorldGrid?.TilesCount ?? 0;
+            if (totalTiles == 0)
+                return results;
+
+            var context = new FilterContext(state, _tileCache);
+
+            foreach (var predicate in allPredicates)
+            {
+                if (predicate.Importance != FilterImportance.Ignored)
+                {
+                    results.Add(_selectivityAnalyzer.AnalyzePredicate(predicate, context, totalTiles));
+                }
+            }
+
+            return results;
+        }
+
         public sealed class FilterEvaluationJob
         {
             private readonly FilterService _owner;

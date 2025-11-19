@@ -28,7 +28,8 @@ namespace LandingZone.Core.UI
             Action<FilterSettings, FilterImportance> importanceSetter,
             float min,
             float max,
-            string unit = "")
+            string unit = "",
+            string filterId = null)
         {
             return new FilterControl(
                 label,
@@ -45,6 +46,12 @@ namespace LandingZone.Core.UI
                     var importanceVal = importance;
                     UIHelpers.DrawImportanceSelector(listing.GetRect(30f), $"{label} Importance", ref importanceVal);
                     importanceSetter(filters, importanceVal);
+
+                    // Live selectivity feedback (Tier 3)
+                    if (!string.IsNullOrEmpty(filterId))
+                    {
+                        DrawSelectivityFeedback(listing, filterId, importanceVal);
+                    }
                 },
                 filters =>
                 {
@@ -57,7 +64,8 @@ namespace LandingZone.Core.UI
         private static FilterControl ImportanceOnlyControl(
             string label,
             Func<FilterSettings, FilterImportance> importanceGetter,
-            Action<FilterSettings, FilterImportance> importanceSetter)
+            Action<FilterSettings, FilterImportance> importanceSetter,
+            string filterId = null)
         {
             return new FilterControl(
                 label,
@@ -66,6 +74,12 @@ namespace LandingZone.Core.UI
                     var importance = importanceGetter(filters);
                     UIHelpers.DrawImportanceSelector(listing.GetRect(30f), label, ref importance);
                     importanceSetter(filters, importance);
+
+                    // Live selectivity feedback (Tier 3)
+                    if (!string.IsNullOrEmpty(filterId))
+                    {
+                        DrawSelectivityFeedback(listing, filterId, importance);
+                    }
                 },
                 filters =>
                 {
@@ -101,7 +115,8 @@ namespace LandingZone.Core.UI
                     (f, v) => f.AverageTemperatureRange = v,
                     f => f.AverageTemperatureImportance,
                     (f, v) => f.AverageTemperatureImportance = v,
-                    -60f, 60f, "°C"
+                    -60f, 60f, "°C",
+                    "average_temperature"
                 ),
                 FloatRangeControl(
                     "Temperature (Minimum)",
@@ -109,7 +124,8 @@ namespace LandingZone.Core.UI
                     (f, v) => f.MinimumTemperatureRange = v,
                     f => f.MinimumTemperatureImportance,
                     (f, v) => f.MinimumTemperatureImportance = v,
-                    -60f, 40f, "°C"
+                    -60f, 40f, "°C",
+                    "minimum_temperature"
                 ),
                 FloatRangeControl(
                     "Temperature (Maximum)",
@@ -117,7 +133,8 @@ namespace LandingZone.Core.UI
                     (f, v) => f.MaximumTemperatureRange = v,
                     f => f.MaximumTemperatureImportance,
                     (f, v) => f.MaximumTemperatureImportance = v,
-                    0f, 60f, "°C"
+                    0f, 60f, "°C",
+                    "maximum_temperature"
                 ),
                 FloatRangeControl(
                     "Rainfall",
@@ -125,7 +142,8 @@ namespace LandingZone.Core.UI
                     (f, v) => f.RainfallRange = v,
                     f => f.RainfallImportance,
                     (f, v) => f.RainfallImportance = v,
-                    0f, 5300f, " mm/year"
+                    0f, 5300f, " mm/year",
+                    "rainfall"
                 ),
                 FloatRangeControl(
                     "Growing Days",
@@ -134,6 +152,7 @@ namespace LandingZone.Core.UI
                     f => f.GrowingDaysImportance,
                     (f, v) => f.GrowingDaysImportance = v,
                     0f, 60f, " days/year"
+                    // No filter ID - growing days computed from TileDataCache, not a direct filter
                 ),
                 FloatRangeControl(
                     "Pollution",
@@ -142,6 +161,7 @@ namespace LandingZone.Core.UI
                     f => f.PollutionImportance,
                     (f, v) => f.PollutionImportance = v,
                     0f, 1f
+                    // No filter ID - pollution may not have dedicated predicate
                 ),
                 new FilterControl(
                     "_ClimateWarnings",
@@ -174,12 +194,14 @@ namespace LandingZone.Core.UI
                 ImportanceOnlyControl(
                     "Coastal (Ocean)",
                     f => f.CoastalImportance,
-                    (f, v) => f.CoastalImportance = v
+                    (f, v) => f.CoastalImportance = v,
+                    "coastal"
                 ),
                 ImportanceOnlyControl(
                     "Coastal (Lake)",
                     f => f.CoastalLakeImportance,
-                    (f, v) => f.CoastalLakeImportance = v
+                    (f, v) => f.CoastalLakeImportance = v,
+                    "coastal_lake"
                 ),
                 new FilterControl(
                     "Rivers",
@@ -338,6 +360,10 @@ namespace LandingZone.Core.UI
                             Widgets.FloatRange(rangeRect, rangeRect.GetHashCode(), ref range, 1f, stoneTypes.Count);
                             filters.StoneCountRange = range;
                         }
+
+                        // Live selectivity feedback (Tier 3)
+                        var stoneImportance = filters.Stones.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred;
+                        DrawSelectivityFeedback(listing, "stone", stoneImportance);
                     },
                     filters => (filters.Stones.HasAnyImportance || filters.UseStoneCount,
                                filters.Stones.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
@@ -348,12 +374,15 @@ namespace LandingZone.Core.UI
                     (f, v) => f.ForageabilityRange = v,
                     f => f.ForageImportance,
                     (f, v) => f.ForageImportance = v,
-                    0f, 1f
+                    0f, 1f,
+                    "",
+                    "forageable_food"
                 ),
                 ImportanceOnlyControl(
                     "Animals Can Graze",
                     f => f.GrazeImportance,
-                    (f, v) => f.GrazeImportance = v
+                    (f, v) => f.GrazeImportance = v,
+                    "graze"
                 ),
                 FloatRangeControl(
                     "Animal Density",
@@ -622,6 +651,67 @@ namespace LandingZone.Core.UI
                 .Where(b => !b.impassable)
                 .OrderBy(b => b.label)
                 .ToList();
+        }
+
+        // ============================================================================
+        // LIVE SELECTIVITY FEEDBACK
+        // ============================================================================
+
+        /// <summary>
+        /// Draws live selectivity feedback for a filter (Tier 3 feature).
+        /// Shows "📊 Match: ~45% of settleable tiles (127k / 295k)" below the filter control.
+        /// Only renders if filter is not ignored and selectivity data is available.
+        /// </summary>
+        private static void DrawSelectivityFeedback(Listing_Standard listing, string filterId, FilterImportance importance)
+        {
+            // Skip if ignored - no point showing feedback
+            if (importance == FilterImportance.Ignored)
+                return;
+
+            // Skip if context not ready
+            if (LandingZoneContext.Filters == null || LandingZoneContext.State == null)
+                return;
+
+            try
+            {
+                var selectivity = LandingZoneContext.Filters.GetFilterSelectivity(filterId, LandingZoneContext.State);
+                if (!selectivity.HasValue)
+                    return;
+
+                var s = selectivity.Value;
+                var percentage = s.Ratio * 100f;
+
+                // Format: "📊 Match: ~45.2% of tiles (127,342 / 295,732)"
+                string matchText = $"📊 Match: ~{percentage:F1}% of tiles ({s.MatchCount:N0} / {s.TotalTiles:N0})";
+
+                // Add category label (VeryCommon, Common, Uncommon, Rare, VeryRare, ExtremelyRare)
+                string categoryLabel = s.Category switch
+                {
+                    Filtering.SelectivityCategory.VeryCommon => "Very Common",
+                    Filtering.SelectivityCategory.Common => "Common",
+                    Filtering.SelectivityCategory.Uncommon => "Uncommon",
+                    Filtering.SelectivityCategory.Rare => "Rare",
+                    Filtering.SelectivityCategory.VeryRare => "Very Rare",
+                    Filtering.SelectivityCategory.ExtremelyRare => "Extremely Rare",
+                    _ => ""
+                };
+
+                if (!string.IsNullOrEmpty(categoryLabel))
+                    matchText += $" [{categoryLabel}]";
+
+                // Render in small gray text
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label(matchText);
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(3f);
+            }
+            catch (System.Exception ex)
+            {
+                // Silently fail - don't break UI if selectivity analysis fails
+                Log.Warning($"[LandingZone] Failed to get selectivity for {filterId}: {ex.Message}");
+            }
         }
     }
 }
