@@ -641,14 +641,10 @@ namespace LandingZone.Core.UI
                     filters => (filters.CriticalStrictness < 1.0f, FilterImportance.Ignored)
                 ),
                 new FilterControl(
-                    "_ResultsInfo",
+                    "Fallback Tiers",
                     (listing, filters) =>
                     {
-                        Text.Font = GameFont.Tiny;
-                        GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                        listing.Label("Note: Fallback tier system coming soon for ultra-rare feature hunting.");
-                        GUI.color = Color.white;
-                        Text.Font = GameFont.Small;
+                        DrawFallbackTierManager(listing, filters);
                     },
                     filters => (false, FilterImportance.Ignored)
                 )
@@ -785,6 +781,169 @@ namespace LandingZone.Core.UI
             {
                 // Silently fail - don't break UI if selectivity analysis fails
                 Log.Warning($"[LandingZone] Failed to get selectivity for {filterId}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Draws fallback tier suggestions for relaxing strictness when searches are too restrictive.
+        /// Shows current strictness estimate and alternative tiers with click-to-apply buttons.
+        /// </summary>
+        private static void DrawFallbackTierManager(Listing_Standard listing, FilterSettings filters)
+        {
+            // Skip if context not ready
+            if (LandingZoneContext.Filters == null || LandingZoneContext.State == null)
+            {
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                listing.Label("Fallback tier manager available when world is loaded");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                return;
+            }
+
+            try
+            {
+                // Get all critical filter selectivities
+                var allSelectivities = LandingZoneContext.Filters.GetAllSelectivities(LandingZoneContext.State);
+                var criticalSelectivities = allSelectivities
+                    .Where(s => s.Importance == FilterImportance.Critical)
+                    .ToList();
+
+                // No criticals? No need for fallback tiers
+                if (criticalSelectivities.Count == 0)
+                {
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                    listing.Label("Set filters to Critical importance to see fallback tiers");
+                    GUI.color = Color.white;
+                    Text.Font = GameFont.Small;
+                    return;
+                }
+
+                // Get current strictness estimate
+                var currentLikelihood = filters.CriticalStrictness >= 1.0f
+                    ? Filtering.MatchLikelihoodEstimator.EstimateAllCriticals(criticalSelectivities)
+                    : Filtering.MatchLikelihoodEstimator.EstimateRelaxedCriticals(criticalSelectivities, filters.CriticalStrictness);
+
+                // Header
+                Text.Font = GameFont.Small;
+                listing.Label($"Fallback Tier Manager ({criticalSelectivities.Count} critical filters)");
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("If current strictness is too restrictive, use these preset fallback tiers:");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+
+                // Current strictness indicator
+                var currentRect = listing.GetRect(40f);
+                Color currentBgColor = currentLikelihood.Category switch
+                {
+                    Filtering.LikelihoodCategory.Guaranteed => new Color(0.2f, 0.3f, 0.2f),
+                    Filtering.LikelihoodCategory.VeryHigh => new Color(0.2f, 0.3f, 0.2f),
+                    Filtering.LikelihoodCategory.High => new Color(0.2f, 0.25f, 0.2f),
+                    Filtering.LikelihoodCategory.Medium => new Color(0.25f, 0.25f, 0.15f),
+                    Filtering.LikelihoodCategory.Low => new Color(0.3f, 0.2f, 0.15f),
+                    _ => new Color(0.3f, 0.15f, 0.15f)
+                };
+
+                Widgets.DrawBoxSolid(currentRect, currentBgColor);
+                Widgets.DrawBox(currentRect);
+
+                var contentRect = currentRect.ContractedBy(4f);
+                Text.Font = GameFont.Tiny;
+                Widgets.Label(
+                    new Rect(contentRect.x, contentRect.y, contentRect.width, 14f),
+                    "CURRENT:"
+                );
+                Text.Font = GameFont.Small;
+                Widgets.Label(
+                    new Rect(contentRect.x, contentRect.y + 16f, contentRect.width, 18f),
+                    currentLikelihood.GetUserMessage()
+                );
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+
+                // Get fallback suggestions
+                var suggestions = Filtering.MatchLikelihoodEstimator.SuggestStrictness(criticalSelectivities);
+
+                // Only show suggestions different from current strictness
+                var relevantSuggestions = suggestions
+                    .Where(s => Math.Abs(s.Strictness - filters.CriticalStrictness) > 0.01f)
+                    .Take(3) // Show max 3 alternatives
+                    .ToList();
+
+                if (relevantSuggestions.Any())
+                {
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                    listing.Label("Click to apply fallback tier:");
+                    GUI.color = Color.white;
+                    Text.Font = GameFont.Small;
+                    listing.Gap(4f);
+
+                    foreach (var suggestion in relevantSuggestions)
+                    {
+                        var suggestionRect = listing.GetRect(36f);
+                        Color bgColor = suggestion.Category switch
+                        {
+                            Filtering.LikelihoodCategory.Guaranteed => new Color(0.15f, 0.25f, 0.15f),
+                            Filtering.LikelihoodCategory.VeryHigh => new Color(0.15f, 0.25f, 0.15f),
+                            Filtering.LikelihoodCategory.High => new Color(0.15f, 0.2f, 0.15f),
+                            Filtering.LikelihoodCategory.Medium => new Color(0.2f, 0.2f, 0.1f),
+                            Filtering.LikelihoodCategory.Low => new Color(0.25f, 0.15f, 0.1f),
+                            _ => new Color(0.25f, 0.1f, 0.1f)
+                        };
+
+                        Widgets.DrawBoxSolid(suggestionRect, bgColor);
+                        Widgets.DrawBox(suggestionRect);
+
+                        var suggestionContent = suggestionRect.ContractedBy(4f);
+                        Text.Font = GameFont.Small;
+                        Widgets.Label(
+                            new Rect(suggestionContent.x, suggestionContent.y, suggestionContent.width, 18f),
+                            suggestion.GetDisplayText()
+                        );
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        Widgets.Label(
+                            new Rect(suggestionContent.x, suggestionContent.y + 18f, suggestionContent.width, 14f),
+                            $"Strictness: {suggestion.Strictness:P0}"
+                        );
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+
+                        if (Widgets.ButtonInvisible(suggestionRect))
+                        {
+                            filters.CriticalStrictness = suggestion.Strictness;
+                            Messages.Message(
+                                $"Applied fallback tier: {suggestion.Description} (strictness {suggestion.Strictness:P0})",
+                                MessageTypeDefOf.NeutralEvent,
+                                false
+                            );
+                        }
+
+                        TooltipHandler.TipRegion(suggestionRect, $"{suggestion.Description}\nClick to set strictness to {suggestion.Strictness:P0}");
+                        listing.Gap(4f);
+                    }
+                }
+                else
+                {
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                    listing.Label("No alternative tiers available (adjust strictness manually if needed)");
+                    GUI.color = Color.white;
+                    Text.Font = GameFont.Small;
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Log.Warning($"[LandingZone] Failed to draw fallback tier manager: {ex.Message}");
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.3f, 0.3f);
+                listing.Label($"Error loading fallback tiers: {ex.Message}");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
             }
         }
     }
