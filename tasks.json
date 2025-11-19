@@ -2,8 +2,8 @@
   "meta": {
     "description": "LandingZone v0.2.x sprint toward 0.3.0",
     "version": "0.2.1-beta",
-    "last_updated": "2025-11-15",
-    "forensic_analysis_date": "2025-11-13",
+    "last_updated": "2025-11-19",
+    "forensic_analysis_date": "2025-11-16",
     "notes": [
       "v0.1.3-beta: Mode toggle fixed, tasks board operational, max candidates configurable (25k-150k).",
       "v0.1.1-beta: Membership scoring system complete (commits 096d8c7, e15b486).",
@@ -13,7 +13,8 @@
       "UI: Default/Advanced mode toggle complete, stone selectors functional.",
       "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived.",
       "2025-11-14: Crisis freeze \u2013 default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence.",
-      "2025-11-15: Sprint Kickoff \u2013 Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul."
+      "2025-11-15: Sprint Kickoff \u2013 Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul.",
+      "2025-11-19: P0 validation complete - all 5 critical tasks delivered and validated in-game (Scorched 0.9982, Exotic ArcheanTrees detected)."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -26,303 +27,41 @@
     ]
   },
   "milestones": {
-    "0.1.0-beta": {
-      "target_date": "2025-12-01",
-      "theme": "Production-ready core with excellent UX",
+    "0.2.2": {
+      "target_date": "2025-11-22",
+      "theme": "Advanced UX reorg + canonical coverage",
       "critical_path": [
-        "Stone filters completion",
-        "Basic/Advanced UI mode",
-        "Membership scoring implementation (5.5 days)",
-        "Mutator quality scoring",
-        "New filters (Animal/Fish)",
-        "Filter validation updates",
-        "Documentation cleanup"
+        "LZ-UX-REORG",
+        "LZ-CANONICAL-COVERAGE",
+        "LZ-ADV-SEARCH-FILTER"
+      ]
+    },
+    "0.2.3": {
+      "target_date": "2025-11-29",
+      "theme": "Scoring label validation + diagnostics",
+      "critical_path": [
+        "LZ-SCORE-LABEL-VALIDATION",
+        "LZ-DIAGNOSTIC-WHY",
+        "LZ-SCORING-UI-002"
+      ]
+    },
+    "0.3.0": {
+      "target_date": "2025-12-15",
+      "theme": "Preset refinement, rarity parsing, UX polish",
+      "critical_path": [
+        "LZ-PRESET-TUNING",
+        "LZ-RARITY-PARSER",
+        "LZ-QUALITY-OVERRIDES",
+        "LZ-EXOTIC-FALLBACK"
       ]
     }
   },
   "in_progress": [],
   "todo": {
-    "p0_critical": [
-      {
-        "id": "LZ-UX-REORG",
-        "title": "Advanced UI grouping & affordances",
-        "priority": "P0 - Critical",
-        "estimate": "10-12 hours",
-        "owner": "team",
-        "description": "Current Advanced layout mashes dozens of controls together with unclear indicators. Reorganize into logical sections with better feedback.",
-        "deliverables": [
-          "Categories: Environment, Flora & Fauna, Geography & Access, Resources & Structures, Challenges",
-          "Show active counts that map to highlighted controls",
-          "Hilliness/stone buttons gain tri-state colors/icons for Ignored/Preferred/Critical",
-          "Range sliders grouped in bordered cards so their importance toggle is obvious",
-          "Add helper text explaining AND vs OR logic per section"
-        ],
-        "blockers": [
-          "LZ-SIMPLE-ADV-SEPARATION"
-        ],
-        "area": "UI/UX",
-        "milestone": "0.2.2"
-      },
-      {
-        "id": "LZ-CANONICAL-COVERAGE",
-        "title": "Ensure every mutator/filter is surfaced",
-        "priority": "P0 - Critical",
-        "estimate": "8-10 hours",
-        "owner": "team",
-        "description": "Use docs/data/canonical_world_library_aggregate.json to ensure the UI exposes every discovered mutator/feature exactly once with friendly labels.",
-        "deliverables": [
-          "Create mapping (defName \u2192 friendly label, category, tooltip with rarity %)",
-          "Remove duplicates (e.g., Rivers/Roads shouldn't also be in Map Features)",
-          "Add missing entries such as LavaCrater, AncientRuins_Frozen, etc.",
-          "Show rarity tooltip (e.g., 'LavaCrater \u2013 0.0016% of settleable tiles')",
-          "Automate future updates by loading the mapping in code"
-        ],
-        "blockers": [
-          "LZ-UX-REORG"
-        ],
-        "area": "Data/UI",
-        "milestone": "0.2.2"
-      }
-    ],
-    "p1_high": [
-      {
-        "id": "LZ-ADV-SEARCH-FILTER",
-        "title": "Advanced search & filter controls",
-        "priority": "P1 - High",
-        "estimate": "4-5 hours",
-        "owner": "team",
-        "description": "Make massive lists (Map Features, Adjacent Biomes, Stones) searchable and easier to multi-select.",
-        "deliverables": [
-          "Global search box that highlights matching controls across sections",
-          "Dedicated search + filter for Map Features and Adjacent Biomes (shows '12 of 83 mutators')",
-          "Two-column or chip-based layout so users aren't stuck scrolling",
-          "Clear button to reset filters",
-          "Keyboard navigation support"
-        ],
-        "blockers": [
-          "LZ-UX-REORG"
-        ],
-        "area": "UI/UX",
-        "milestone": "0.2.3"
-      },
-      {
-        "id": "LZ-SCORE-LABEL-VALIDATION",
-        "title": "Perfect tier validation & tests",
-        "priority": "P1 - High",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Ensure Perfect+/Perfect/Perfect- labels match base vs modifier math and never mislabel 1.000 scores.",
-        "deliverables": [
-          "Unit-style test or debug command that asserts label selection for representative tiles",
-          "Clamp logic documented (base membership vs final score)",
-          "Log entry when label is computed so QA can trace decisions",
-          "Update README/UX doc with the precise label definitions"
-        ],
-        "blockers": [],
-        "area": "Scoring/QA",
-        "milestone": "0.2.3"
-      }
-    ],
-    "p2_medium": [
-      {
-        "id": "LZ-FILTER-VERIFY-001",
-        "title": "Verify CoastalLakeFilter neighbor detection",
-        "priority": "P2 - Medium",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "CoastalLakeFilter uses heuristic neighbor detection. Need to verify against actual RimWorld grid API or implement proper neighbor traversal.",
-        "current_state": "Filter checks 8 cardinal/diagonal neighbors using calculated offsets. May not match RimWorld's icosahedral grid geometry.",
-        "deliverables": [
-          "Research RimWorld's WorldGrid.GetNeighbors() or equivalent API",
-          "Test current heuristic against known lake tiles",
-          "If broken: implement proper neighbor detection",
-          "Add test cases for various world seeds",
-          "Document findings in code comments"
-        ],
-        "blockers": [],
-        "area": "Filtering",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-FILTER-VERIFY-002",
-        "title": "Verify AdjacentBiomesFilter neighbor detection",
-        "priority": "P2 - Medium",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "AdjacentBiomesFilter uses same heuristic as CoastalLakeFilter. Need to verify correctness.",
-        "blockers": [
-          "LZ-FILTER-VERIFY-001"
-        ],
-        "area": "Filtering",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-MAPFEATURE-SAFETY",
-        "title": "Add MapFeatureFilter reflection safety",
-        "priority": "P2 - Medium",
-        "estimate": "1 hour",
-        "owner": "team",
-        "description": "MapFeatureFilter uses reflection to access tile.Mutators. Add caching and error handling for robustness.",
-        "deliverables": [
-          "Cache PropertyInfo for Mutators on first access",
-          "Add try-catch with graceful degradation",
-          "Log warning if Mutators property not found",
-          "Return empty list instead of crashing",
-          "Add version compatibility note to code comments"
-        ],
-        "blockers": [],
-        "area": "Filtering",
-        "milestone": "0.1.0-beta"
-      },
-      {
-        "id": "LZ-PRESET-SYSTEM",
-        "title": "Implement preset save/load system",
-        "priority": "P2 - Medium",
-        "estimate": "6-8 hours",
-        "owner": "team",
-        "description": "Allow users to save/load filter configurations. Include 5-7 built-in presets.",
-        "deliverables": [
-          "Create FilterPreset.cs data model",
-          "Create PresetManager.cs service (save/load/delete)",
-          "Add preset dropdown to LandingZonePreferencesWindow",
-          "Create 5-7 built-in presets: Easy Start, Balanced, Challenge, River Valley, Coastal Paradise, Mountain Fortress, Desert Nomad",
-          "Store custom presets in RimWorld config directory",
-          "Add import/export functionality for sharing"
-        ],
-        "blockers": [],
-        "area": "UX",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-DIAGNOSTIC-WHY",
-        "title": "'Why No Results?' diagnostic button",
-        "priority": "P2 - Medium",
-        "estimate": "4-5 hours",
-        "owner": "team",
-        "description": "When search returns 0 tiles, show diagnostic analysis of which filters eliminated the most tiles and suggest adjustments.",
-        "deliverables": [
-          "Track elimination counts per filter during Apply phase",
-          "Show top 5 most restrictive filters",
-          "Suggest: 'Try relaxing X filter' or 'Change X from Critical to Preferred'",
-          "Add 'Analyze' button to results window when count == 0",
-          "Display analysis in dialog or side panel"
-        ],
-        "blockers": [],
-        "area": "UX",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-SCORING-UI-002",
-        "title": "Score breakdown transparency UI",
-        "priority": "P2 - Medium",
-        "estimate": "4-5 hours",
-        "owner": "team",
-        "description": "Show per-filter memberships in results window. Users can see exactly why a tile scored high/low.",
-        "deliverables": [
-          "Add expandable 'Score Details' section to tile info panel in results window",
-          "Show critical filters with membership: 'Temperature: 0.9 \u2605\u2605\u2605\u2605\u2606' (5-star visualization)",
-          "Show preferred filters with membership and contribution to score",
-          "Highlight worst critical: 'Growing season: 0.3 \u26a0\ufe0f (penalty applied: -40%)'",
-          "Show mutator score contribution: 'Mutators: +0.05 (Geothermal +10, Polluted -5)'",
-          "Display final score formula with actual values: 'Score = 0.6 \u00d7 (0.51\u00d70.82 + 0.39\u00d70.68 + 0.1\u00d70.55) = 0.73'",
-          "Collapsible by default, expand on click"
-        ],
-        "blockers": [
-          "LZ-SCORING-003"
-        ],
-        "area": "UI/UX",
-        "milestone": "0.2.0"
-      }
-    ],
-    "p3_low": [
-      {
-        "id": "LZ-UI-SEARCH-BOXES",
-        "title": "Add search boxes to long lists",
-        "priority": "P3 - Low",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Add searchable list component for Map Features, Adjacent Biomes. Stone selector already has search (when rebuilt).",
-        "deliverables": [
-          "Add search box to Map Features selector",
-          "Add search box to Adjacent Biomes selector",
-          "Show filtered count (e.g., 'Showing 12 of 83 mutators')",
-          "Clear button for search boxes"
-        ],
-        "blockers": [],
-        "area": "UI",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-UI-SCROLLBAR",
-        "title": "Polish scrollbar visibility",
-        "priority": "P3 - Low",
-        "estimate": "1 hour",
-        "owner": "team",
-        "description": "Current scrollbar works but could use visual polish. Low priority cosmetic improvement.",
-        "blockers": [],
-        "area": "UI/Polish",
-        "milestone": "0.2.0"
-      },
-      {
-        "id": "LZ-HEATMAP-OVERLAY",
-        "title": "WorldLayer heatmap overlay visualization",
-        "priority": "P3 - Low",
-        "estimate": "8-10 hours",
-        "owner": "team",
-        "description": "Implement RimWorld WorldLayer to show top-scoring tiles as color-coded overlay on world map.",
-        "deliverables": [
-          "Create WorldLayerLandingZone : WorldLayer",
-          "Render top N tiles with heat gradient (red=best, yellow=good, green=acceptable)",
-          "Add toggle button in results window",
-          "Handle world map panning and zooming",
-          "Clear overlay when new search starts"
-        ],
-        "blockers": [],
-        "area": "Visualization",
-        "milestone": "0.3.0"
-      },
-      {
-        "id": "LZ-UI-TOOLTIPS",
-        "title": "Comprehensive tooltip pass",
-        "priority": "P3 - Low",
-        "estimate": "2-3 hours",
-        "owner": "team",
-        "description": "Ensure ALL filters have helpful, consistent tooltips. Most already have them, this is polish.",
-        "deliverables": [
-          "Audit all filters for missing tooltips",
-          "Standardize tooltip format and tone",
-          "Add examples where helpful (e.g., 'Granite: Strong, common')",
-          "Add tooltip hover delay if too aggressive"
-        ],
-        "blockers": [],
-        "area": "UI/Polish",
-        "milestone": "0.2.0",
-        "status": "todo"
-      },
-      {
-        "id": "LZ-SCORING-UI-003",
-        "title": "Drag-and-drop filter ranking UI",
-        "priority": "Future",
-        "estimate": "6-8 hours",
-        "owner": "team",
-        "description": "UI for explicit filter priority ordering. Users drag filters to reorder, weights auto-update.",
-        "deliverables": [
-          "Create reorderable list widget for critical filters",
-          "Create reorderable list widget for preferred filters",
-          "Add visual rank indicators (1st, 2nd, 3rd...)",
-          "Weights auto-update on reorder: w_i = (n - r_i + 1)/n (linear decay)",
-          "Save rank order in FilterSettings per filter",
-          "Show weight preview as user drags: 'This filter will be 2.5\u00d7 more important than bottom-ranked'",
-          "Add 'Reset to default order' button"
-        ],
-        "blockers": [
-          "LZ-SCORING-003"
-        ],
-        "area": "UI/UX",
-        "milestone": "0.3.0",
-        "status": "todo"
-      }
-    ],
+    "p0_critical": [],
+    "p1_high": [],
+    "p2_medium": [],
+    "p3_low": [],
     "future": [
       {
         "id": "LZ-MUTATOR-CATEGORIES",
@@ -361,9 +100,49 @@
         ],
         "area": "UI/UX",
         "milestone": "0.4.0"
+      },
+      {
+        "id": "LZ-STOCKPILE-SCORING",
+        "title": "Resolve and score stockpile contents",
+        "priority": "Future",
+        "estimate": "4-6 hours",
+        "owner": "team",
+        "description": "Research RimWorld's Stockpile mutator API to resolve loot contents (weapons, medicine, etc.) and assign quality ratings for scoring. Similar to MineralRich reflection approach.",
+        "deliverables": [
+          "Research Stockpile mutator structure via reflection",
+          "Determine loot type/quality from mutator data",
+          "Assign quality ratings (weapons=+8?, medicine=+6?, etc.)",
+          "Test with multiple stockpile types",
+          "Add stockpile contributions to MatchBreakdownV2"
+        ],
+        "blockers": [],
+        "area": "Filtering/Scoring",
+        "milestone": "0.3.0",
+        "notes": "Deferred from P0 validation. Stockpiles are ultra-rare (38 tiles / 137k settleable = 0.03%). API undocumented, requires investigation."
       }
-    ]
+    ],
+    "p4_someday": []
   },
+  "future_candidates": [
+    {
+      "id": "FUT-WEIGHTED-IMPORTANCE",
+      "title": "Per-filter weighting in Advanced mode",
+      "priority": "Future",
+      "estimate": "TBD",
+      "owner": "team",
+      "description": "Allow advanced users to assign small weight modifiers to Critical/Preferred filters (e.g., via drag-to-order or weight sliders) without altering Simple mode. Scoring remains 7-2-1 base; weights adjust the critical/preferred averages.",
+      "deliverables": [
+        "Design a minimal UI toggle in Advanced (e.g., 'Enable custom weights')",
+        "Implement weight mapping (rank \u2192 weight or slider per filter)",
+        "Update scoring breakdown/DEBUG dump to show applied weights",
+        "Document as an advanced-only feature (post-beta)"
+      ],
+      "blockers": [],
+      "area": "Scoring/UX",
+      "milestone": "Post-1.0",
+      "status": "candidate"
+    }
+  ],
   "completed": [
     {
       "id": "LZ-SIMPLE-ADV-SEPARATION",
@@ -680,6 +459,78 @@
         "Source/Core/UI/LandingZoneResultsWindow.cs",
         "README.md"
       ]
+    },
+    {
+      "id": "LZ-CANONICAL-FIX",
+      "title": "Regenerate canonical data as structured JSON",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-19",
+      "impact": "Regenerated canonical aggregate from 11 dump files (1,554,769 settleable tiles, 86 mutators). Complete filter variable catalogs (MD + JSON) with defName/display/range/rarity annotations. 121% increase in sample coverage.",
+      "area": "Data/Tooling",
+      "files_modified": [
+        "docs/data/canonical_world_library_aggregate.json",
+        "docs/data/filter_variables_catalog.md",
+        "docs/data/filter_variables_catalog.json"
+      ]
+    },
+    {
+      "id": "LZ-ORE-DEFINES",
+      "title": "Align ore defNames and presets",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-19",
+      "impact": "Aligned all presets to canonical Mineable* defNames. MineralStockpileCache eager-builds at search start (no stacktrace). Ore whitelist validation filters unknown types with warnings. Stone contributions visible in dumps with quality ratings (+8 plasteel, +6 gold, etc.).",
+      "area": "Filtering/Presets",
+      "files_modified": [
+        "Source/Data/FilterPresets.cs",
+        "Source/Data/Preset.cs",
+        "Source/Data/MineralStockpileCache.cs",
+        "Source/Core/Filtering/FilterService.cs",
+        "Source/Core/Filtering/Filters/StoneFilter.cs"
+      ]
+    },
+    {
+      "id": "LZ-PRESET-CORRECTNESS",
+      "title": "Preset correctness and fallback",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-19",
+      "impact": "Scorched fallback tier scoring fix: Tier 2 updates scoring context with relaxed filters, results score 0.95-0.99 (was 0.07). Exotic diagnostics log first 20 passing tiles with features. Zero-result avoidance: all presets return results or activate fallback tiers with logging.",
+      "area": "Presets/Scoring",
+      "files_modified": [
+        "Source/Data/Preset.cs (Scorched fallback tiers lines 497-528)",
+        "Source/Core/Filtering/Filters/MapFeatureFilter.cs (diagnostics lines 68-78)",
+        "Source/Core/Filtering/FilterService.cs (fallback scoring context lines 417-448)",
+        "Source/Core/Filtering/Filters/AverageTemperatureFilter.cs (heaviness Light)"
+      ]
+    },
+    {
+      "id": "LZ-UX-TIERS",
+      "title": "Design three-tier UX",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-19",
+      "impact": "Complete three-tier UX specification (6,822 words): Preset (Quick Start card gallery), Guided Builder (goal\u2192snippet mapping), Advanced Studio (grouped filters with AND/OR, live counts, conflict warnings, fallback chains). Ready for implementation.",
+      "area": "UX",
+      "files_modified": [
+        "docs/ux_three_tier_specification.md"
+      ]
+    },
+    {
+      "id": "LZ-LOG-DEV-CLEAN",
+      "title": "Logging/dev tools cleanup",
+      "priority": "P0 - Critical",
+      "owner": "team",
+      "completed": "2025-11-19",
+      "impact": "LoggingLevel gates (Minimal/Standard/Verbose) implemented across all diagnostic systems. No debug Harmony patches remaining. Dev tools (Dump World Cache, Dump Match Data) accessible in Dev Mode only. Clean logs with no per-tile spam in Standard mode.",
+      "area": "Diagnostics/Logging",
+      "files_modified": [
+        "Source/Core/LandingZoneLogger.cs",
+        "Source/Core/Filtering/Filters/StoneFilter.cs",
+        "Source/Data/MineralStockpileCache.cs",
+        "Source/Core/Filtering/Filters/MapFeatureFilter.cs"
+      ]
     }
   ],
   "areas": {
@@ -858,6 +709,30 @@
   },
   "archived": [
     {
+      "id": "LZ-SIMPLE-ADV-SEPARATION",
+      "title": "Simple vs Advanced independence",
+      "completed": "2025-11-15",
+      "impact": "Separated FilterSettings per mode, added copy buttons and mode-specific search labels; resolved state bleed between Simple/Advanced.",
+      "area": "Architecture/UI",
+      "status": "archived"
+    },
+    {
+      "id": "LZ-PRESET-HUB",
+      "title": "Preset hub + rarity badges",
+      "completed": "2025-11-15",
+      "impact": "Implemented preset grid (12 curated + 4 user slots), rarity badges, copy/import; shipped in 0.2.1-beta.",
+      "area": "UX/Presets",
+      "status": "archived"
+    },
+    {
+      "id": "LZ-PRESET-SYSTEM",
+      "title": "Implement preset save/load system",
+      "completed": "2025-11-15",
+      "impact": "Preset save/load, curated presets, user presets delivered with 0.2.1-beta; supersedes earlier design.",
+      "area": "UX",
+      "status": "archived"
+    },
+    {
       "id": "LZ-FIX-PREFS-LABEL",
       "title": "Update LZ Prefs button label to show preset name",
       "priority": "P1 - High",
@@ -884,6 +759,366 @@
       "impact": "Stone filter UI fully implemented in both Default and Advanced modes. Default mode shows Granite/Marble selectors. Advanced mode dynamically loads all stone types from DefDatabase<ThingDef>, provides individual importance selectors, and includes Stone Count mode with range slider. All deliverables met: uses IndividualImportanceContainer pattern, no TODOs remaining, results window displays stone types. Users can now filter by specific stones (e.g., Granite=Critical, Marble=Preferred). NOTE: 2025-11-14 regression tracked by LZ-CRISIS-OR-LOGIC reintroduces AND-vs-OR issues for multi-select filters.",
       "area": "Filtering/UI",
       "status": "archived"
+    },
+    {
+      "id": "LZ-UX-REORG",
+      "title": "Advanced UI grouping & affordances",
+      "priority": "P0 - Critical",
+      "estimate": "10-12 hours",
+      "owner": "team",
+      "description": "Current Advanced layout mashes dozens of controls together with unclear indicators. Reorganize into logical sections with better feedback.",
+      "deliverables": [
+        "Categories: Environment, Flora & Fauna, Geography & Access, Resources & Structures, Challenges",
+        "Show active counts that map to highlighted controls",
+        "Hilliness/stone buttons gain tri-state colors/icons for Ignored/Preferred/Critical",
+        "Range sliders grouped in bordered cards so their importance toggle is obvious",
+        "Add helper text explaining AND vs OR logic per section"
+      ],
+      "blockers": [
+        "LZ-SIMPLE-ADV-SEPARATION"
+      ],
+      "area": "UI/UX",
+      "milestone": "0.2.2"
+    },
+    {
+      "id": "LZ-CANONICAL-COVERAGE",
+      "title": "Ensure every mutator/filter is surfaced",
+      "priority": "P0 - Critical",
+      "estimate": "8-10 hours",
+      "owner": "team",
+      "description": "Use docs/data/canonical_world_library_aggregate.json to ensure the UI exposes every discovered mutator/feature exactly once with friendly labels.",
+      "deliverables": [
+        "Create mapping (defName \u2192 friendly label, category, tooltip with rarity %)",
+        "Remove duplicates (e.g., Rivers/Roads shouldn't also be in Map Features)",
+        "Add missing entries such as LavaCrater, AncientRuins_Frozen, etc.",
+        "Show rarity tooltip (e.g., 'LavaCrater \u2013 0.0016% of settleable tiles')",
+        "Automate future updates by loading the mapping in code"
+      ],
+      "blockers": [
+        "LZ-UX-REORG"
+      ],
+      "area": "Data/UI",
+      "milestone": "0.2.2"
+    },
+    {
+      "id": "LZ-RARITY-PARSER",
+      "title": "Parse rarity data from canonical JSON",
+      "priority": "P0 - Critical",
+      "estimate": "3-4 hours",
+      "owner": "team",
+      "description": "Replace hardcoded probabilities in RarityCalculator with values loaded from docs/data/canonical_world_library_aggregate.json.",
+      "deliverables": [
+        "Load biome/mutator frequencies from canonical JSON",
+        "Unit-style check that parsed counts match aggregate",
+        "Fallback or error if canonical file missing",
+        "Wire into TileRarity/RarityCalculator"
+      ],
+      "blockers": [],
+      "area": "Data/Scoring",
+      "milestone": "0.3.0"
+    },
+    {
+      "id": "LZ-QUALITY-OVERRIDES",
+      "title": "Preset-specific mutator quality overrides",
+      "priority": "P0 - Critical",
+      "estimate": "3-4 hours",
+      "owner": "team",
+      "description": "Apply per-preset MutatorQualityOverrides in scoring so thematic negative mutators are correctly rewarded when desired.",
+      "deliverables": [
+        "MutatorQualityRatings/GetQuality accepts preset overrides",
+        "FilterService scoring uses overrides scoped to active preset",
+        "Tests/logs showing overrides applied (e.g., lava features in Scorched Hell)",
+        "No global side effects on other presets"
+      ],
+      "blockers": [],
+      "area": "Scoring/Presets",
+      "milestone": "0.3.0"
+    },
+    {
+      "id": "LZ-EXOTIC-FALLBACK",
+      "title": "Exotic preset fallback strategy",
+      "priority": "P0 - Critical",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Prevent zero-result searches by adding staged fallback (any 1-of ultra-rares, then 2-of-3) while still rewarding rare stacks.",
+      "deliverables": [
+        "Preset-specific logic for loosening constraints",
+        "Logging to show fallback tier used",
+        "Validated via search results on canonical dumps"
+      ],
+      "blockers": [
+        "LZ-PRESET-TUNING"
+      ],
+      "area": "Presets",
+      "milestone": "0.3.0"
+    },
+    {
+      "id": "LZ-DEV-TOOLS-RESTORE",
+      "title": "Restore Dev-only cache dump + debug controls",
+      "priority": "P0 - Critical",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Bring back the Dev-mode-only full world cache dump button and group debug/telemetry controls into a dedicated Dev cell to keep customer UI clean. Surface logging level controls there and add a keybinding to toggle the Dev/debug window; hidden when Dev mode is off.",
+      "deliverables": [
+        "Dev-mode-only button to dump full world generation cache (Filters/Advanced or dedicated Dev cell)",
+        "Dedicated Dev/debug cell housing dump, [DEBUG] Log Results, and performance logging controls",
+        "Expose logging level settings within the Dev cell",
+        "Unused keybinding to toggle the Dev/debug window, label it in the window",
+        "Hidden in non-Dev mode"
+      ],
+      "blockers": [],
+      "area": "Diagnostics/UX",
+      "milestone": "0.2.2"
+    },
+    {
+      "id": "LZ-LOG-TIERS",
+      "title": "Logging tiers (Minimal/Standard/Verbose) with preset-aware summaries",
+      "priority": "P0 - Critical",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Implement selectable logging tiers to control noise vs insight during preset tuning and troubleshooting: Minimal (start/end only), Standard (one config block + top-3 debug dump), Verbose (full dump/progress/stack traces). Always tag runs with preset/mode and apply ActivePreset overrides in mutator contributions.",
+      "deliverables": [
+        "Add a 'Minimal' logging level alongside Standard/Verbose and map behavior per tier matrix",
+        "Start/complete lines always include preset label, mode, strictness, maxResults, best score, duration",
+        "Standard: single active filter summary, top-3 [DEBUG] dump with ActivePreset overrides, no stack traces/progress",
+        "Verbose: full MATCH DATA DUMP, progress ticks, stack traces, deep predicate logs",
+        "Emit concise 'critical=0' warning line (with preset) when no critical matches",
+        "Ensure mutator contributions always use ActivePreset overrides"
+      ],
+      "blockers": [],
+      "area": "Diagnostics/Logging",
+      "milestone": "0.2.2"
+    },
+    {
+      "id": "LZ-ADV-SEARCH-FILTER",
+      "title": "Advanced search & filter controls",
+      "priority": "P1 - High",
+      "estimate": "4-5 hours",
+      "owner": "team",
+      "description": "Make massive lists (Map Features, Adjacent Biomes, Stones) searchable and easier to multi-select.",
+      "deliverables": [
+        "Global search box that highlights matching controls across sections",
+        "Dedicated search + filter for Map Features and Adjacent Biomes (shows '12 of 83 mutators')",
+        "Two-column or chip-based layout so users aren't stuck scrolling",
+        "Clear button to reset filters",
+        "Keyboard navigation support"
+      ],
+      "blockers": [
+        "LZ-UX-REORG"
+      ],
+      "area": "UI/UX",
+      "milestone": "0.2.3"
+    },
+    {
+      "id": "LZ-SCORE-LABEL-VALIDATION",
+      "title": "Perfect tier validation & tests",
+      "priority": "P1 - High",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Ensure Perfect+/Perfect/Perfect- labels match base vs modifier math and never mislabel 1.000 scores.",
+      "deliverables": [
+        "Unit-style test or debug command that asserts label selection for representative tiles",
+        "Clamp logic documented (base membership vs final score)",
+        "Log entry when label is computed so QA can trace decisions",
+        "Update README/UX doc with the precise label definitions"
+      ],
+      "blockers": [],
+      "area": "Scoring/QA",
+      "milestone": "0.2.3"
+    },
+    {
+      "id": "LZ-FILTER-VERIFY-001",
+      "title": "Verify CoastalLakeFilter neighbor detection",
+      "priority": "P2 - Medium",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "CoastalLakeFilter uses heuristic neighbor detection. Need to verify against actual RimWorld grid API or implement proper neighbor traversal.",
+      "current_state": "Filter checks 8 cardinal/diagonal neighbors using calculated offsets. May not match RimWorld's icosahedral grid geometry.",
+      "deliverables": [
+        "Research RimWorld's WorldGrid.GetNeighbors() or equivalent API",
+        "Test current heuristic against known lake tiles",
+        "If broken: implement proper neighbor detection",
+        "Add test cases for various world seeds",
+        "Document findings in code comments"
+      ],
+      "blockers": [],
+      "area": "Filtering",
+      "milestone": "0.1.0-beta"
+    },
+    {
+      "id": "LZ-FILTER-VERIFY-002",
+      "title": "Verify AdjacentBiomesFilter neighbor detection",
+      "priority": "P2 - Medium",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "AdjacentBiomesFilter uses same heuristic as CoastalLakeFilter. Need to verify correctness.",
+      "blockers": [
+        "LZ-FILTER-VERIFY-001"
+      ],
+      "area": "Filtering",
+      "milestone": "0.1.0-beta"
+    },
+    {
+      "id": "LZ-MAPFEATURE-SAFETY",
+      "title": "Add MapFeatureFilter reflection safety",
+      "priority": "P2 - Medium",
+      "estimate": "1 hour",
+      "owner": "team",
+      "description": "MapFeatureFilter uses reflection to access tile.Mutators. Add caching and error handling for robustness.",
+      "deliverables": [
+        "Cache PropertyInfo for Mutators on first access",
+        "Add try-catch with graceful degradation",
+        "Log warning if Mutators property not found",
+        "Return empty list instead of crashing",
+        "Add version compatibility note to code comments"
+      ],
+      "blockers": [],
+      "area": "Filtering",
+      "milestone": "0.1.0-beta"
+    },
+    {
+      "id": "LZ-DIAGNOSTIC-WHY",
+      "title": "'Why No Results?' diagnostic button",
+      "priority": "P2 - Medium",
+      "estimate": "4-5 hours",
+      "owner": "team",
+      "description": "When search returns 0 tiles, show diagnostic analysis of which filters eliminated the most tiles and suggest adjustments.",
+      "deliverables": [
+        "Track elimination counts per filter during Apply phase",
+        "Show top 5 most restrictive filters",
+        "Suggest: 'Try relaxing X filter' or 'Change X from Critical to Preferred'",
+        "Add 'Analyze' button to results window when count == 0",
+        "Display analysis in dialog or side panel"
+      ],
+      "blockers": [],
+      "area": "UX",
+      "milestone": "0.2.0"
+    },
+    {
+      "id": "LZ-SCORING-UI-002",
+      "title": "Score breakdown transparency UI",
+      "priority": "P2 - Medium",
+      "estimate": "4-5 hours",
+      "owner": "team",
+      "description": "Show per-filter memberships in results window. Users can see exactly why a tile scored high/low.",
+      "deliverables": [
+        "Add expandable 'Score Details' section to tile info panel in results window",
+        "Show critical filters with membership: 'Temperature: 0.9 \u2605\u2605\u2605\u2605\u2606' (5-star visualization)",
+        "Show preferred filters with membership and contribution to score",
+        "Highlight worst critical: 'Growing season: 0.3 \u26a0\ufe0f (penalty applied: -40%)'",
+        "Show mutator score contribution: 'Mutators: +0.05 (Geothermal +10, Polluted -5)'",
+        "Display final score formula with actual values: 'Score = 0.6 \u00d7 (0.51\u00d70.82 + 0.39\u00d70.68 + 0.1\u00d70.55) = 0.73'",
+        "Collapsible by default, expand on click"
+      ],
+      "blockers": [
+        "LZ-SCORING-003"
+      ],
+      "area": "UI/UX",
+      "milestone": "0.2.0"
+    },
+    {
+      "id": "LZ-UI-SEARCH-BOXES",
+      "title": "Add search boxes to long lists",
+      "priority": "P3 - Low",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Add searchable list component for Map Features, Adjacent Biomes. Stone selector already has search (when rebuilt).",
+      "deliverables": [
+        "Add search box to Map Features selector",
+        "Add search box to Adjacent Biomes selector",
+        "Show filtered count (e.g., 'Showing 12 of 83 mutators')",
+        "Clear button for search boxes"
+      ],
+      "blockers": [],
+      "area": "UI",
+      "milestone": "0.2.0"
+    },
+    {
+      "id": "LZ-UI-SCROLLBAR",
+      "title": "Polish scrollbar visibility",
+      "priority": "P3 - Low",
+      "estimate": "1 hour",
+      "owner": "team",
+      "description": "Current scrollbar works but could use visual polish. Low priority cosmetic improvement.",
+      "blockers": [],
+      "area": "UI/Polish",
+      "milestone": "0.2.0"
+    },
+    {
+      "id": "LZ-HEATMAP-OVERLAY",
+      "title": "WorldLayer heatmap overlay visualization",
+      "priority": "P3 - Low",
+      "estimate": "8-10 hours",
+      "owner": "team",
+      "description": "Implement RimWorld WorldLayer to show top-scoring tiles as color-coded overlay on world map.",
+      "deliverables": [
+        "Create WorldLayerLandingZone : WorldLayer",
+        "Render top N tiles with heat gradient (red=best, yellow=good, green=acceptable)",
+        "Add toggle button in results window",
+        "Handle world map panning and zooming",
+        "Clear overlay when new search starts"
+      ],
+      "blockers": [],
+      "area": "Visualization",
+      "milestone": "0.3.0"
+    },
+    {
+      "id": "LZ-UI-TOOLTIPS",
+      "title": "Comprehensive tooltip pass",
+      "priority": "P3 - Low",
+      "estimate": "2-3 hours",
+      "owner": "team",
+      "description": "Ensure ALL filters have helpful, consistent tooltips. Most already have them, this is polish.",
+      "deliverables": [
+        "Audit all filters for missing tooltips",
+        "Standardize tooltip format and tone",
+        "Add examples where helpful (e.g., 'Granite: Strong, common')",
+        "Add tooltip hover delay if too aggressive"
+      ],
+      "blockers": [],
+      "area": "UI/Polish",
+      "milestone": "0.2.0",
+      "status": "todo"
+    },
+    {
+      "id": "LZ-SCORING-UI-003",
+      "title": "Drag-and-drop filter ranking UI",
+      "priority": "Future",
+      "estimate": "6-8 hours",
+      "owner": "team",
+      "description": "UI for explicit filter priority ordering. Users drag filters to reorder, weights auto-update.",
+      "deliverables": [
+        "Create reorderable list widget for critical filters",
+        "Create reorderable list widget for preferred filters",
+        "Add visual rank indicators (1st, 2nd, 3rd...)",
+        "Weights auto-update on reorder: w_i = (n - r_i + 1)/n (linear decay)",
+        "Save rank order in FilterSettings per filter",
+        "Show weight preview as user drags: 'This filter will be 2.5\u00d7 more important than bottom-ranked'",
+        "Add 'Reset to default order' button"
+      ],
+      "blockers": [
+        "LZ-SCORING-003"
+      ],
+      "area": "UI/UX",
+      "milestone": "0.3.0",
+      "status": "todo"
+    },
+    {
+      "id": "LZ-PRESET-TUNING",
+      "title": "Implement preset redesign v0.3 (12 presets)",
+      "priority": "P0 - Critical",
+      "estimate": "10-12 hours",
+      "owner": "team",
+      "description": "Implement docs/preset_redesign_v0.3.md: fully themed presets, quality overrides, and risk-free fallback tiers for rare stacks.",
+      "deliverables": [
+        "Apply per-preset filter configs and quality overrides",
+        "Validate defNames against canonical aggregate",
+        "Add fallback logic for ultra-rare stacks (Exotic)",
+        "Re-test with [DEBUG] Dump for score breakdowns"
+      ],
+      "blockers": [],
+      "area": "Presets/Data",
+      "milestone": "0.3.0"
     }
   ]
 }
