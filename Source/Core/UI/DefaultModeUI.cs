@@ -19,6 +19,9 @@ namespace LandingZone.Core.UI
         private const float PresetCardHeight = 70f;
         private const float PresetCardSpacing = 8f;
 
+        // Quick Tweaks panel state
+        private static bool _quickTweaksCollapsed = true;
+
         /// <summary>
         /// Renders the Default mode UI (preset cards + key filters).
         /// </summary>
@@ -38,6 +41,10 @@ namespace LandingZone.Core.UI
 
             // Preset cards section
             DrawPresetCards(listing, preferences);
+            listing.Gap(20f);
+
+            // Quick Tweaks panel (collapsible)
+            DrawQuickTweaksPanel(listing, preferences);
             listing.Gap(20f);
 
             // Key filters section
@@ -117,6 +124,113 @@ namespace LandingZone.Core.UI
             }
         }
 
+        private static void DrawQuickTweaksPanel(Listing_Standard listing, UserPreferences preferences)
+        {
+            var filters = preferences.GetActiveFilters();
+
+            // Collapsible header
+            Rect headerRect = listing.GetRect(30f);
+            Widgets.DrawBoxSolid(headerRect, new Color(0.2f, 0.2f, 0.2f));
+
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Rect labelRect = new Rect(headerRect.x + 30f, headerRect.y, headerRect.width - 30f, headerRect.height);
+            Widgets.Label(labelRect, "Quick Tweaks");
+            Text.Anchor = TextAnchor.UpperLeft;
+
+            // Collapse/expand indicator
+            Rect indicatorRect = new Rect(headerRect.x + 8f, headerRect.y + 10f, 16f, 16f);
+            GUI.DrawTexture(indicatorRect, _quickTweaksCollapsed ? TexButton.Reveal : TexButton.Collapse);
+
+            if (Widgets.ButtonInvisible(headerRect))
+            {
+                _quickTweaksCollapsed = !_quickTweaksCollapsed;
+            }
+
+            if (!_quickTweaksCollapsed)
+            {
+                listing.Gap(8f);
+
+                // Result Count slider
+                listing.Label($"Result Limit: {filters.MaxResults}");
+                Rect resultSliderRect = listing.GetRect(30f);
+                int resultCount = (int)Widgets.HorizontalSlider(
+                    resultSliderRect,
+                    filters.MaxResults,
+                    FilterSettings.MinMaxResults,
+                    FilterSettings.MaxResultsLimit,
+                    true,
+                    $"{filters.MaxResults} results",
+                    $"{FilterSettings.MinMaxResults}",
+                    $"{FilterSettings.MaxResultsLimit}"
+                );
+                filters.MaxResults = resultCount;
+                listing.Gap(8f);
+
+                // Temperature range slider (simplified - show center point with ±5°C implied width)
+                var tempMode = Prefs.TemperatureMode;
+                string tempUnit = tempMode == TemperatureDisplayMode.Fahrenheit ? "°F"
+                                : tempMode == TemperatureDisplayMode.Kelvin ? "K"
+                                : "°C";
+
+                float tempCenter = (filters.AverageTemperatureRange.min + filters.AverageTemperatureRange.max) / 2f;
+                float displayCenter = GenTemperature.CelsiusTo(tempCenter, tempMode);
+
+                // Slider range in display unit
+                float sliderMin = GenTemperature.CelsiusTo(-60f, tempMode);
+                float sliderMax = GenTemperature.CelsiusTo(60f, tempMode);
+
+                listing.Label($"Temperature Center: {displayCenter:F0}{tempUnit}");
+                Rect tempSliderRect = listing.GetRect(30f);
+                float newDisplayCenter = Widgets.HorizontalSlider(
+                    tempSliderRect,
+                    displayCenter,
+                    sliderMin,
+                    sliderMax,
+                    true,
+                    $"{displayCenter:F0}{tempUnit}",
+                    $"{sliderMin:F0}{tempUnit}",
+                    $"{sliderMax:F0}{tempUnit}"
+                );
+
+                // Convert back to Celsius and update range (maintain ~10°C width)
+                float newTempCenter = ConvertToCelsius(newDisplayCenter, tempMode);
+                float halfWidth = 5f; // ±5°C = 10°C total range
+                filters.AverageTemperatureRange = new FloatRange(newTempCenter - halfWidth, newTempCenter + halfWidth);
+
+                listing.Gap(8f);
+
+                // Biome lock dropdown
+                listing.Label($"Biome Lock: {(filters.LockedBiome?.LabelCap ?? "Any")}");
+                if (listing.ButtonText(filters.LockedBiome?.LabelCap ?? "Any Biome"))
+                {
+                    var biomeOptions = new System.Collections.Generic.List<FloatMenuOption>();
+
+                    // "Any" option (clear lock)
+                    biomeOptions.Add(new FloatMenuOption("Any Biome", () => {
+                        filters.LockedBiome = null;
+                    }));
+
+                    // All available biomes
+                    var orderedBiomes = DefDatabase<BiomeDef>.AllDefsListForReading
+                        .OrderBy(b =>
+                        {
+                            var resolved = b.LabelCap.Resolve();
+                            return string.IsNullOrEmpty(resolved) ? b.defName : resolved;
+                        })
+                        .ThenBy(b => b.defName);
+                    foreach (var biome in orderedBiomes)
+                    {
+                        biomeOptions.Add(new FloatMenuOption(biome.LabelCap, () => {
+                            filters.LockedBiome = biome;
+                        }));
+                    }
+
+                    Find.WindowStack.Add(new FloatMenu(biomeOptions));
+                }
+            }
+        }
+
         private static void DrawPresetCard(Rect rect, Preset preset, FilterSettings filters, UserPreferences preferences)
         {
             // Draw card background
@@ -162,23 +276,52 @@ namespace LandingZone.Core.UI
 
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // Click to apply preset
-            if (Widgets.ButtonInvisible(rect))
+            // Remix button (bottom-right corner) - opens preset in Advanced mode for editing
+            Rect remixRect = new Rect(contentRect.xMax - 38f, contentRect.yMax - 16f, 38f, 16f);
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            if (Widgets.ButtonText(remixRect, "Remix", false, true, true))
             {
-                preset.ApplyTo(filters);
+                // Apply preset to Advanced mode filters (not Simple mode)
+                preset.ApplyTo(preferences.AdvancedFilters);
                 preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
-                Messages.Message($"Applied preset: {preset.Name}", MessageTypeDefOf.NeutralEvent, false);
+                preferences.Options.PreferencesUIMode = UIMode.Advanced; // Switch to Advanced mode
+                Messages.Message($"Loaded '{preset.Name}' into Advanced mode for editing", MessageTypeDefOf.NeutralEvent, false);
+            }
+            Text.Font = GameFont.Small;
+            Text.Anchor = TextAnchor.UpperLeft;
+
+            // Hover tooltip for Remix button
+            if (Mouse.IsOver(remixRect))
+            {
+                string remixTooltip = "Load this preset into Advanced mode for customization";
+                TooltipHandler.TipRegion(remixRect, remixTooltip);
             }
 
-            // Tooltip with filter summary
-            string tooltip = $"{preset.Name}\n\n{preset.Description}\n\n";
-            if (!string.IsNullOrEmpty(preset.FilterSummary))
-                tooltip += $"Filters: {preset.FilterSummary}\n\n";
-            if (preset.TargetRarity.HasValue)
-                tooltip += $"Target Rarity: {preset.TargetRarity.Value.ToLabel()}\n\n";
-            tooltip += "Click to apply this preset.";
+            // Click to apply preset (invisible button excludes remix button area)
+            Rect clickableArea = rect;
+            if (!remixRect.Contains(Event.current.mousePosition))
+            {
+                if (Widgets.ButtonInvisible(rect))
+                {
+                    preset.ApplyTo(filters);
+                    preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
+                    Messages.Message($"Applied preset: {preset.Name}", MessageTypeDefOf.NeutralEvent, false);
+                }
+            }
 
-            TooltipHandler.TipRegion(rect, tooltip);
+            // Tooltip with filter summary (for main card area, not remix button)
+            if (!Mouse.IsOver(remixRect))
+            {
+                string tooltip = $"{preset.Name}\n\n{preset.Description}\n\n";
+                if (!string.IsNullOrEmpty(preset.FilterSummary))
+                    tooltip += $"Filters: {preset.FilterSummary}\n\n";
+                if (preset.TargetRarity.HasValue)
+                    tooltip += $"Target Rarity: {preset.TargetRarity.Value.ToLabel()}\n\n";
+                tooltip += "Click to apply this preset.\nRemix: Load into Advanced mode for editing.";
+
+                TooltipHandler.TipRegion(rect, tooltip);
+            }
         }
 
         private static void DrawKeyFilters(Listing_Standard listing, UserPreferences preferences)

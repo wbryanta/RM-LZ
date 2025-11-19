@@ -94,6 +94,9 @@ namespace LandingZone.Data
         // Stones (individual importance per stone type)
         public IndividualImportanceContainer<string> Stones { get; set; } = new IndividualImportanceContainer<string>();
 
+        // Stockpiles (individual importance per stockpile type: Weapons, Medicine, Components, etc.)
+        public IndividualImportanceContainer<string> Stockpiles { get; set; } = new IndividualImportanceContainer<string>();
+
         // Stone count filter ("any X stone types") - alternative mode
         public FloatRange StoneCountRange { get; set; } = new FloatRange(2f, 3f);
         public bool UseStoneCount { get; set; } = false;
@@ -126,14 +129,15 @@ namespace LandingZone.Data
 
         // === RESULTS CONTROL ===
 
-        public const int DefaultMaxResults = 20;
-        public const int MaxResultsLimit = 25;
+        public const int DefaultMaxResults = 25;
+        public const int MinMaxResults = 10;
+        public const int MaxResultsLimit = 100;
 
         private int _maxResults = DefaultMaxResults;
         public int MaxResults
         {
             get => _maxResults;
-            set => _maxResults = Mathf.Clamp(value, 1, MaxResultsLimit);
+            set => _maxResults = Mathf.Clamp(value, MinMaxResults, MaxResultsLimit);
         }
 
         // === ADVANCED MATCHING CONTROLS ===

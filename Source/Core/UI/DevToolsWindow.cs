@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Verse;
 using RimWorld;
@@ -11,6 +12,8 @@ namespace LandingZone.Core.UI
     /// </summary>
     public class DevToolsWindow : Window
     {
+        private Vector2 _scrollPosition = Vector2.zero;
+
         public DevToolsWindow()
         {
             doCloseX = true;
@@ -21,12 +24,20 @@ namespace LandingZone.Core.UI
             closeOnCancel = true;
         }
 
-        public override Vector2 InitialSize => new Vector2(450f, 350f);
+        public override Vector2 InitialSize => new Vector2(450f, 450f);
 
         public override void DoWindowContents(Rect inRect)
         {
+            // Calculate content height - scrollbar appears automatically if content exceeds window height
+            float contentHeight = 350f; // Estimated total height of all content
+
+            Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
+            Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
+
+            Widgets.BeginScrollView(scrollRect, ref _scrollPosition, viewRect, true);
+
             var listing = new Listing_Standard();
-            listing.Begin(inRect);
+            listing.Begin(viewRect);
 
             Text.Font = GameFont.Medium;
             listing.Label("Developer Tools");
@@ -125,6 +136,7 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
 
             listing.End();
+            Widgets.EndScrollView();
         }
     }
 }
