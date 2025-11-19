@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LandingZone is a RimWorld mod for intelligent landing site selection. Uses Harmony for runtime patching and a hybrid filtering architecture: game's native cache (cheap, instant) + lazy expensive computation (TileDataCache) + two-phase filtering (Apply → Score).
 
-**Core Value: Quality over shortcuts.** Don't compromise project integrity when facing obstacles - solve them properly or engineer better solutions. Never assume/guess API behavior - validate with evidence.
+**Core Value: Quality over shortcuts.** Don't compromise project integrity when facing obstacles - solve them properly or engineer better solutions. Never assume/guess API behavior or data names—validate with evidence from canonical sources.
 
 ### AI Agents & Review Boundary
 - **You are DevAgent (Claude Code)** — follow this file for implementation guidance.
@@ -61,7 +61,7 @@ LandingZone is a RimWorld mod for intelligent landing site selection. Uses Harmo
 2. Run `python3 scripts/analyze_world_cache.py /path/to/LandingZone_FullCache_<timestamp>.txt > LandingZone_CacheAnalysis_<date>.txt`.
 3. Update references here with the new timestamp/path so future contributors know which dataset is authoritative.
 
-**NEVER assume or guess mutator names or availability. Always reference this canonical data.**
+**NEVER assume or guess mutator names or availability. Always reference this canonical data. If a defName is absent from the aggregate, stop and ask before proceeding.**
 
 ### Favorable Mutators (QoL Improvements)
 
@@ -113,20 +113,9 @@ python3 scripts/build.py -c Release   # Release
 
 ## Versioning
 
-**Single source of truth:** `About/About.xml`
-- Code reads version at runtime: `content.ModMetaData.ModVersion`
-- Never hardcode version in `.cs` files
-
-**Current phase:** Beta (0.1.x-beta)
-- Increment patch version when completing tasks
-- Increment minor version for major features
-
-**Workflow:**
-1. Update `About/About.xml`: `<modVersion>0.1.2-beta</modVersion>`
-2. Commit: `git commit -m "chore: bump version to 0.1.2-beta"`
-3. Tag: `git tag -a v0.1.2-beta -m "Version 0.1.2-beta: Description"`
-
-See `VERSIONING.md` for full guide.
+**Single source of truth:** `VERSIONING.md` + `About/About.xml`
+- Code reads version at runtime: `content.ModMetaData.ModVersion`.
+- Do not hardcode version strings elsewhere; reference `VERSIONING.md` for bump workflow (patch vs minor) and current version.
 
 ## Task Management
 
@@ -295,6 +284,19 @@ foreach (var tile in tiles)
 ```csharp
 Log.Message($"[LandingZone] Debug: {context}");
 ```
+
+**❌ Skipping defName validation / canonical data checks**
+- Always verify new mutators/biomes/features against `docs/data/canonical_world_library_aggregate.json` or the latest `LandingZone_CacheAnalysis_*` before wiring filters/presets.
+- If absent, stop and ask for guidance instead of guessing.
+
+**❌ Designing presets that return zero results**
+- Avoid ultra-rare stacks as hard AND gates; provide fallbacks (e.g., OR tiers or staged loosening) so searches don’t silently return 0.
+
+**❌ Forgetting preset-specific quality overrides**
+- When a preset wants negative-rated mutators, ensure `MutatorQualityOverrides` is applied in scoring and scoped to the active preset only; otherwise desired tiles get penalized.
+
+**❌ Bleeding state between Simple/Advanced**
+- Simple and Advanced have independent `FilterSettings`. Use the copy buttons intentionally; don’t assume shared state.
 
 ## Workflow Principles
 

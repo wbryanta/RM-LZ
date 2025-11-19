@@ -455,6 +455,58 @@ Quality Ratings: `MutatorQualityRatings.cs`
 | **Caves** | 58,405 | 8.299% | +5 | Shelter, defense, mining |
 | **Cavern** | 157 | 0.022% | +5 | Shelter |
 
+#### AnimalHabitat species (cache validation)
+
+`debug_log_19112025-1558.txt` (world seed “norma”, 295,732 tiles) logged 2,458 AnimalHabitat tiles.
+Reflection now exposes the specific animal defNames per tile, which receive scoring bonuses from
+`FilterService.GetAnimalQuality` (Thrumbo +10, Megasloth +8, Elephant/Rhinoceros +7, etc.). Top
+species from that run:
+
+| Species (defName) | Count | % of AnimalHabitat tiles | Quality Bonus |
+|-------------------|-------|-------------------------|---------------|
+| Boomalope | 149 | 6.06% | +3 (default) |
+| Gazelle | 108 | 4.39% | +3 |
+| Donkey | 105 | 4.27% | +3 |
+| Armadillo | 100 | 4.07% | +3 |
+| Rat | 98 | 3.99% | +3 |
+| MonitorLizard | 97 | 3.95% | +3 |
+| Dromedary | 97 | 3.95% | +5 (pack animal) |
+| Vulture | 94 | 3.82% | +3 |
+| Iguana | 92 | 3.74% | +3 |
+| Emu | 86 | 3.50% | +3 |
+| Megasloth | 36 | 1.46% | +8 |
+| Rhinoceros | 25 | 1.02% | +7 |
+| Elephant | 25 | 1.02% | +7 |
+| Thrumbo | 2 | 0.08% | +10 (seen in earlier worlds) |
+
+Species not explicitly mapped default to a +3 contribution; rare creatures inherit the higher
+bonuses shown above. These values appear in `[DEBUG]` match dumps as animal modifiers.
+
+#### PlantGrove / WildPlants species (cache validation)
+
+The same log resolved 2,724 PlantGrove/WildPlants tiles. Plant defNames now receive scoring bonuses
+from `FilterService.GetPlantQuality` (Ambrosia +9, Devilstrand +8, Healroot +7, etc.). Highlighted
+species:
+
+| Plant (defName) | Count | % of Plant tiles | Quality Bonus |
+|-----------------|-------|------------------|---------------|
+| Plant_TreePoplar | 332 | 12.19% | +3 (wood) |
+| Plant_Psychoid_Wild | 320 | 11.75% | +5 |
+| Plant_Fibercorn_Wild | 301 | 11.05% | +3 |
+| Plant_Strawberry_Wild | 280 | 10.28% | +3 |
+| Plant_TreeOak | 276 | 10.13% | +2 |
+| Plant_Cotton_Wild | 270 | 9.91% | +4 |
+| Plant_Smokeleaf_Wild | 263 | 9.65% | +5 |
+| Plant_TreeCecropia | 250 | 9.18% | +2 |
+| Plant_Tinctoria_Wild | 240 | 8.81% | +3 |
+| Plant_TreeBirch | 54 | 1.98% | +2 |
+| Plant_TreePine | 47 | 1.73% | +2 |
+| Plant_Ambrosia* | 4 (prior run) | 0.15% | +9 |
+
+*Ambrosia did not spawn in this specific world but was validated in earlier builds; include it to
+show the top-tier quality bonus. Future canonical refreshes will aggregate these species counts
+across all dumps.
+
 ### Moderate Value (+1 to +4 Quality)
 
 | defName | Count | % Settleable | Quality | Description |

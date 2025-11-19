@@ -132,6 +132,9 @@ namespace LandingZone.Core.Filtering
                 "stone" => settings.Stones.HasCritical ? FilterImportance.Critical :
                            settings.Stones.HasPreferred ? FilterImportance.Preferred :
                            FilterImportance.Ignored,
+                "stockpile" => settings.Stockpiles.HasCritical ? FilterImportance.Critical :
+                               settings.Stockpiles.HasPreferred ? FilterImportance.Preferred :
+                               FilterImportance.Ignored,
 
                 // Biome filter is always Critical if LockedBiome is set
                 "biome" => settings.LockedBiome != null ? FilterImportance.Critical : FilterImportance.Ignored,

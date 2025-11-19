@@ -1,5 +1,5 @@
 {
-  "generated": "2025-11-15T11:51:11.210813",
+  "generated": "2025-11-16T20:01:32.291493",
   "source_dump": "/Users/will/Library/Application Support/RimWorld/Config/LandingZone_FullCache_2025-11-13_12-46-35.txt",
   "total_tiles": 295732,
   "settleable_tiles": 137159,
@@ -350,7 +350,7 @@
       "percent_settleable": 0.0002770507221545797
     },
     {
-      "name": "AncientUplink",
+      "name": "Cavern",
       "count_all": 37,
       "percent_all": 0.00012511327823840505,
       "count_settleable": 37,
@@ -364,7 +364,7 @@
       "percent_settleable": 0.0002697599136768276
     },
     {
-      "name": "Cavern",
+      "name": "AncientUplink",
       "count_all": 37,
       "percent_all": 0.00012511327823840505,
       "count_settleable": 37,
@@ -469,14 +469,14 @@
       "percent_settleable": 0.00015310697803279407
     },
     {
-      "name": "CoastalAtoll",
+      "name": "AbandonedColonyTribal",
       "count_all": 19,
       "percent_all": 6.424735909539719e-05,
       "count_settleable": 19,
       "percent_settleable": 0.00013852536107728986
     },
     {
-      "name": "AbandonedColonyTribal",
+      "name": "CoastalAtoll",
       "count_all": 19,
       "percent_all": 6.424735909539719e-05,
       "count_settleable": 19,
@@ -497,14 +497,14 @@
       "percent_settleable": 0.00012394374412178568
     },
     {
-      "name": "Plateau",
+      "name": "Lake",
       "count_all": 17,
       "percent_all": 5.7484479190618535e-05,
       "count_settleable": 17,
       "percent_settleable": 0.00012394374412178568
     },
     {
-      "name": "Lake",
+      "name": "Plateau",
       "count_all": 17,
       "percent_all": 5.7484479190618535e-05,
       "count_settleable": 17,
@@ -525,14 +525,14 @@
       "percent_settleable": 0.00011665293564403357
     },
     {
-      "name": "AncientSmokeVent",
+      "name": "Basin",
       "count_all": 14,
       "percent_all": 4.734015933345056e-05,
       "count_settleable": 14,
       "percent_settleable": 0.00010207131868852937
     },
     {
-      "name": "Basin",
+      "name": "AncientSmokeVent",
       "count_all": 14,
       "percent_all": 4.734015933345056e-05,
       "count_settleable": 14,
@@ -546,18 +546,18 @@
       "percent_settleable": 9.478051021077727e-05
     },
     {
-      "name": "IceDunes",
-      "count_all": 12,
-      "percent_all": 4.057727942867191e-05,
-      "count_settleable": 0,
-      "percent_settleable": 0.0
-    },
-    {
       "name": "AncientQuarry",
       "count_all": 12,
       "percent_all": 4.057727942867191e-05,
       "count_settleable": 12,
       "percent_settleable": 8.748970173302518e-05
+    },
+    {
+      "name": "IceDunes",
+      "count_all": 12,
+      "percent_all": 4.057727942867191e-05,
+      "count_settleable": 0,
+      "percent_settleable": 0.0
     },
     {
       "name": "HotSprings",
@@ -574,13 +574,6 @@
       "percent_settleable": 7.290808477752098e-05
     },
     {
-      "name": "AncientLaunchSite",
-      "count_all": 9,
-      "percent_all": 3.043295957150393e-05,
-      "count_settleable": 9,
-      "percent_settleable": 6.561727629976888e-05
-    },
-    {
       "name": "AncientGarrison",
       "count_all": 9,
       "percent_all": 3.043295957150393e-05,
@@ -588,42 +581,21 @@
       "percent_settleable": 6.561727629976888e-05
     },
     {
-      "name": "Iceberg",
-      "count_all": 7,
-      "percent_all": 2.367007966672528e-05,
-      "count_settleable": 4,
-      "percent_settleable": 2.9163233911008393e-05
+      "name": "AncientLaunchSite",
+      "count_all": 9,
+      "percent_all": 3.043295957150393e-05,
+      "count_settleable": 9,
+      "percent_settleable": 6.561727629976888e-05
     },
     {
-      "name": "ToxicLake",
-      "count_all": 7,
-      "percent_all": 2.367007966672528e-05,
-      "count_settleable": 7,
-      "percent_settleable": 5.103565934426469e-05
-    },
-    {
-      "name": "AncientWarehouse",
+      "name": "LavaFlow",
       "count_all": 7,
       "percent_all": 2.367007966672528e-05,
       "count_settleable": 7,
       "percent_settleable": 5.103565934426469e-05
     },
     {
-      "name": "AncientHeatVent",
-      "count_all": 7,
-      "percent_all": 2.367007966672528e-05,
-      "count_settleable": 7,
-      "percent_settleable": 5.103565934426469e-05
-    },
-    {
-      "name": "AncientInfestedSettlement",
-      "count_all": 7,
-      "percent_all": 2.367007966672528e-05,
-      "count_settleable": 7,
-      "percent_settleable": 5.103565934426469e-05
-    },
-    {
-      "name": "ArcheanTrees",
+      "name": "LavaCrater",
       "count_all": 7,
       "percent_all": 2.367007966672528e-05,
       "count_settleable": 7,
@@ -637,14 +609,42 @@
       "percent_settleable": 5.103565934426469e-05
     },
     {
-      "name": "LavaFlow",
+      "name": "Iceberg",
+      "count_all": 7,
+      "percent_all": 2.367007966672528e-05,
+      "count_settleable": 4,
+      "percent_settleable": 2.9163233911008393e-05
+    },
+    {
+      "name": "AncientHeatVent",
       "count_all": 7,
       "percent_all": 2.367007966672528e-05,
       "count_settleable": 7,
       "percent_settleable": 5.103565934426469e-05
     },
     {
-      "name": "LavaCrater",
+      "name": "ArcheanTrees",
+      "count_all": 7,
+      "percent_all": 2.367007966672528e-05,
+      "count_settleable": 7,
+      "percent_settleable": 5.103565934426469e-05
+    },
+    {
+      "name": "AncientWarehouse",
+      "count_all": 7,
+      "percent_all": 2.367007966672528e-05,
+      "count_settleable": 7,
+      "percent_settleable": 5.103565934426469e-05
+    },
+    {
+      "name": "ToxicLake",
+      "count_all": 7,
+      "percent_all": 2.367007966672528e-05,
+      "count_settleable": 7,
+      "percent_settleable": 5.103565934426469e-05
+    },
+    {
+      "name": "AncientInfestedSettlement",
       "count_all": 7,
       "percent_all": 2.367007966672528e-05,
       "count_settleable": 7,

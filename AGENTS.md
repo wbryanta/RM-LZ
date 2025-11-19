@@ -46,6 +46,7 @@ Anchor every judgment to concrete evidence. Preferred order:
    - Product overview: `README.md`.
    - Architecture: `docs/architecture-v0.1-beta.md`.
    - DevAgent instructions: `CLAUDE.md` (reference, but do **not** inline these instructions).
+   - Reverse engineering playbook: `docs/forensics/reflection_playbook.md` (process for inspecting hidden RimWorld APIs).
    - No dedicated security or UX guideline doc currently exists; call this out if work depends on such guidance.
 3. Repository code/tests (C# `Source/`, XML `Defs/`, scripts).
 4. GitHub issues/PRs, task board (`scripts/tasks_api.py` + `tasks.json`).
@@ -151,8 +152,14 @@ Use these quick facts to anchor findings:
   - `Assemblies/` – shipping DLLs RimWorld loads.
   - `docs/` – architecture/forensic references (e.g., `docs/architecture-v0.1-beta.md`).
   - `scripts/` – automation (`build.py`, `tasks_api.py`).
-- **Versioning:** `About/About.xml` + `VERSIONING.md` outline current beta version (`0.1.3-beta`) and release policies.
+- **Canonical data:** `docs/data/canonical_world_library_aggregate.json` (aggregate of full world dumps) and `LandingZone_CacheAnalysis_*` reports; validate every defName/feature against these before accepting.
+- **Versioning:** Single source of truth is `VERSIONING.md` + `About/About.xml`; cite those instead of hardcoding numbers in reviews.
 - **RimWorld target:** Version 1.6; ensure compatibility when reviewing API usage.
+- **Logging taxonomy:** Prefer `LandingZoneLogger` (Standard/Debug) over raw `Log.Message`; avoid verbose spam that suppresses game logging.
+
+**Verification guardrails for Codex:**
+- Demand defName validation against canonical data for new filters/presets; block on assumptions.
+- Watch for preset-specific mutator quality overrides—confirm they are applied in scoring and scoped to the active preset.
 
 ### Tasks.json Alignment
 - Treat `tasks.json` as authoritative for status, priorities, and acceptance criteria.
