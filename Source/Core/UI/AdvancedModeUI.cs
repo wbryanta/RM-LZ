@@ -229,11 +229,13 @@ namespace LandingZone.Core.UI
             Widgets.DrawBox(rect);
 
             var contentRect = rect.ContractedBy(8f);
-            var listing = new Listing_Standard { ColumnWidth = contentRect.width };
 
             // Create scrollable view for panel content
-            var viewRect = new Rect(0f, 0f, contentRect.width - 16f, 600f); // Enough height for content
+            var viewRect = new Rect(0f, 0f, contentRect.width - 16f, 600f); // Subtract scrollbar width
+
             Widgets.BeginScrollView(contentRect, ref _rightPanelScrollPosition, viewRect);
+
+            var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
             // Header
