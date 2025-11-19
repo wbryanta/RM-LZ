@@ -16,12 +16,15 @@ namespace LandingZone.Core.UI
         private const float TabHeight = 32f;
         private const float GroupHeaderHeight = 32f;
         private const float FilterItemHeight = 30f;
+        private const float RightPanelWidth = 280f;
+        private const float ColumnGap = 12f;
 
         // UI State
         private static string _searchText = "";
         private static AdvancedTab _selectedTab = AdvancedTab.Climate;
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
+        private static Vector2 _rightPanelScrollPosition = Vector2.zero;
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
         private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
 
@@ -43,7 +46,7 @@ namespace LandingZone.Core.UI
         internal static List<FilterConflict> GetActiveConflicts() => _activeConflicts;
 
         /// <summary>
-        /// Renders the Advanced mode UI (tabs + search + grouped filters).
+        /// Renders the Advanced mode UI (tabs + search + grouped filters + live preview panel).
         /// </summary>
         /// <param name="inRect">Available drawing area</param>
         /// <param name="preferences">User preferences containing filter settings</param>
@@ -53,8 +56,14 @@ namespace LandingZone.Core.UI
             // Run conflict detection on current filter settings
             _activeConflicts = ConflictDetector.DetectConflicts(preferences.GetActiveFilters());
 
-            var listing = new Listing_Standard { ColumnWidth = inRect.width };
-            listing.Begin(inRect);
+            // Two-column layout: left = filters, right = live preview
+            float leftColumnWidth = inRect.width - RightPanelWidth - ColumnGap;
+            Rect leftColumn = new Rect(inRect.x, inRect.y, leftColumnWidth, inRect.height);
+            Rect rightColumn = new Rect(inRect.x + leftColumnWidth + ColumnGap, inRect.y, RightPanelWidth, inRect.height);
+
+            // LEFT COLUMN: Tabs, Search, Filters
+            var listing = new Listing_Standard { ColumnWidth = leftColumn.width };
+            listing.Begin(leftColumn);
 
             // Show general conflicts (not filter-specific) at the top
             var generalConflicts = _activeConflicts.Where(c => c.FilterId == "general").ToList();
@@ -82,6 +91,10 @@ namespace LandingZone.Core.UI
             DrawFilterGroups(listing, groups, preferences);
 
             listing.End();
+
+            // RIGHT COLUMN: Live Preview Panel (Tier 3)
+            DrawLivePreviewPanel(rightColumn, preferences);
+
             return listing.CurHeight;
         }
 
@@ -205,6 +218,149 @@ namespace LandingZone.Core.UI
         {
             var allGroups = GetUserIntentGroups();
             return allGroups.Where(g => MapGroupToTab(g.Id) == tab).ToList();
+        }
+
+        private static void DrawLivePreviewPanel(Rect rect, UserPreferences preferences)
+        {
+            var filters = preferences.GetActiveFilters();
+
+            // Panel background
+            Widgets.DrawBoxSolid(rect, new Color(0.1f, 0.1f, 0.1f));
+            Widgets.DrawBox(rect);
+
+            var contentRect = rect.ContractedBy(8f);
+            var listing = new Listing_Standard { ColumnWidth = contentRect.width };
+
+            // Create scrollable view for panel content
+            var viewRect = new Rect(0f, 0f, contentRect.width - 16f, 600f); // Enough height for content
+            Widgets.BeginScrollView(contentRect, ref _rightPanelScrollPosition, viewRect);
+            listing.Begin(viewRect);
+
+            // Header
+            Text.Font = GameFont.Medium;
+            listing.Label("LIVE FILTER PREVIEW");
+            Text.Font = GameFont.Small;
+            listing.GapLine();
+            listing.Gap(8f);
+
+            // Estimated match count (using selectivity analysis)
+            var selectivities = LandingZoneContext.Filters?.GetAllSelectivities(LandingZoneContext.State);
+            if (selectivities != null && selectivities.Any())
+            {
+                var criticalSelectivities = selectivities.Where(s => s.Importance == FilterImportance.Critical).ToList();
+                if (criticalSelectivities.Any())
+                {
+                    // Estimate combined selectivity (product of individual ratios as rough approximation)
+                    float combinedRatio = 1.0f;
+                    foreach (var s in criticalSelectivities)
+                    {
+                        combinedRatio *= s.Ratio;
+                    }
+
+                    int estimatedMatches = (int)(combinedRatio * (selectivities.FirstOrDefault().TotalTiles));
+                    float percentage = combinedRatio * 100f;
+
+                    Text.Font = GameFont.Small;
+                    listing.Label($"Estimated Matches:");
+                    Text.Font = GameFont.Medium;
+                    GUI.color = percentage < 1f ? new Color(1f, 0.5f, 0.5f) : Color.white;
+                    listing.Label($"~{estimatedMatches:N0} tiles ({percentage:F1}%)");
+                    GUI.color = Color.white;
+                    Text.Font = GameFont.Small;
+                    listing.Gap(12f);
+                }
+            }
+
+            // Critical Filters
+            var allGroups = GetUserIntentGroups();
+            var criticalFilters = new List<string>();
+            var preferredFilters = new List<string>();
+
+            foreach (var group in allGroups)
+            {
+                foreach (var filter in group.Filters)
+                {
+                    var (isActive, importance) = filter.IsActiveFunc(filters);
+                    if (isActive)
+                    {
+                        if (importance == FilterImportance.Critical)
+                            criticalFilters.Add(filter.Label);
+                        else if (importance == FilterImportance.Preferred)
+                            preferredFilters.Add(filter.Label);
+                    }
+                }
+            }
+
+            if (criticalFilters.Any())
+            {
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(1f, 0.7f, 0.7f);
+                listing.Label($"Critical Filters ({criticalFilters.Count}):");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Tiny;
+                foreach (var f in criticalFilters.Take(10)) // Limit to first 10
+                {
+                    listing.Label($"  ✓ {f}");
+                }
+                if (criticalFilters.Count > 10)
+                    listing.Label($"  ... and {criticalFilters.Count - 10} more");
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+            }
+
+            if (preferredFilters.Any())
+            {
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(0.7f, 0.7f, 1f);
+                listing.Label($"Preferred Filters ({preferredFilters.Count}):");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Tiny;
+                foreach (var f in preferredFilters.Take(10)) // Limit to first 10
+                {
+                    listing.Label($"  • {f}");
+                }
+                if (preferredFilters.Count > 10)
+                    listing.Label($"  ... and {preferredFilters.Count - 10} more");
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+            }
+
+            // Warnings
+            if (_activeConflicts.Any())
+            {
+                listing.GapLine();
+                listing.Gap(8f);
+                GUI.color = new Color(1f, 0.7f, 0.3f);
+                Text.Font = GameFont.Small;
+                listing.Label($"⚠ Warnings ({_activeConflicts.Count}):");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Tiny;
+                foreach (var conflict in _activeConflicts.Take(5))
+                {
+                    listing.Label($"  • {conflict.Message}");
+                }
+                if (_activeConflicts.Count > 5)
+                    listing.Label($"  ... and {_activeConflicts.Count - 5} more");
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+            }
+
+            // Search Now button
+            listing.GapLine();
+            listing.Gap(12f);
+            if (listing.ButtonText("Search Now"))
+            {
+                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
+            }
+
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.6f, 0.6f, 0.6f);
+            listing.Label("Tip: Adjust filters in left panel to refine your search");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listing.End();
+            Widgets.EndScrollView();
         }
 
         private static void DrawFilterGroups(Listing_Standard listing, List<FilterGroup> groups, UserPreferences preferences)
