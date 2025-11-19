@@ -142,6 +142,15 @@ namespace LandingZone.Core.UI
                     f => f.PollutionImportance,
                     (f, v) => f.PollutionImportance = v,
                     0f, 1f
+                ),
+                new FilterControl(
+                    "_ClimateWarnings",
+                    (listing, filters) =>
+                    {
+                        // Show climate-specific conflict warnings
+                        UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "climate");
+                    },
+                    filters => (false, FilterImportance.Ignored)  // Never active/counted
                 )
             };
 
@@ -182,9 +191,9 @@ namespace LandingZone.Core.UI
                         if (filters.Rivers.HasCritical)
                         {
                             var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = filters.Rivers.Operator == ImportanceOperator.OR
-                                ? "Match: ANY of the selected rivers"
-                                : "Match: ALL of the selected rivers";
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Rivers.Operator, "rivers");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Rivers.Operator, "rivers",
+                                filters.Rivers.GetCriticalItems().Count());
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {
@@ -192,7 +201,11 @@ namespace LandingZone.Core.UI
                                     ? ImportanceOperator.AND
                                     : ImportanceOperator.OR;
                             }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
                             listing.Gap(4f);
+
+                            // Show conflict warnings specific to rivers
+                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "rivers");
                         }
 
                         // Individual river list
@@ -216,9 +229,9 @@ namespace LandingZone.Core.UI
                         if (filters.Roads.HasCritical)
                         {
                             var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = filters.Roads.Operator == ImportanceOperator.OR
-                                ? "Match: ANY of the selected roads"
-                                : "Match: ALL of the selected roads";
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Roads.Operator, "roads");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Roads.Operator, "roads",
+                                filters.Roads.GetCriticalItems().Count());
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {
@@ -226,7 +239,11 @@ namespace LandingZone.Core.UI
                                     ? ImportanceOperator.AND
                                     : ImportanceOperator.OR;
                             }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
                             listing.Gap(4f);
+
+                            // Show conflict warnings specific to roads
+                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "roads");
                         }
 
                         // Individual road list
@@ -283,9 +300,9 @@ namespace LandingZone.Core.UI
                         if (filters.Stones.HasCritical)
                         {
                             var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = filters.Stones.Operator == ImportanceOperator.OR
-                                ? "Match: ANY of the selected stones"
-                                : "Match: ALL of the selected stones";
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stones.Operator, "stones");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stones.Operator, "stones",
+                                filters.Stones.GetCriticalItems().Count());
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {
@@ -293,7 +310,11 @@ namespace LandingZone.Core.UI
                                     ? ImportanceOperator.AND
                                     : ImportanceOperator.OR;
                             }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
                             listing.Gap(4f);
+
+                            // Show conflict warnings specific to stones
+                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "stones");
                         }
 
                         // Individual stone list
@@ -377,9 +398,9 @@ namespace LandingZone.Core.UI
                         if (filters.MapFeatures.HasCritical)
                         {
                             var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = filters.MapFeatures.Operator == ImportanceOperator.OR
-                                ? "Match: ANY of the selected features"
-                                : "Match: ALL of the selected features";
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.MapFeatures.Operator, "features");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.MapFeatures.Operator, "features",
+                                filters.MapFeatures.GetCriticalItems().Count());
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {
@@ -387,7 +408,11 @@ namespace LandingZone.Core.UI
                                     ? ImportanceOperator.AND
                                     : ImportanceOperator.OR;
                             }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
                             listing.Gap(4f);
+
+                            // Show conflict warnings specific to map features
+                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "map_features");
                         }
 
                         var featureTypes = MapFeatureFilter.GetAllMapFeatureTypes().OrderBy(f => f).ToList();

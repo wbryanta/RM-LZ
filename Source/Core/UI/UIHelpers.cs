@@ -384,5 +384,111 @@ namespace LandingZone.Core.UI
 
             listing.Gap(2f);
         }
+
+        /// <summary>
+        /// Draws an inline conflict warning with severity-based styling.
+        /// </summary>
+        public static void DrawConflictWarning(Listing_Standard listing, FilterConflict conflict)
+        {
+            var rect = listing.GetRect(GetWarningHeight(conflict));
+            DrawConflictWarning(rect, conflict);
+            listing.Gap(4f);
+        }
+
+        /// <summary>
+        /// Draws an inline conflict warning in the given rect.
+        /// </summary>
+        public static void DrawConflictWarning(Rect rect, FilterConflict conflict)
+        {
+            // Choose color based on severity
+            Color bgColor = conflict.Severity switch
+            {
+                ConflictSeverity.Error => new Color(0.8f, 0.2f, 0.2f, 0.3f),    // Red
+                ConflictSeverity.Warning => new Color(0.9f, 0.7f, 0.2f, 0.3f),  // Orange
+                ConflictSeverity.Info => new Color(0.3f, 0.6f, 0.9f, 0.3f),     // Blue
+                _ => new Color(0.5f, 0.5f, 0.5f, 0.3f)
+            };
+
+            Color borderColor = conflict.Severity switch
+            {
+                ConflictSeverity.Error => new Color(1f, 0.3f, 0.3f),
+                ConflictSeverity.Warning => new Color(1f, 0.8f, 0.3f),
+                ConflictSeverity.Info => new Color(0.5f, 0.7f, 1f),
+                _ => Color.gray
+            };
+
+            // Draw background and border
+            Widgets.DrawBoxSolid(rect, bgColor);
+            var savedColor = GUI.color;
+            GUI.color = borderColor;
+            Widgets.DrawBox(rect);
+            GUI.color = savedColor;
+
+            var contentRect = rect.ContractedBy(6f);
+
+            var prevFont = Text.Font;
+            var prevAnchor = Text.Anchor;
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.UpperLeft;
+
+            // Icon and severity label
+            string icon = conflict.Severity switch
+            {
+                ConflictSeverity.Error => "⚠",
+                ConflictSeverity.Warning => "⚠",
+                ConflictSeverity.Info => "ℹ",
+                _ => "?"
+            };
+
+            string severityLabel = conflict.Severity switch
+            {
+                ConflictSeverity.Error => "ERROR",
+                ConflictSeverity.Warning => "WARNING",
+                ConflictSeverity.Info => "INFO",
+                _ => ""
+            };
+
+            // Draw header line
+            var prevColor = GUI.color;
+            GUI.color = borderColor;
+            Widgets.Label(new Rect(contentRect.x, contentRect.y, contentRect.width, 18f),
+                $"{icon} {severityLabel}: {conflict.Message}");
+            GUI.color = prevColor;
+
+            // Draw suggestion line
+            if (!string.IsNullOrEmpty(conflict.Suggestion))
+            {
+                GUI.color = new Color(0.9f, 0.9f, 0.9f);
+                Widgets.Label(new Rect(contentRect.x, contentRect.y + 18f, contentRect.width, 18f),
+                    $"   → {conflict.Suggestion}");
+                GUI.color = prevColor;
+            }
+
+            Text.Font = prevFont;
+            Text.Anchor = prevAnchor;
+        }
+
+        /// <summary>
+        /// Calculates the required height for a conflict warning box.
+        /// </summary>
+        private static float GetWarningHeight(FilterConflict conflict)
+        {
+            float baseHeight = 30f;  // Icon + message
+            if (!string.IsNullOrEmpty(conflict.Suggestion))
+                baseHeight += 18f;  // Suggestion line
+            return baseHeight;
+        }
+
+        /// <summary>
+        /// Draws all conflicts for a specific filter ID inline in the listing.
+        /// </summary>
+        public static void DrawFilterConflicts(Listing_Standard listing, System.Collections.Generic.List<FilterConflict> allConflicts, string filterId)
+        {
+            var relevantConflicts = allConflicts.Where(c => c.FilterId == filterId).ToList();
+            foreach (var conflict in relevantConflicts)
+            {
+                DrawConflictWarning(listing, conflict);
+            }
+        }
     }
 }

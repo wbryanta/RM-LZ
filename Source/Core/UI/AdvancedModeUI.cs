@@ -23,6 +23,12 @@ namespace LandingZone.Core.UI
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
+        private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
+
+        /// <summary>
+        /// Gets the currently detected conflicts for use by filter controls.
+        /// </summary>
+        internal static List<FilterConflict> GetActiveConflicts() => _activeConflicts;
 
         /// <summary>
         /// Renders the Advanced mode UI (search + grouped filters).
@@ -32,8 +38,22 @@ namespace LandingZone.Core.UI
         /// <returns>Total height consumed by rendering</returns>
         public static float DrawContent(Rect inRect, UserPreferences preferences)
         {
+            // Run conflict detection on current filter settings
+            _activeConflicts = ConflictDetector.DetectConflicts(preferences.GetActiveFilters());
+
             var listing = new Listing_Standard { ColumnWidth = inRect.width };
             listing.Begin(inRect);
+
+            // Show general conflicts (not filter-specific) at the top
+            var generalConflicts = _activeConflicts.Where(c => c.FilterId == "general").ToList();
+            if (generalConflicts.Any())
+            {
+                foreach (var conflict in generalConflicts)
+                {
+                    UIHelpers.DrawConflictWarning(listing, conflict);
+                }
+                listing.Gap(8f);
+            }
 
             // Search box for filtering visible controls
             var searchRect = listing.GetRect(SearchBoxHeight);
