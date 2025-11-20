@@ -21,7 +21,7 @@ namespace LandingZone.Core.UI
         /// Draws an importance selector (Ignored/Preferred/Critical).
         /// Returns true if filter is active (not Ignored).
         /// </summary>
-        public static bool DrawImportanceSelector(Rect rect, string label, ref FilterImportance importance, string tooltip = null)
+        public static bool DrawImportanceSelector(Rect rect, string label, ref FilterImportance importance, string tooltip = null, bool isEnabled = true, string disabledReason = null)
         {
             var buttonRect = rect;
 
@@ -38,8 +38,18 @@ namespace LandingZone.Core.UI
                 _ => Color.white
             };
 
+            // Grey out if disabled
             var prevColor = GUI.color;
-            GUI.color = stateColor;
+            if (!isEnabled)
+            {
+                GUI.color = new Color(0.4f, 0.4f, 0.4f); // Dark grey for disabled
+                stateColor = new Color(0.3f, 0.3f, 0.3f);
+            }
+            else
+            {
+                GUI.color = stateColor;
+            }
+
             Widgets.DrawBoxSolid(indicatorRect, stateColor);
             GUI.color = prevColor;
 
@@ -52,7 +62,18 @@ namespace LandingZone.Core.UI
                 _ => "?"
             };
 
-            if (Widgets.ButtonText(labelRect, $"{label}: {stateLabel}"))
+            string displayLabel = $"{label}: {stateLabel}";
+            if (!isEnabled)
+            {
+                // Add DLC indicator to label
+                displayLabel = $"{label}: (DLC Required)";
+                GUI.color = new Color(0.5f, 0.5f, 0.5f); // Grey out text
+            }
+
+            bool clicked = Widgets.ButtonText(labelRect, displayLabel);
+            GUI.color = prevColor;
+
+            if (clicked && isEnabled)
             {
                 // Cycle through states: Ignored -> Preferred -> Critical -> Ignored
                 importance = importance switch
@@ -64,9 +85,16 @@ namespace LandingZone.Core.UI
                 };
             }
 
-            if (!string.IsNullOrEmpty(tooltip))
+            // Show appropriate tooltip
+            string finalTooltip = tooltip;
+            if (!isEnabled && !string.IsNullOrEmpty(disabledReason))
             {
-                TooltipHandler.TipRegion(buttonRect, tooltip);
+                finalTooltip = disabledReason;
+            }
+
+            if (!string.IsNullOrEmpty(finalTooltip))
+            {
+                TooltipHandler.TipRegion(buttonRect, finalTooltip);
             }
 
             return importance != FilterImportance.Ignored;

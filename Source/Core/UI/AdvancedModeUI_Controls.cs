@@ -477,8 +477,20 @@ namespace LandingZone.Core.UI
                                 var itemRect = new Rect(0f, y, scrollRect.width, itemHeight);
                                 var importance = filters.MapFeatures.GetImportance(feature);
                                 var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
-                                UIHelpers.DrawImportanceSelector(itemRect, friendlyLabel, ref importance);
-                                filters.MapFeatures.SetImportance(feature, importance);
+
+                                // Check DLC requirement
+                                string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(feature);
+                                bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                                string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                                UIHelpers.DrawImportanceSelector(itemRect, friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                                // Only allow changes if DLC is available
+                                if (isEnabled)
+                                {
+                                    filters.MapFeatures.SetImportance(feature, importance);
+                                }
+
                                 y += itemHeight;
                             }
 
@@ -491,8 +503,19 @@ namespace LandingZone.Core.UI
                             {
                                 var importance = filters.MapFeatures.GetImportance(feature);
                                 var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
-                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), friendlyLabel, ref importance);
-                                filters.MapFeatures.SetImportance(feature, importance);
+
+                                // Check DLC requirement
+                                string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(feature);
+                                bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                                string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                                // Only allow changes if DLC is available
+                                if (isEnabled)
+                                {
+                                    filters.MapFeatures.SetImportance(feature, importance);
+                                }
                             }
                         }
 

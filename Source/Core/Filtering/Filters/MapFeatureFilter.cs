@@ -314,6 +314,70 @@ namespace LandingZone.Core.Filtering.Filters
                 .Replace("_", " ");
         }
 
+        /// <summary>
+        /// Gets the DLC requirement for a specific mutator.
+        /// Returns null if mutator is from Core game or couldn't be determined.
+        /// </summary>
+        public static string GetMutatorDLCRequirement(string defName)
+        {
+            if (string.IsNullOrEmpty(defName))
+                return null;
+
+            try
+            {
+                // Try to get the Def from DefDatabase
+                var defDatabaseType = typeof(DefDatabase<>);
+                var worldTileDefType = GenTypes.GetTypeInAnyAssembly("RimWorld.Planet.WorldTileDef");
+
+                if (worldTileDefType != null)
+                {
+                    var specificDefDatabase = defDatabaseType.MakeGenericType(worldTileDefType);
+                    var getNamedMethod = specificDefDatabase.GetMethod("GetNamedSilentFail");
+
+                    if (getNamedMethod != null)
+                    {
+                        var mutatorDef = getNamedMethod.Invoke(null, new object[] { defName });
+
+                        if (mutatorDef != null)
+                        {
+                            // Get modContentPack property
+                            var modContentPackProp = mutatorDef.GetType().GetProperty("modContentPack");
+                            if (modContentPackProp != null)
+                            {
+                                var modContentPack = modContentPackProp.GetValue(mutatorDef);
+                                if (modContentPack != null)
+                                {
+                                    // Get PackageId from modContentPack
+                                    var packageIdProp = modContentPack.GetType().GetProperty("PackageId");
+                                    if (packageIdProp != null)
+                                    {
+                                        var packageId = packageIdProp.GetValue(modContentPack)?.ToString();
+                                        if (!string.IsNullOrEmpty(packageId))
+                                        {
+                                            // Use DLCDetectionService to convert packageId to DLC label
+                                            string dlcLabel = DLCDetectionService.GetDLCLabel(packageId);
+
+                                            // Only return non-Core DLCs
+                                            if (dlcLabel != "Core")
+                                                return dlcLabel;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                // Silently fail - this is just for DLC detection
+                if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
+                    LandingZoneLogger.LogVerbose($"[LandingZone] GetMutatorDLCRequirement({defName}): {ex.Message}");
+            }
+
+            return null; // Core or couldn't determine
+        }
+
         public float Membership(int tileId, FilterContext context)
         {
             var mapFeatures = context.Filters.MapFeatures;
