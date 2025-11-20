@@ -453,10 +453,10 @@ namespace LandingZone.Core.UI
 
                         var featureTypes = MapFeatureFilter.GetAllMapFeatureTypes().OrderBy(f => f).ToList();
 
-                        // Only show features matching search
+                        // Only show features matching search (search both defName and friendly label)
                         var visibleFeatures = string.IsNullOrEmpty(_searchText)
                             ? featureTypes
-                            : featureTypes.Where(f => MatchesSearch(f)).ToList();
+                            : featureTypes.Where(f => MatchesSearch(f) || MatchesSearch(MapFeatureFilter.GetMutatorFriendlyLabel(f))).ToList();
 
                         // Use scrollable view for all features (no hard limit)
                         const float itemHeight = 30f;
@@ -476,7 +476,8 @@ namespace LandingZone.Core.UI
                             {
                                 var itemRect = new Rect(0f, y, scrollRect.width, itemHeight);
                                 var importance = filters.MapFeatures.GetImportance(feature);
-                                UIHelpers.DrawImportanceSelector(itemRect, feature, ref importance);
+                                var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
+                                UIHelpers.DrawImportanceSelector(itemRect, friendlyLabel, ref importance);
                                 filters.MapFeatures.SetImportance(feature, importance);
                                 y += itemHeight;
                             }
@@ -489,7 +490,8 @@ namespace LandingZone.Core.UI
                             foreach (var feature in visibleFeatures)
                             {
                                 var importance = filters.MapFeatures.GetImportance(feature);
-                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), feature, ref importance);
+                                var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
+                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), friendlyLabel, ref importance);
                                 filters.MapFeatures.SetImportance(feature, importance);
                             }
                         }
