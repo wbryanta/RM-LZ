@@ -117,15 +117,8 @@ namespace LandingZone.Data
                 CreateBayouPreset(),
                 CreateSavannahPreset(),
                 CreateAquaticPreset(),
-                CreateHomesteaderPreset(),
+                CreateHomesteadPreset()
                 // 8 curated + 4 specials = 12 total (perfect 3x4 grid)
-
-                // TEMPORARY: Testing presets (4-column row 4)
-                // TODO: Remove after stockpile scoring validation is complete
-                CreateTestComponentStockpilePreset(),
-                CreateTestWeaponsStockpilePreset(),
-                CreateTestMedicineStockpilePreset(),
-                CreateTestMineableSteelPreset()
             };
 
             _initialized = true;
@@ -918,13 +911,13 @@ namespace LandingZone.Data
             return preset;
         }
 
-        // ===== WILDCARD PRESET: Random chaos challenge =====
-        private static Preset CreateHomesteaderPreset()
+        // ===== HOMESTEAD PRESET: Abandoned settlement salvage =====
+        private static Preset CreateHomesteadPreset()
         {
             var preset = new Preset
             {
-                Id = "homesteader",
-                Name = "Homesteader",
+                Id = "homestead",
+                Name = "Homestead",
                 Description = "Move-in ready! Find abandoned settlements and ancient structures with existing buildings to salvage.",
                 Category = "Curated",
                 TargetRarity = TileRarity.VeryRare,
@@ -978,107 +971,6 @@ namespace LandingZone.Data
 
             // Resources: Plasteel for industrial salvage and construction (Preferred)
             filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Preferred);
-
-            return preset;
-        }
-
-        // ========== TESTING PRESETS (TEMPORARY) ==========
-        // These presets are for validating stockpile scoring and mineral cache behavior.
-        // They should be removed after testing is complete.
-
-        /// <summary>
-        /// TEST: Component stockpile detection and scoring
-        /// </summary>
-        private static Preset CreateTestComponentStockpilePreset()
-        {
-            var preset = new Preset
-            {
-                Id = "test_component_stockpile",
-                Name = "[TEST] Component",
-                Description = "Testing preset: Finds tiles with Component stockpiles (Critical). Expected: 5-10 tiles globally.",
-                Category = "Testing",
-                TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Component Stockpile (Critical)"
-            };
-
-            var filters = preset.Filters;
-
-            // Stockpile: Component (Critical)
-            filters.Stockpiles.SetImportance("Component", FilterImportance.Critical);
-
-            return preset;
-        }
-
-        /// <summary>
-        /// TEST: Weapons stockpile detection and scoring
-        /// </summary>
-        private static Preset CreateTestWeaponsStockpilePreset()
-        {
-            var preset = new Preset
-            {
-                Id = "test_weapons_stockpile",
-                Name = "[TEST] Weapons",
-                Description = "Testing preset: Finds tiles with Weapons stockpiles (Critical). Expected: 10-15 tiles globally. Should show 'Weapons: Quality +8' in dumps.",
-                Category = "Testing",
-                TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Weapons Stockpile (Critical)"
-            };
-
-            var filters = preset.Filters;
-
-            // Stockpile: Weapons (Critical)
-            filters.Stockpiles.SetImportance("Weapons", FilterImportance.Critical);
-
-            return preset;
-        }
-
-        /// <summary>
-        /// TEST: Medicine stockpile detection and scoring
-        /// </summary>
-        private static Preset CreateTestMedicineStockpilePreset()
-        {
-            var preset = new Preset
-            {
-                Id = "test_medicine_stockpile",
-                Name = "[TEST] Medicine",
-                Description = "Testing preset: Finds tiles with Medicine stockpiles (Critical). Expected: 8-12 tiles globally. Should show 'Medicine: Quality +7' in dumps.",
-                Category = "Testing",
-                TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Medicine Stockpile (Critical)"
-            };
-
-            var filters = preset.Filters;
-
-            // Stockpile: Medicine (Critical)
-            filters.Stockpiles.SetImportance("Medicine", FilterImportance.Critical);
-
-            return preset;
-        }
-
-        /// <summary>
-        /// TEST: MineableSteel validation (now valid - core construction resource)
-        /// This preset uses MineableSteel to verify it's correctly included in the whitelist.
-        /// Expected behavior: Returns tiles with compacted steel (MineralRich → MineableSteel)
-        /// If your world has no MineableSteel tiles, this will return 0 results (expected).
-        /// </summary>
-        private static Preset CreateTestMineableSteelPreset()
-        {
-            var preset = new Preset
-            {
-                Id = "test_mineable_steel",
-                Name = "[TEST] Steel",
-                Description = "Testing preset: REQUIRES compacted steel (MineableSteel). Returns 0 results if world has no steel tiles. Check Player.log for cache distribution.",
-                Category = "Testing",
-                TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "MineableSteel (Critical, Valid)"
-            };
-
-            var filters = preset.Filters;
-
-            // Stone: MineableSteel (Critical) - core construction resource (compacted steel)
-            // Using Critical so Apply phase filters out non-steel tiles
-            // If this returns 0 results, your world has no MineableSteel (check cache logs)
-            filters.Stones.SetImportance("MineableSteel", FilterImportance.Critical);
 
             return preset;
         }
