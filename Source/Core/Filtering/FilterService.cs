@@ -79,33 +79,66 @@ namespace LandingZone.Core.Filtering
             var filters = state.Preferences.GetActiveFilters();
             var (cheapPredicates, heavyPredicates) = _registry.GetAllPredicates(state);
 
+            int cheapCriticals = cheapPredicates.Count(p => p.Importance == FilterImportance.Critical);
             int heavyCriticals = heavyPredicates.Count(p => p.Importance == FilterImportance.Critical);
             int heavyPreferreds = heavyPredicates.Count(p => p.Importance == FilterImportance.Preferred);
             int totalHeavy = heavyCriticals + heavyPreferreds;
 
-            // Estimate processing time
-            // Base: ~0.1s for cheap filters
-            // Each heavy filter adds ~20-60 seconds depending on tile count
-            float estimatedSeconds = 0.1f;
+            // Recalibrated estimates based on two-phase filtering architecture:
+            // Phase 1 (Apply): Light filters reduce candidates by ~90-95% instantly using game cache
+            // Phase 2 (Score): Heavy filters only process survivors (~5-10% of original tiles)
 
-            if (totalHeavy > 0)
+            // Base: Light filters (instant game cache access)
+            float estimatedSeconds = 0.5f;
+
+            // Light Critical filters add minimal time (game cache is pre-computed)
+            if (cheapCriticals > 0)
             {
-                // Estimate based on 500-tile chunks taking ~2 seconds each
-                // For a typical world (~300k tiles), that's ~600 chunks = ~1200 seconds total
-                // But we only process heavy predicates, so: time = (heavyCount * 1200s)
-                // This is conservative; actual time depends on filter complexity
-                int worldTileCount = Find.World?.grid?.TilesCount ?? 300000;
-                int chunkCount = Mathf.CeilToInt(worldTileCount / 500f);
+                estimatedSeconds += cheapCriticals * 0.2f;
+            }
 
-                // Heavy filters are slower (~0.5s per 500-tile chunk)
-                estimatedSeconds += chunkCount * 0.5f * totalHeavy;
+            // Heavy Critical filters process reduced candidate set after Light filtering
+            // Typical scenario: 300k tiles → 15k-30k candidates after Light filters
+            // Heavy computation: ~3-8 seconds per filter on reduced set
+            if (heavyCriticals > 0)
+            {
+                // Estimate based on typical 95% reduction from Light filters
+                int worldTileCount = Find.World?.grid?.TilesCount ?? 300000;
+                float estimatedCandidates = worldTileCount * 0.05f; // 5% survive Light filters
+
+                // Each heavy Critical filter adds ~5s for typical worlds (calibrated from real usage)
+                float heavyCriticalTime = heavyCriticals * 5.0f;
+
+                // Adjust for world size (larger worlds = more candidates after filtering)
+                if (worldTileCount > 400000)
+                    heavyCriticalTime *= 1.5f; // +50% for huge worlds
+                else if (worldTileCount < 200000)
+                    heavyCriticalTime *= 0.7f; // -30% for small worlds
+
+                estimatedSeconds += heavyCriticalTime;
+            }
+
+            // Heavy Preferred filters only affect scoring phase (faster than Critical)
+            if (heavyPreferreds > 0)
+            {
+                // Preferred filters score survivors, not filter them
+                // Typically 2-3s per Preferred heavy filter
+                estimatedSeconds += heavyPreferreds * 2.5f;
+            }
+
+            // Penalty for multiple heavy filters (cache misses, compound complexity)
+            if (totalHeavy > 3)
+            {
+                float complexityPenalty = (totalHeavy - 3) * 1.5f;
+                estimatedSeconds += complexityPenalty;
             }
 
             // Build warning message
             string warningMessage = "";
             bool shouldWarn = false;
 
-            if (estimatedSeconds > 30f)
+            // Warn at 15+ seconds (users notice delays beyond this)
+            if (estimatedSeconds > 15f)
             {
                 shouldWarn = true;
                 int minutes = Mathf.FloorToInt(estimatedSeconds / 60f);
@@ -117,10 +150,14 @@ namespace LandingZone.Core.Filtering
                 else
                     warningMessage += $"{seconds}s";
 
-                if (totalHeavy > 2)
+                if (totalHeavy > 3)
                 {
                     warningMessage += $"\n\n{totalHeavy} expensive filters are enabled.";
-                    warningMessage += "\nConsider reducing Critical filters for faster searches.";
+                    warningMessage += "\nConsider reducing Critical filters for faster results.";
+                }
+                else if (heavyCriticals > 0)
+                {
+                    warningMessage += $"\n\n{heavyCriticals} expensive filter(s) need to scan many tiles.";
                 }
 
                 warningMessage += "\n\nContinue anyway?";
