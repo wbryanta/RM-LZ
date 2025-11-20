@@ -38,8 +38,14 @@ namespace LandingZone.Core.UI
 
             listing.Gap(10f);
 
-            listing.Label("Preset Name:");
+            listing.Label("Preset Name (max 10 characters):");
             _presetName = listing.TextEntry(_presetName);
+
+            // Enforce 10-character limit
+            if (_presetName.Length > 10)
+            {
+                _presetName = _presetName.Substring(0, 10);
+            }
 
             listing.Gap(20f);
 

@@ -96,9 +96,9 @@ namespace LandingZone.Core.UI
                 DrawPresetCard(cardRect, userPresets[i], filters, preferences);
             }
 
-            // Add "Save as Preset" button
+            // Add "Save Custom Preset" button (creates new card in user presets section)
             listing.Gap(10f);
-            if (listing.ButtonText("Save Current Filters as Preset"))
+            if (listing.ButtonText("Save Custom Preset"))
             {
                 Find.WindowStack.Add(new Dialog_SavePreset(filters, preferences.ActivePreset));
             }
