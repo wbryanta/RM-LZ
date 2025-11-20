@@ -29,20 +29,23 @@ namespace LandingZone.Data
 
     /// <summary>
     /// UI presentation mode for Landing Zone preferences window.
-    /// Each mode maintains independent filter settings that persist across sessions.
+    /// Three-tier progressive disclosure: Preset Hub → Guided Builder → Advanced Studio.
     /// </summary>
     public enum UIMode : byte
     {
         /// <summary>
-        /// Simplified UI with preset cards and essential filters for casual users.
-        /// Maintains separate FilterSettings from Advanced mode.
+        /// Tier 1: Preset Hub - Quick-start presets with essential tweaks for casual users.
         /// </summary>
         Simple = 0,
 
         /// <summary>
-        /// Full-featured UI with all 40+ filters organized by categories for power users.
-        /// Maintains separate FilterSettings from Simple mode.
+        /// Tier 2: Guided Builder - Goal-based wizard with priority ranking for intermediate users.
         /// </summary>
-        Advanced = 1
+        GuidedBuilder = 1,
+
+        /// <summary>
+        /// Tier 3: Advanced Studio - Full-featured UI with all 40+ filters for power users.
+        /// </summary>
+        Advanced = 2
     }
 }

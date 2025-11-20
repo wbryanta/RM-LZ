@@ -25,7 +25,7 @@ namespace LandingZone.Core.UI
             doCloseX = true;
         }
 
-        public override Vector2 InitialSize => new Vector2(640f, 720f); // Wider for 4-column preset grid
+        public override Vector2 InitialSize => new Vector2(960f, 720f); // 50% wider for breathing room
 
         public override void PreClose()
         {
@@ -38,61 +38,68 @@ namespace LandingZone.Core.UI
             var options = LandingZoneContext.State?.Preferences.Options ?? new LandingZoneOptions();
             var currentMode = options.PreferencesUIMode;
 
-            // Mode toggle header (before scroll view) - expanded for 3-tier layout
-            var headerRect = new Rect(inRect.x, inRect.y, inRect.width, 100f);
-            DrawModeToggle(headerRect, ref currentMode);
+            // Mode toggle (3 buttons in single row)
+            var modeToggleRect = new Rect(inRect.x, inRect.y, inRect.width, 36f);
+            DrawModeToggle(modeToggleRect, ref currentMode);
+
+            // Info/warning banner below mode toggle
+            var bannerRect = new Rect(inRect.x, inRect.y + 40f, inRect.width, 24f);
+            DrawInfoBanner(bannerRect);
 
             // Save mode change if toggled
             if (currentMode != options.PreferencesUIMode)
             {
                 options.PreferencesUIMode = currentMode;
 
-                // Clear ActivePreset when switching to Advanced mode
-                // (Advanced mode doesn't use presets, so quality overrides shouldn't apply)
-                if (currentMode == UIMode.Advanced && LandingZoneContext.State?.Preferences != null)
+                // Clear ActivePreset when switching away from Preset Hub
+                if (currentMode != UIMode.Simple && LandingZoneContext.State?.Preferences != null)
                 {
                     LandingZoneContext.State.Preferences.ActivePreset = null;
                 }
             }
 
-            // Content area (below mode toggle) - adjusted for taller 3-tier header
-            var contentRect = new Rect(inRect.x, inRect.y + 110f, inRect.width, inRect.height - 110f);
+            // Content area (below banner)
+            var contentRect = new Rect(inRect.x, inRect.y + 70f, inRect.width, inRect.height - 70f);
 
             // Render appropriate mode UI
-            if (currentMode == UIMode.Simple)
+            switch (currentMode)
             {
-                // Simple mode: Use new simplified UI
-                DrawSimpleModeContent(contentRect);
-            }
-            else
-            {
-                // Advanced mode: Use AdvancedModeUI
-                DrawAdvancedModeContent(contentRect);
+                case UIMode.Simple:
+                    DrawSimpleModeContent(contentRect);
+                    break;
+                case UIMode.GuidedBuilder:
+                    DrawGuidedBuilderContent(contentRect);
+                    break;
+                case UIMode.Advanced:
+                    DrawAdvancedModeContent(contentRect);
+                    break;
             }
         }
 
         private void DrawModeToggle(Rect rect, ref UIMode currentMode)
         {
-            // Three-tier mode toggle: Preset Hub (Tier 1) | Guided Builder (Tier 2) | Advanced Studio (Tier 3)
-            var buttonWidth = 120f;
-            var spacing = 10f;
-            var totalWidth = (buttonWidth * 2) + spacing;
+            // Three-tier mode buttons in single row: Preset Hub | Guided Builder | Advanced
+            var buttonWidth = 140f;
+            var spacing = 12f;
+            var totalWidth = (buttonWidth * 3) + (spacing * 2);
             var startX = rect.x + (rect.width - totalWidth) / 2f;
 
-            var simpleRect = new Rect(startX, rect.y + 5f, buttonWidth, 30f);
-            var advancedRect = new Rect(startX + buttonWidth + spacing, rect.y + 5f, buttonWidth, 30f);
+            var presetHubRect = new Rect(startX, rect.y, buttonWidth, 32f);
+            var guidedBuilderRect = new Rect(startX + buttonWidth + spacing, rect.y, buttonWidth, 32f);
+            var advancedRect = new Rect(startX + (buttonWidth + spacing) * 2, rect.y, buttonWidth, 32f);
+
+            var prevColor = GUI.color;
 
             // Preset Hub button (Tier 1)
-            var isSimple = currentMode == UIMode.Simple;
-            var prevColor = GUI.color;
-            if (isSimple)
+            var isPresetHub = currentMode == UIMode.Simple;
+            if (isPresetHub)
             {
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
             }
 
-            if (Widgets.ButtonText(simpleRect, "Preset Hub"))
+            if (Widgets.ButtonText(presetHubRect, "Preset Hub"))
             {
-                if (!isSimple)
+                if (!isPresetHub)
                 {
                     currentMode = UIMode.Simple;
                 }
@@ -100,11 +107,28 @@ namespace LandingZone.Core.UI
 
             GUI.color = prevColor;
 
-            // Advanced Studio button (Tier 3)
+            // Guided Builder button (Tier 2)
+            var isGuidedBuilder = currentMode == UIMode.GuidedBuilder;
+            if (isGuidedBuilder)
+            {
+                GUI.color = new Color(0.8f, 1f, 0.8f);
+            }
+
+            if (Widgets.ButtonText(guidedBuilderRect, "Guided Builder"))
+            {
+                if (!isGuidedBuilder)
+                {
+                    currentMode = UIMode.GuidedBuilder;
+                }
+            }
+
+            GUI.color = prevColor;
+
+            // Advanced button (Tier 3)
             var isAdvanced = currentMode == UIMode.Advanced;
             if (isAdvanced)
             {
-                GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
+                GUI.color = new Color(0.8f, 1f, 0.8f);
             }
 
             if (Widgets.ButtonText(advancedRect, "Advanced"))
@@ -116,39 +140,63 @@ namespace LandingZone.Core.UI
             }
 
             GUI.color = prevColor;
+        }
 
-            // Guided Builder button (Tier 2) - centered below
-            var guidedRect = new Rect(rect.x + (rect.width - buttonWidth) / 2f, rect.y + 40f, buttonWidth, 30f);
-            if (Widgets.ButtonText(guidedRect, "Guided Builder"))
-            {
-                // Open Guided Builder wizard (separate window)
-                Find.WindowStack.Add(new GuidedBuilderWindow());
-            }
+        private void DrawInfoBanner(Rect rect)
+        {
+            // Info/warning banner below mode buttons
+            // TODO: Swap to warning color when conflicts detected
+            var bgColor = new Color(0.15f, 0.15f, 0.15f);
+            Widgets.DrawBoxSolid(rect, bgColor);
+            Widgets.DrawBox(rect);
 
-            // Helper text
-            var helpTextRect = new Rect(rect.x, rect.y + 75f, rect.width, 18f);
             Text.Font = GameFont.Tiny;
-            var prevTextColor = GUI.color;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(helpTextRect, "Preset Hub: Quick starts | Guided Builder: Goal-based wizard | Advanced: Full control");
-            GUI.color = prevTextColor;
+            Widgets.Label(rect, "Preset Hub: Quick starts | Guided Builder: Goal-based wizard | Advanced: Full control");
+            GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
         }
 
         private void DrawSimpleModeContent(Rect contentRect)
         {
-            // Use new DefaultModeUI renderer (still named DefaultModeUI for now)
+            // Tier 1: Preset Hub renderer
             var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
 
             // Dynamic height: let DefaultModeUI calculate its own content height
-            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1200f); // Increased to accommodate all filters
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1200f);
             Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
 
             DefaultModeUI.DrawContent(viewRect, preferences);
 
             Widgets.EndScrollView();
+        }
+
+        private void DrawGuidedBuilderContent(Rect contentRect)
+        {
+            // Tier 2: Guided Builder renderer (multi-step priority wizard)
+            // TODO: Implement 4-step priority wizard in Phase 3
+            // For now, show placeholder text
+            var listing = new Listing_Standard { ColumnWidth = contentRect.width };
+            listing.Begin(contentRect);
+
+            Text.Font = GameFont.Medium;
+            listing.Label("Guided Builder (Coming Soon)");
+            Text.Font = GameFont.Small;
+            listing.Gap(12f);
+            listing.Label("This will be a 4-step priority wizard:");
+            listing.Label("  1. Select Priority 1 goal (Climate Comfort, Resource Wealth, etc.)");
+            listing.Label("  2. Select Priority 2 goal");
+            listing.Label("  3. Select Priority 3 goal (optional)");
+            listing.Label("  4. Select Priority 4 goal (optional)");
+            listing.Gap(12f);
+            listing.Label("Then see combined recommendations with:");
+            listing.Label("  • Search Now");
+            listing.Label("  • Tweak in Advanced");
+            listing.Label("  • Save as Preset");
+
+            listing.End();
         }
 
         private void DrawAdvancedModeContent(Rect contentRect)
