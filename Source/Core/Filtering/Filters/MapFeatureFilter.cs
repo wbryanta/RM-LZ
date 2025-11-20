@@ -186,25 +186,68 @@ namespace LandingZone.Core.Filtering.Filters
         }
 
         /// <summary>
-        /// Gets all available map feature types by scanning a sample of world tiles.
-        /// Discovers actual Mutator types present in the current world.
+        /// Gets all available map feature types from DefDatabase.
+        /// Returns ALL 83+ mutators available in the game, regardless of whether they appear in current world.
+        /// This ensures rare mutators (like MineralRich, AncientWarehouse) are always available in UI.
         /// </summary>
         public static IEnumerable<string> GetAllMapFeatureTypes()
         {
             var featureTypes = new HashSet<string>();
-            var world = Find.World;
 
-            if (world?.grid == null)
-                return featureTypes;
-
-            // Sample tiles to find all mutator types (checking ~1000 tiles should be enough)
-            int sampleSize = System.Math.Min(1000, world.grid.TilesCount);
-            for (int i = 0; i < sampleSize; i++)
+            try
             {
-                var features = GetTileMapFeatures(i);
-                foreach (var feature in features)
+                // Get all WorldTileDef definitions from DefDatabase (canonical source)
+                var worldTileDefType = GenTypes.GetTypeInAnyAssembly("RimWorld.Planet.WorldTileDef");
+                if (worldTileDefType != null)
                 {
-                    featureTypes.Add(feature);
+                    var defDatabaseType = typeof(DefDatabase<>).MakeGenericType(worldTileDefType);
+                    var allDefsProperty = defDatabaseType.GetProperty("AllDefsListForReading");
+
+                    if (allDefsProperty != null)
+                    {
+                        var allDefs = allDefsProperty.GetValue(null) as System.Collections.IEnumerable;
+                        if (allDefs != null)
+                        {
+                            foreach (var def in allDefs)
+                            {
+                                if (def != null)
+                                {
+                                    var defNameProp = def.GetType().GetProperty("defName");
+                                    if (defNameProp != null)
+                                    {
+                                        var defName = defNameProp.GetValue(def)?.ToString();
+                                        if (!string.IsNullOrEmpty(defName))
+                                        {
+                                            featureTypes.Add(defName);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
+                                LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Loaded {featureTypes.Count} mutators from DefDatabase");
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                if (Prefs.DevMode)
+                    LandingZoneLogger.LogError($"[LandingZone] GetAllMapFeatureTypes: DefDatabase query failed: {ex.Message}. Falling back to world scan.");
+
+                // Fallback: Sample world tiles if DefDatabase query fails
+                var world = Find.World;
+                if (world?.grid != null)
+                {
+                    int sampleSize = System.Math.Min(5000, world.grid.TilesCount); // Increased from 1000 to catch more rare mutators
+                    for (int i = 0; i < sampleSize; i++)
+                    {
+                        var features = GetTileMapFeatures(i);
+                        foreach (var feature in features)
+                        {
+                            featureTypes.Add(feature);
+                        }
+                    }
                 }
             }
 
