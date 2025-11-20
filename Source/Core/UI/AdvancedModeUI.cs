@@ -240,15 +240,28 @@ namespace LandingZone.Core.UI
 
             // Header
             Text.Font = GameFont.Medium;
-            listing.Label("LIVE FILTER PREVIEW");
+            listing.Label("LIVE COVERAGE PREVIEW");
             Text.Font = GameFont.Small;
             listing.GapLine();
             listing.Gap(8f);
 
-            // Estimated match count (using selectivity analysis)
+            // Live tile count estimates (using selectivity analysis)
             var selectivities = LandingZoneContext.Filters?.GetAllSelectivities(LandingZoneContext.State);
             if (selectivities != null && selectivities.Any())
             {
+                int totalSettleable = selectivities.FirstOrDefault().TotalTiles;
+
+                // Show baseline: total settleable tiles in world
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(0.8f, 0.8f, 0.8f);
+                listing.Label("Baseline (all settleable tiles):");
+                Text.Font = GameFont.Medium;
+                GUI.color = Color.white;
+                listing.Label($"{totalSettleable:N0} tiles");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(8f);
+
                 var criticalSelectivities = selectivities.Where(s => s.Importance == FilterImportance.Critical).ToList();
                 if (criticalSelectivities.Any())
                 {
@@ -259,14 +272,50 @@ namespace LandingZone.Core.UI
                         combinedRatio *= s.Ratio;
                     }
 
-                    int estimatedMatches = (int)(combinedRatio * (selectivities.FirstOrDefault().TotalTiles));
+                    int estimatedMatches = (int)(combinedRatio * totalSettleable);
                     float percentage = combinedRatio * 100f;
 
+                    // Show estimated matches after applying critical filters
                     Text.Font = GameFont.Small;
-                    listing.Label($"Estimated Matches:");
+                    listing.Label("After applying filters:");
                     Text.Font = GameFont.Medium;
-                    GUI.color = percentage < 1f ? new Color(1f, 0.5f, 0.5f) : Color.white;
+
+                    // Color code based on how restrictive the filters are
+                    if (estimatedMatches < 100)
+                        GUI.color = new Color(1f, 0.4f, 0.4f); // Red for very restrictive
+                    else if (estimatedMatches < 1000)
+                        GUI.color = new Color(1f, 0.8f, 0.3f); // Yellow for moderate
+                    else
+                        GUI.color = new Color(0.4f, 1f, 0.4f); // Green for plenty of results
+
                     listing.Label($"~{estimatedMatches:N0} tiles ({percentage:F1}%)");
+                    GUI.color = Color.white;
+
+                    // Warning for very restrictive filters
+                    if (estimatedMatches < 50)
+                    {
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(1f, 0.5f, 0.5f);
+                        listing.Label("⚠ Very restrictive! May return 0 results.");
+                        GUI.color = Color.white;
+                    }
+                    else if (estimatedMatches < 100)
+                    {
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(1f, 0.8f, 0.3f);
+                        listing.Label("⚠ Highly restrictive - results may be limited.");
+                        GUI.color = Color.white;
+                    }
+
+                    Text.Font = GameFont.Small;
+                    listing.Gap(12f);
+                }
+                else
+                {
+                    // No critical filters - show message
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                    listing.Label("(No critical filters applied)");
                     GUI.color = Color.white;
                     Text.Font = GameFont.Small;
                     listing.Gap(12f);
