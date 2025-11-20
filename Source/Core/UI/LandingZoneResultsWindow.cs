@@ -147,17 +147,6 @@ namespace LandingZone.Core.UI
 
             // Dev mode DEBUG button (right side, before Bookmark All)
             float rightX = rect.xMax - 4f;
-            if (Prefs.DevMode)
-            {
-                var debugWidth = 90f;
-                var debugRect = new Rect(rightX - debugWidth, rect.y + 2f, debugWidth, rect.height - 4f);
-                if (Widgets.ButtonText(debugRect, "[DEBUG] Dump"))
-                {
-                    DumpMatchDataForAnalysis();
-                }
-                rightX -= debugWidth + 4f;
-            }
-
             // Bookmark All button
             var bookmarkAllWidth = 85f;
             var bookmarkAllRect = new Rect(rightX - bookmarkAllWidth, rect.y + 2f, bookmarkAllWidth, rect.height - 4f);

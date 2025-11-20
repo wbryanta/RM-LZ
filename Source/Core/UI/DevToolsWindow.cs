@@ -128,10 +128,10 @@ namespace LandingZone.Core.UI
 
             listing.Gap(12f);
 
-            // Note about Results window DEBUG dump
+            // Note about match data logging
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            listing.Label("Note: [DEBUG] Dump button also available in Results window (top-right).");
+            listing.Label("Tip: Set logging to Verbose for detailed match score breakdowns in Player.log.");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
