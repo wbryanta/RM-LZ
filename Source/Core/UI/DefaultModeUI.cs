@@ -257,10 +257,17 @@ namespace LandingZone.Core.UI
             Text.Anchor = TextAnchor.UpperLeft;
 
             // Remix button (bottom-right corner) - opens preset in Advanced mode for editing
-            Rect remixRect = new Rect(contentRect.xMax - 38f, contentRect.yMax - 16f, 38f, 16f);
+            // Add 4px padding from edges for breathing room
+            Rect remixRect = new Rect(contentRect.xMax - 42f, contentRect.yMax - 20f, 38f, 16f);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
-            if (Widgets.ButtonText(remixRect, "Remix", false, true, true))
+
+            // Yellow color to stand out from card background
+            GUI.color = Color.yellow;
+            bool remixClicked = Widgets.ButtonText(remixRect, "Remix", false, true, true);
+            GUI.color = Color.white;
+
+            if (remixClicked)
             {
                 // Apply preset to Advanced mode filters (not Simple mode)
                 preset.ApplyTo(preferences.AdvancedFilters);
