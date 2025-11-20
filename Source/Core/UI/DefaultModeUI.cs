@@ -213,14 +213,66 @@ namespace LandingZone.Core.UI
 
         private static void DrawPresetCard(Rect rect, Preset preset, FilterSettings filters, UserPreferences preferences)
         {
+            // Check if this is the active preset
+            bool isActive = preferences.ActivePreset?.Id == preset.Id;
+
+            // Check if active preset has been modified (basic check: compare temperature ranges)
+            bool isModified = false;
+            if (isActive && preferences.ActivePreset != null)
+            {
+                // Simple modification check: compare a few key properties
+                // TODO: Implement comprehensive FilterSettings comparison method
+                var presetTemp = preset.Filters.AverageTemperatureRange;
+                var currentTemp = filters.AverageTemperatureRange;
+                isModified = Math.Abs(presetTemp.min - currentTemp.min) > 0.1f ||
+                            Math.Abs(presetTemp.max - currentTemp.max) > 0.1f ||
+                            preset.Filters.MaxResults != filters.MaxResults;
+            }
+
             // Draw card background
-            Widgets.DrawBoxSolid(rect, new Color(0.15f, 0.15f, 0.15f));
-            Widgets.DrawBox(rect);
+            Color bgColor = new Color(0.15f, 0.15f, 0.15f);
+            Widgets.DrawBoxSolid(rect, bgColor);
+
+            // Active preset: Draw highlighted border with glow effect
+            if (isActive)
+            {
+                Color highlightColor = new Color(0.4f, 0.8f, 0.4f); // Soft green glow
+                Widgets.DrawBox(rect, 2); // Thicker border
+                GUI.color = highlightColor;
+                Widgets.DrawBox(rect);
+                GUI.color = Color.white;
+            }
+            else
+            {
+                Widgets.DrawBox(rect);
+            }
 
             // Card content
             Rect contentRect = rect.ContractedBy(6f);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
+
+            // Modification badge (top-left corner) - shows when active preset is tweaked
+            if (isModified)
+            {
+                Rect modBadgeRect = new Rect(rect.x + 4f, rect.y + 4f, 16f, 16f);
+                Color yellowWarning = new Color(1f, 0.9f, 0.3f);
+                GUI.color = yellowWarning;
+                // Draw triangle pointing right (▶ shape to indicate "modified from")
+                Widgets.DrawBoxSolid(modBadgeRect, yellowWarning * 0.3f);
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(modBadgeRect, "✎"); // Pencil icon to indicate edit
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.UpperLeft;
+
+                // Tooltip for modification badge
+                if (Mouse.IsOver(modBadgeRect))
+                {
+                    TooltipHandler.TipRegion(modBadgeRect, $"Modified from '{preset.Name}' preset");
+                }
+            }
 
             // Rarity badge (top-right corner)
             if (preset.TargetRarity.HasValue)
