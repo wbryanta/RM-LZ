@@ -41,7 +41,9 @@ namespace LandingZone.Core.UI
 
             // Preset cards section
             DrawPresetCards(listing, preferences);
-            listing.Gap(20f);
+            listing.Gap(12f);
+            listing.GapLine(); // Visual separator between presets and quick tweaks
+            listing.Gap(16f);
 
             // Quick Tweaks panel (collapsible)
             DrawQuickTweaksPanel(listing, preferences);
@@ -81,6 +83,8 @@ namespace LandingZone.Core.UI
             }
 
             // Draw user presets section (up to 4 slots)
+            listing.Gap(16f);
+            listing.GapLine(); // Visual separator between curated and user presets
             listing.Gap(10f);
             Text.Font = GameFont.Tiny;
             listing.Label("My Presets:");

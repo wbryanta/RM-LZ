@@ -79,11 +79,15 @@ namespace LandingZone.Core.UI
             // Tab navigation (Tier 3)
             var tabRect = listing.GetRect(TabHeight);
             DrawTabs(tabRect, preferences.GetActiveFilters());
+            listing.Gap(12f);
+            listing.GapLine(); // Visual separator after tabs
             listing.Gap(10f);
 
             // Search box for filtering visible controls
             var searchRect = listing.GetRect(SearchBoxHeight);
             DrawSearchBox(searchRect);
+            listing.Gap(8f);
+            listing.GapLine(); // Visual separator after search
             listing.Gap(10f);
 
             // Grouped filters (collapsible sections) - filtered by selected tab
@@ -344,6 +348,9 @@ namespace LandingZone.Core.UI
 
             if (criticalFilters.Any())
             {
+                listing.GapLine(); // Visual separator before filter lists
+                listing.Gap(8f);
+
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(1f, 0.7f, 0.7f);
                 listing.Label($"Critical Filters ({criticalFilters.Count}):");
@@ -356,11 +363,17 @@ namespace LandingZone.Core.UI
                 if (criticalFilters.Count > 10)
                     listing.Label($"  ... and {criticalFilters.Count - 10} more");
                 Text.Font = GameFont.Small;
-                listing.Gap(8f);
+                listing.Gap(12f);
             }
 
             if (preferredFilters.Any())
             {
+                if (!criticalFilters.Any())
+                {
+                    listing.GapLine(); // Visual separator if no critical filters above
+                    listing.Gap(8f);
+                }
+
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(0.7f, 0.7f, 1f);
                 listing.Label($"Preferred Filters ({preferredFilters.Count}):");
@@ -373,7 +386,7 @@ namespace LandingZone.Core.UI
                 if (preferredFilters.Count > 10)
                     listing.Label($"  ... and {preferredFilters.Count - 10} more");
                 Text.Font = GameFont.Small;
-                listing.Gap(8f);
+                listing.Gap(12f);
             }
 
             // Warnings
