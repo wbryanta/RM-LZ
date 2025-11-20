@@ -186,7 +186,13 @@ namespace LandingZone.Core.UI
                     "Hilliness",
                     (listing, filters) =>
                     {
-                        listing.Label("Hilliness (select allowed types):");
+                        // Show status: filtering vs allowing all
+                        bool isFiltering = filters.AllowedHilliness.Count < 4;
+                        string statusText = isFiltering
+                            ? $"Hilliness (filtering - {filters.AllowedHilliness.Count} of 4 allowed):"
+                            : "Hilliness (all types allowed - no restriction):";
+                        listing.Label(statusText);
+
                         var rect = listing.GetRect(30f);
                         DrawHillinessToggles(rect, filters);
                     },
@@ -668,9 +674,37 @@ namespace LandingZone.Core.UI
             var hillinessValues = new[] { Hilliness.Flat, Hilliness.SmallHills, Hilliness.LargeHills, Hilliness.Mountainous };
             var labels = new[] { "Flat", "Small", "Large", "Mountain" };
 
-            float buttonWidth = (rect.width - 10f) / 4f;
+            // 5 buttons: All + 4 individual types
+            float buttonWidth = (rect.width - 15f) / 5f;
             float x = rect.x;
 
+            // "All" button (resets to no restriction)
+            Rect allButtonRect = new Rect(x, rect.y, buttonWidth, rect.height);
+            bool allSelected = filters.AllowedHilliness.Count == 4;
+
+            // Highlight "All" when all 4 types are allowed (no restriction)
+            var prevColor = GUI.color;
+            if (allSelected)
+            {
+                GUI.color = new Color(0.6f, 1f, 0.6f); // Light green = no restriction
+            }
+
+            bool allClicked = Widgets.ButtonText(allButtonRect, "All");
+            GUI.color = prevColor;
+
+            if (allClicked)
+            {
+                // Select all 4 types (removes restriction)
+                filters.AllowedHilliness.Clear();
+                filters.AllowedHilliness.Add(Hilliness.Flat);
+                filters.AllowedHilliness.Add(Hilliness.SmallHills);
+                filters.AllowedHilliness.Add(Hilliness.LargeHills);
+                filters.AllowedHilliness.Add(Hilliness.Mountainous);
+            }
+
+            x += buttonWidth + 3f;
+
+            // Individual hilliness type buttons
             for (int i = 0; i < hillinessValues.Length; i++)
             {
                 var hilliness = hillinessValues[i];
