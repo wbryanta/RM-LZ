@@ -66,20 +66,20 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Converts rarity tier to compact badge label (no wrapping)
+        /// Converts rarity tier to compact badge label (max 5 chars, no wrapping)
         /// </summary>
         public static string ToBadgeLabel(this TileRarity rarity)
         {
             return rarity switch
             {
-                TileRarity.Common => "Common",
-                TileRarity.Uncommon => "Uncommon",
-                TileRarity.Rare => "Rare",
-                TileRarity.VeryRare => "V.Rare",      // Abbreviated to prevent wrapping
-                TileRarity.Epic => "Epic",
-                TileRarity.Legendary => "Legend",     // Shortened
-                TileRarity.Mythic => "Mythic",
-                _ => "Unknown"
+                TileRarity.Common => "Comm",         // 4 chars - fits single line
+                TileRarity.Uncommon => "Uncm",       // 4 chars - fits single line
+                TileRarity.Rare => "Rare",           // 4 chars - perfect
+                TileRarity.VeryRare => "V.Rar",      // 5 chars - max allowed
+                TileRarity.Epic => "Epic",           // 4 chars - perfect
+                TileRarity.Legendary => "Legnd",     // 5 chars - max allowed
+                TileRarity.Mythic => "Myth",         // 4 chars - clear
+                _ => "???"                           // 3 chars - error state
             };
         }
 
