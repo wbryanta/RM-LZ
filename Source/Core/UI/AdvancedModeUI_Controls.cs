@@ -204,6 +204,88 @@ namespace LandingZone.Core.UI
                     (f, v) => f.CoastalLakeImportance = v,
                     "coastal_lake"
                 ),
+                FloatRangeControl(
+                    "Elevation",
+                    f => f.ElevationRange,
+                    (f, v) => f.ElevationRange = v,
+                    f => f.ElevationImportance,
+                    (f, v) => f.ElevationImportance = v,
+                    0f, 3100f, " m"
+                ),
+                FloatRangeControl(
+                    "Movement Difficulty",
+                    f => f.MovementDifficultyRange,
+                    (f, v) => f.MovementDifficultyRange = v,
+                    f => f.MovementDifficultyImportance,
+                    (f, v) => f.MovementDifficultyImportance = v,
+                    0f, 2f
+                ),
+                FloatRangeControl(
+                    "Swampiness",
+                    f => f.SwampinessRange,
+                    (f, v) => f.SwampinessRange = v,
+                    f => f.SwampinessImportance,
+                    (f, v) => f.SwampinessImportance = v,
+                    0f, 1.2f
+                )
+            };
+
+            return new FilterGroup("terrain_access", "Geography", filters);
+        }
+
+        private static FilterGroup GetResourcesProductionGroup()
+        {
+            var filters = new List<FilterControl>
+            {
+                FloatRangeControl(
+                    "Forageability",
+                    f => f.ForageabilityRange,
+                    (f, v) => f.ForageabilityRange = v,
+                    f => f.ForageImportance,
+                    (f, v) => f.ForageImportance = v,
+                    0f, 1f,
+                    "",
+                    "forageable_food"
+                ),
+                ImportanceOnlyControl(
+                    "Animals Can Graze",
+                    f => f.GrazeImportance,
+                    (f, v) => f.GrazeImportance = v,
+                    "graze"
+                ),
+                FloatRangeControl(
+                    "Animal Density",
+                    f => f.AnimalDensityRange,
+                    (f, v) => f.AnimalDensityRange = v,
+                    f => f.AnimalDensityImportance,
+                    (f, v) => f.AnimalDensityImportance = v,
+                    0f, 6.5f
+                ),
+                FloatRangeControl(
+                    "Fish Population",
+                    f => f.FishPopulationRange,
+                    (f, v) => f.FishPopulationRange = v,
+                    f => f.FishPopulationImportance,
+                    (f, v) => f.FishPopulationImportance = v,
+                    0f, 900f
+                ),
+                FloatRangeControl(
+                    "Plant Density",
+                    f => f.PlantDensityRange,
+                    (f, v) => f.PlantDensityRange = v,
+                    f => f.PlantDensityImportance,
+                    (f, v) => f.PlantDensityImportance = v,
+                    0f, 1.3f
+                )
+            };
+
+            return new FilterGroup("resources_production", "Resources & Production", filters);
+        }
+
+        private static FilterGroup GetSpecialFeaturesGroup()
+        {
+            var filters = new List<FilterControl>
+            {
                 new FilterControl(
                     "Rivers",
                     (listing, filters) =>
@@ -280,39 +362,6 @@ namespace LandingZone.Core.UI
                     },
                     filters => (filters.Roads.HasAnyImportance, filters.Roads.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 ),
-                FloatRangeControl(
-                    "Elevation",
-                    f => f.ElevationRange,
-                    (f, v) => f.ElevationRange = v,
-                    f => f.ElevationImportance,
-                    (f, v) => f.ElevationImportance = v,
-                    0f, 3100f, " m"
-                ),
-                FloatRangeControl(
-                    "Movement Difficulty",
-                    f => f.MovementDifficultyRange,
-                    (f, v) => f.MovementDifficultyRange = v,
-                    f => f.MovementDifficultyImportance,
-                    (f, v) => f.MovementDifficultyImportance = v,
-                    0f, 2f
-                ),
-                FloatRangeControl(
-                    "Swampiness",
-                    f => f.SwampinessRange,
-                    (f, v) => f.SwampinessRange = v,
-                    f => f.SwampinessImportance,
-                    (f, v) => f.SwampinessImportance = v,
-                    0f, 1.2f
-                )
-            };
-
-            return new FilterGroup("terrain_access", "Terrain & Access", filters);
-        }
-
-        private static FilterGroup GetResourcesProductionGroup()
-        {
-            var filters = new List<FilterControl>
-            {
                 new FilterControl(
                     "Stones",
                     (listing, filters) =>
@@ -351,7 +400,7 @@ namespace LandingZone.Core.UI
 
                         listing.Gap(5f);
                         bool useStoneCount = filters.UseStoneCount;
-                        listing.CheckboxLabeled("Use Stone Count Mode (any X types)", ref useStoneCount);
+                        listing.CheckboxLabeled("Minimum Stone Types (any X types)", ref useStoneCount);
                         filters.UseStoneCount = useStoneCount;
                         if (filters.UseStoneCount)
                         {
@@ -369,55 +418,6 @@ namespace LandingZone.Core.UI
                     filters => (filters.Stones.HasAnyImportance || filters.UseStoneCount,
                                filters.Stones.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 ),
-                FloatRangeControl(
-                    "Forageability",
-                    f => f.ForageabilityRange,
-                    (f, v) => f.ForageabilityRange = v,
-                    f => f.ForageImportance,
-                    (f, v) => f.ForageImportance = v,
-                    0f, 1f,
-                    "",
-                    "forageable_food"
-                ),
-                ImportanceOnlyControl(
-                    "Animals Can Graze",
-                    f => f.GrazeImportance,
-                    (f, v) => f.GrazeImportance = v,
-                    "graze"
-                ),
-                FloatRangeControl(
-                    "Animal Density",
-                    f => f.AnimalDensityRange,
-                    (f, v) => f.AnimalDensityRange = v,
-                    f => f.AnimalDensityImportance,
-                    (f, v) => f.AnimalDensityImportance = v,
-                    0f, 6.5f
-                ),
-                FloatRangeControl(
-                    "Fish Population",
-                    f => f.FishPopulationRange,
-                    (f, v) => f.FishPopulationRange = v,
-                    f => f.FishPopulationImportance,
-                    (f, v) => f.FishPopulationImportance = v,
-                    0f, 900f
-                ),
-                FloatRangeControl(
-                    "Plant Density",
-                    f => f.PlantDensityRange,
-                    (f, v) => f.PlantDensityRange = v,
-                    f => f.PlantDensityImportance,
-                    (f, v) => f.PlantDensityImportance = v,
-                    0f, 1.3f
-                )
-            };
-
-            return new FilterGroup("resources_production", "Resources & Production", filters);
-        }
-
-        private static FilterGroup GetSpecialFeaturesGroup()
-        {
-            var filters = new List<FilterControl>
-            {
                 new FilterControl(
                     "Map Features (Mutators)",
                     (listing, filters) =>
@@ -508,7 +508,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("special_features", "Special Features", filters);
+            return new FilterGroup("special_features", "Features", filters);
         }
 
         private static FilterGroup GetBiomeControlGroup()
