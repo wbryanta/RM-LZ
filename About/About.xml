@@ -11,9 +11,11 @@
   <description>
     LandingZone helps you find the perfect settlement location by filtering world tiles based on climate, terrain, resources, and geographic features.
 
+This is a beta release. While heavily tested with a wide range of popular mods, there are likely things to add, edit, remove, improve, etc. I will rely heavily on your feedback in Workshop or via https://github.com/wbryanta/RM-LZ
+
 Key Features:
 • 12 Curated Presets - One-click configurations for different playstyles and in-game experiences. Modify those, and/or create and save your own.
-• Advanced Mode - 50+ filter criteria organized across 6 intuitive tabs (Climate &amp; Weather, Terrain &amp; Water, Resources &amp; Production, Structures &amp; Events, Biome Control, Results &amp; Recovery)
+• Advanced Mode - 50+ filter criteria organized across 5 tabs (Climate, Geography, Resources, Features, Results)
 • Live Selectivity Feedback - Real-time tile count estimates and restrictiveness warnings as you configure filters
 • Intelligent Fallback Tiers - Progressive loosening when your ideal configuration has zero results
 • Bookmarks - Save and name interesting tile locations for later comparison and reference
