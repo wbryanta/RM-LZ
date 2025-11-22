@@ -23,6 +23,9 @@ Managed/*
 # Backup files
 About/Preview_original_*.png
 
+# Steam Workshop
+About/PublishedFileId.txt
+
 # Internal development files (keep local, not in public repo)
 AGENTS.md
 ANALYSIS_INDEX.md
