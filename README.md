@@ -149,6 +149,7 @@ public class ExampleFilter : ISiteFilter
 ### v0.3.0-beta (2025-11-22)
 - **12 curated presets** organized as 4 special + 8 playstyle themes
 - **Advanced Mode redesign** with 5-tab organization (Climate, Geography, Resources, Features, Results)
+- **Guided Builder mode** - interactive wizard for creating custom presets based on playstyle goals
 - **Live selectivity feedback** with real-time tile count estimates
 - **Intelligent fallback tiers** for presets targeting ultra-rare features
 - **Bookmarks system** for saving and comparing interesting tiles
@@ -178,13 +179,13 @@ public class ExampleFilter : ISiteFilter
 **Completed (v0.3.0-beta)**:
 - ✅ 12 curated presets with fallback tiers
 - ✅ Advanced Mode with 5-tab organization
+- ✅ Guided Builder mode (interactive preset creation wizard)
 - ✅ Live selectivity feedback
 - ✅ Bookmarks system
 - ✅ Conflict detection
 - ✅ Mod icons and branding
 
 **Planned (v0.4.0+)**:
-- 📋 Guided Builder mode (interactive preset creation wizard)
 - 📋 Preset customization enhancements
 - 📋 Canonical data automation
 - 📋 Heatmap overlay visualization on world map
