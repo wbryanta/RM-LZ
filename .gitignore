@@ -16,11 +16,41 @@ Managed/*
 *.csproj.user
 *.user
 
-# Generated or internal files
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Backup files
+About/Preview_original_*.png
+
+# Internal development files (keep local, not in public repo)
+AGENTS.md
+ANALYSIS_INDEX.md
+ANALYSIS_QUICK_REFERENCE.md
+CLAUDE.md
+CLEAN_SLATE_SUMMARY.md
+DOCS_AUDIT_REPORT.md
+FORENSIC_ANALYSIS.md
+FORENSIC_DEAD_CODE_ANALYSIS.md
+TASK_FORENSICS.md
+VERSIONING.md
+tasks.json
 tasks.html
+
+# Development documentation (keep local, not in public repo)
+docs/
+
+# CI/CD workflows
+.github/
+
+# Development downloads/temp files
+_downloads/
+
+# Internal scripts
 scripts/tasks_api.py
 scripts/analyze_world_cache.py
+scripts/aggregate_world_stats.py
+scripts/summarize_log.py
 scripts/__pycache__/
-docs/rimworld-modding-context.md
 __pycache__/
 *.pyc

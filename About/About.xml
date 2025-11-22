@@ -1,15 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>LandingZone</name>
-  <author>LandingZone contributors</author>
+  <author>wcbryant</author>
   <url>https://github.com/wbryanta/RM-LZ</url>
-  <packageId>com.landingzone</packageId>
-  <modVersion>0.2.1-beta</modVersion>
+  <packageId>wcb.landingzone</packageId>
+  <modVersion>0.3.0-beta</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
   <description>
-    LandingZone helps you find the perfect settlement location by filtering world tiles based on climate, terrain, resources, and geographic features. Choose from quick preset configurations or dive into advanced filtering with 40+ criteria. The mod uses an intelligent two-phase architecture to efficiently search thousands of tiles and rank results by your preferences.
+    LandingZone helps you find the perfect settlement location by filtering world tiles based on climate, terrain, resources, and geographic features.
+
+Key Features:
+• 12 Curated Presets - One-click configurations for different playstyles and in-game experiences. Modify those, and/or create and save your own.
+• Advanced Mode - 50+ filter criteria organized across 6 intuitive tabs (Climate &amp; Weather, Terrain &amp; Water, Resources &amp; Production, Structures &amp; Events, Biome Control, Results &amp; Recovery)
+• Live Selectivity Feedback - Real-time tile count estimates and restrictiveness warnings as you configure filters
+• Intelligent Fallback Tiers - Progressive loosening when your ideal configuration has zero results
+• Bookmarks - Save and name interesting tile locations for later comparison and reference
+• Two-Phase Architecture - Efficient filtering and ranking of thousands of tiles in seconds
+
+The mod seamlessly integrates with RimWorld's world generation screen, adding a preferences button to the bottom ribbon.
+
+&lt;i&gt;AI Usage Disclosure: This mod was created with quality control and organizational assistance from AI tools. The content has been reviewed and edited by a human. For more information on the extent and nature of AI usage, please contact the author.&lt;/i&gt;
   </description>
   <modDependencies>
     <li>
