@@ -152,8 +152,8 @@ namespace LandingZone.Core.UI
                     (f, v) => f.GrowingDaysRange = v,
                     f => f.GrowingDaysImportance,
                     (f, v) => f.GrowingDaysImportance = v,
-                    0f, 60f, " days/year"
-                    // No filter ID - growing days computed from TileDataCache, not a direct filter
+                    0f, 60f, " days/year",
+                    "growing_days"
                 ),
                 FloatRangeControl(
                     "Pollution",
@@ -163,6 +163,39 @@ namespace LandingZone.Core.UI
                     (f, v) => f.PollutionImportance = v,
                     0f, 1f
                     // No filter ID - pollution may not have dedicated predicate
+                ),
+                new FilterControl(
+                    "Weather Patterns",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Weather Patterns:");
+
+                        var weatherMutators = GetWeatherMutators();
+                        foreach (var mutator in weatherMutators)
+                        {
+                            var importance = filters.MapFeatures.GetImportance(mutator);
+                            var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
+
+                            // Check DLC requirement
+                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
+                            {
+                                filters.MapFeatures.SetImportance(mutator, importance);
+                            }
+                        }
+                    },
+                    filters =>
+                    {
+                        var weatherMutators = GetWeatherMutators();
+                        bool hasAny = weatherMutators.Any(m => filters.MapFeatures.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = weatherMutators.Any(m => filters.MapFeatures.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
                 ),
                 new FilterControl(
                     "_ClimateWarnings",
@@ -175,7 +208,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("climate_comfort", "Climate Comfort", filters);
+            return new FilterGroup("climate_comfort", "Climate & Weather", filters);
         }
 
         private static FilterGroup GetTerrainAccessGroup()
@@ -233,10 +266,81 @@ namespace LandingZone.Core.UI
                     f => f.SwampinessImportance,
                     (f, v) => f.SwampinessImportance = v,
                     0f, 1.2f
+                ),
+                new FilterControl(
+                    "Geographic Features",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Geographic Features (terrain, water, mountains):");
+
+                        var geographyMutators = GetGeographyMutators();
+                        foreach (var mutator in geographyMutators)
+                        {
+                            var importance = filters.MapFeatures.GetImportance(mutator);
+                            var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
+
+                            // Check DLC requirement
+                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
+                            {
+                                filters.MapFeatures.SetImportance(mutator, importance);
+                            }
+                        }
+                    },
+                    filters =>
+                    {
+                        var geographyMutators = GetGeographyMutators();
+                        bool hasAny = geographyMutators.Any(m => filters.MapFeatures.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = geographyMutators.Any(m => filters.MapFeatures.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
+                ),
+                new FilterControl(
+                    "Rivers",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Rivers:");
+
+                        // Operator toggle (only show if critical items configured)
+                        if (filters.Rivers.HasCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Rivers.Operator, "rivers");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Rivers.Operator, "rivers",
+                                filters.Rivers.GetCriticalItems().Count());
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Rivers.Operator = filters.Rivers.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
+                            listing.Gap(4f);
+
+                            // Show conflict warnings specific to rivers
+                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "rivers");
+                        }
+
+                        // Individual river list
+                        var riverTypes = RiverFilter.GetAllRiverTypes().Select(r => r.defName).ToList();
+                        foreach (var riverType in riverTypes)
+                        {
+                            var importance = filters.Rivers.GetImportance(riverType);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), riverType, ref importance);
+                            filters.Rivers.SetImportance(riverType, importance);
+                        }
+                    },
+                    filters => (filters.Rivers.HasAnyImportance, filters.Rivers.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 )
             };
 
-            return new FilterGroup("terrain_access", "Geography", filters);
+            return new FilterGroup("terrain_access", "Terrain & Water", filters);
         }
 
         private static FilterGroup GetResourcesProductionGroup()
@@ -282,6 +386,185 @@ namespace LandingZone.Core.UI
                     f => f.PlantDensityImportance,
                     (f, v) => f.PlantDensityImportance = v,
                     0f, 1.3f
+                ),
+                new FilterControl(
+                    "Resource Modifiers",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Resource Modifiers (fertility, minerals, power):");
+
+                        var resourceMutators = GetResourceMutators();
+                        foreach (var mutator in resourceMutators)
+                        {
+                            var importance = filters.MapFeatures.GetImportance(mutator);
+                            var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
+
+                            // Check DLC requirement
+                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
+                            {
+                                filters.MapFeatures.SetImportance(mutator, importance);
+                            }
+                        }
+                    },
+                    filters =>
+                    {
+                        var resourceMutators = GetResourceMutators();
+                        bool hasAny = resourceMutators.Any(m => filters.MapFeatures.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = resourceMutators.Any(m => filters.MapFeatures.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
+                ),
+                new FilterControl(
+                    "Life & Wildlife Modifiers",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Life & Wildlife Modifiers (animal/plant/fish abundance):");
+
+                        var lifeMutators = GetLifeModifierMutators();
+                        foreach (var mutator in lifeMutators)
+                        {
+                            var importance = filters.MapFeatures.GetImportance(mutator);
+                            var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
+
+                            // Check DLC requirement
+                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
+                            {
+                                filters.MapFeatures.SetImportance(mutator, importance);
+                            }
+                        }
+                    },
+                    filters =>
+                    {
+                        var lifeMutators = GetLifeModifierMutators();
+                        bool hasAny = lifeMutators.Any(m => filters.MapFeatures.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = lifeMutators.Any(m => filters.MapFeatures.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
+                ),
+                new FilterControl(
+                    "Natural Stones",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Natural Stones (construction materials):");
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(1f, 0.8f, 0.4f);
+                        listing.Label("Note: Tiles have only ONE stone type - use OR operator for multiple choices");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                        listing.Gap(4f);
+
+                        // Operator toggle (only show if critical items configured)
+                        var naturalStones = GetAllStoneTypes();
+                        var hasNaturalCritical = naturalStones.Any(s => filters.Stones.GetImportance(s) == FilterImportance.Critical);
+
+                        if (hasNaturalCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stones.Operator, "natural stones");
+                            var criticalCount = naturalStones.Count(s => filters.Stones.GetImportance(s) == FilterImportance.Critical);
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stones.Operator, "natural stones", criticalCount);
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Stones.Operator = filters.Stones.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
+                            listing.Gap(4f);
+                        }
+
+                        // Individual natural stone list (Granite, Limestone, Marble, etc.)
+                        foreach (var stoneType in naturalStones)
+                        {
+                            var importance = filters.Stones.GetImportance(stoneType);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), stoneType, ref importance);
+                            filters.Stones.SetImportance(stoneType, importance);
+                        }
+
+                        listing.Gap(5f);
+                        bool useStoneCount = filters.UseStoneCount;
+                        listing.CheckboxLabeled("Minimum Stone Types (any X types)", ref useStoneCount);
+                        filters.UseStoneCount = useStoneCount;
+                        if (filters.UseStoneCount)
+                        {
+                            var range = filters.StoneCountRange;
+                            listing.Label($"Required Stone Count: {range.min:F0} to {range.max:F0} types");
+                            var rangeRect = listing.GetRect(30f);
+                            Widgets.FloatRange(rangeRect, rangeRect.GetHashCode(), ref range, 1f, naturalStones.Count);
+                            filters.StoneCountRange = range;
+                        }
+
+                        // Live selectivity feedback
+                        var stoneImportance = hasNaturalCritical ? FilterImportance.Critical : FilterImportance.Preferred;
+                        DrawSelectivityFeedback(listing, "stone", stoneImportance);
+                    },
+                    filters =>
+                    {
+                        var naturalStones = GetAllStoneTypes();
+                        bool hasAny = naturalStones.Any(s => filters.Stones.GetImportance(s) != FilterImportance.Ignored) || filters.UseStoneCount;
+                        bool hasCritical = naturalStones.Any(s => filters.Stones.GetImportance(s) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
+                ),
+                new FilterControl(
+                    "Mineable Resources",
+                    (listing, filters) =>
+                    {
+                        listing.Label("Mineable Resources (rare ores):");
+
+                        // Operator toggle (shares same operator with natural stones)
+                        var mineables = GetMineableResources();
+                        var hasMineableCritical = mineables.Any(m => filters.Stones.GetImportance(m) == FilterImportance.Critical);
+
+                        if (hasMineableCritical)
+                        {
+                            var operatorRect = listing.GetRect(30f);
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stones.Operator, "mineable resources");
+                            var criticalCount = mineables.Count(m => filters.Stones.GetImportance(m) == FilterImportance.Critical);
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stones.Operator, "mineable resources", criticalCount);
+
+                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            {
+                                filters.Stones.Operator = filters.Stones.Operator == ImportanceOperator.OR
+                                    ? ImportanceOperator.AND
+                                    : ImportanceOperator.OR;
+                            }
+                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
+                            listing.Gap(4f);
+                        }
+
+                        // Individual mineable resource list (Gold, Plasteel, etc.)
+                        foreach (var mineable in mineables)
+                        {
+                            var importance = filters.Stones.GetImportance(mineable);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), mineable, ref importance);
+                            filters.Stones.SetImportance(mineable, importance);
+                        }
+
+                        // Live selectivity feedback
+                        var mineableImportance = hasMineableCritical ? FilterImportance.Critical : FilterImportance.Preferred;
+                        DrawSelectivityFeedback(listing, "mineable", mineableImportance);
+                    },
+                    filters =>
+                    {
+                        var mineables = GetMineableResources();
+                        bool hasAny = mineables.Any(m => filters.Stones.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = mineables.Any(m => filters.Stones.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
                 )
             };
 
@@ -292,44 +575,6 @@ namespace LandingZone.Core.UI
         {
             var filters = new List<FilterControl>
             {
-                new FilterControl(
-                    "Rivers",
-                    (listing, filters) =>
-                    {
-                        listing.Label("Rivers:");
-
-                        // Operator toggle (only show if critical items configured)
-                        if (filters.Rivers.HasCritical)
-                        {
-                            var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Rivers.Operator, "rivers");
-                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Rivers.Operator, "rivers",
-                                filters.Rivers.GetCriticalItems().Count());
-
-                            if (Widgets.ButtonText(operatorRect, operatorLabel))
-                            {
-                                filters.Rivers.Operator = filters.Rivers.Operator == ImportanceOperator.OR
-                                    ? ImportanceOperator.AND
-                                    : ImportanceOperator.OR;
-                            }
-                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
-                            listing.Gap(4f);
-
-                            // Show conflict warnings specific to rivers
-                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "rivers");
-                        }
-
-                        // Individual river list
-                        var riverTypes = RiverFilter.GetAllRiverTypes().Select(r => r.defName).ToList();
-                        foreach (var riverType in riverTypes)
-                        {
-                            var importance = filters.Rivers.GetImportance(riverType);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), riverType, ref importance);
-                            filters.Rivers.SetImportance(riverType, importance);
-                        }
-                    },
-                    filters => (filters.Rivers.HasAnyImportance, filters.Rivers.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
-                ),
                 new FilterControl(
                     "Roads",
                     (listing, filters) =>
@@ -369,177 +614,105 @@ namespace LandingZone.Core.UI
                     filters => (filters.Roads.HasAnyImportance, filters.Roads.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 ),
                 new FilterControl(
-                    "Stones",
+                    "Special Sites",
                     (listing, filters) =>
                     {
-                        listing.Label("Stones (individual selection):");
+                        listing.Label("Special Sites (ancient ruins, exotic features):");
 
-                        // Operator toggle (only show if critical items configured)
-                        if (filters.Stones.HasCritical)
+                        var specialSites = GetSpecialSiteMutators();
+                        foreach (var mutator in specialSites)
                         {
-                            var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stones.Operator, "stones");
-                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stones.Operator, "stones",
-                                filters.Stones.GetCriticalItems().Count());
+                            var importance = filters.MapFeatures.GetImportance(mutator);
+                            var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            if (Widgets.ButtonText(operatorRect, operatorLabel))
+                            // Check DLC requirement
+                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
+                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
                             {
-                                filters.Stones.Operator = filters.Stones.Operator == ImportanceOperator.OR
-                                    ? ImportanceOperator.AND
-                                    : ImportanceOperator.OR;
+                                filters.MapFeatures.SetImportance(mutator, importance);
                             }
-                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
-                            listing.Gap(4f);
-
-                            // Show conflict warnings specific to stones
-                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "stones");
                         }
-
-                        // Individual stone list
-                        var stoneTypes = GetAllStoneTypes();
-                        foreach (var stoneType in stoneTypes)
-                        {
-                            var importance = filters.Stones.GetImportance(stoneType);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), stoneType, ref importance);
-                            filters.Stones.SetImportance(stoneType, importance);
-                        }
-
-                        listing.Gap(5f);
-                        bool useStoneCount = filters.UseStoneCount;
-                        listing.CheckboxLabeled("Minimum Stone Types (any X types)", ref useStoneCount);
-                        filters.UseStoneCount = useStoneCount;
-                        if (filters.UseStoneCount)
-                        {
-                            var range = filters.StoneCountRange;
-                            listing.Label($"Required Stone Count: {range.min:F0} to {range.max:F0} types");
-                            var rangeRect = listing.GetRect(30f);
-                            Widgets.FloatRange(rangeRect, rangeRect.GetHashCode(), ref range, 1f, stoneTypes.Count);
-                            filters.StoneCountRange = range;
-                        }
-
-                        // Live selectivity feedback (Tier 3)
-                        var stoneImportance = filters.Stones.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred;
-                        DrawSelectivityFeedback(listing, "stone", stoneImportance);
                     },
-                    filters => (filters.Stones.HasAnyImportance || filters.UseStoneCount,
-                               filters.Stones.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
+                    filters =>
+                    {
+                        var specialSites = GetSpecialSiteMutators();
+                        bool hasAny = specialSites.Any(m => filters.MapFeatures.GetImportance(m) != FilterImportance.Ignored);
+                        bool hasCritical = specialSites.Any(m => filters.MapFeatures.GetImportance(m) == FilterImportance.Critical);
+                        return (hasAny, hasCritical ? FilterImportance.Critical : FilterImportance.Preferred);
+                    }
                 ),
                 new FilterControl(
-                    "Map Features (Mutators)",
+                    "Stockpiles",
                     (listing, filters) =>
                     {
-                        listing.Label("Map Features (scroll for all types):");
+                        listing.Label("Stockpiles (abandoned supply caches):");
 
                         // Operator toggle (only show if critical items configured)
-                        if (filters.MapFeatures.HasCritical)
+                        if (filters.Stockpiles.HasCritical)
                         {
                             var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.MapFeatures.Operator, "features");
-                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.MapFeatures.Operator, "features",
-                                filters.MapFeatures.GetCriticalItems().Count());
+                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stockpiles.Operator, "stockpiles");
+                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stockpiles.Operator, "stockpiles",
+                                filters.Stockpiles.GetCriticalItems().Count());
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {
-                                filters.MapFeatures.Operator = filters.MapFeatures.Operator == ImportanceOperator.OR
+                                filters.Stockpiles.Operator = filters.Stockpiles.Operator == ImportanceOperator.OR
                                     ? ImportanceOperator.AND
                                     : ImportanceOperator.OR;
                             }
                             TooltipHandler.TipRegion(operatorRect, operatorTooltip);
                             listing.Gap(4f);
-
-                            // Show conflict warnings specific to map features
-                            UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "map_features");
                         }
 
-                        var featureTypes = MapFeatureFilter.GetAllMapFeatureTypes().OrderBy(f => f).ToList();
-
-                        // Only show features matching search (search both defName and friendly label)
-                        var visibleFeatures = string.IsNullOrEmpty(_searchText)
-                            ? featureTypes
-                            : featureTypes.Where(f => MatchesSearch(f) || MatchesSearch(MapFeatureFilter.GetMutatorFriendlyLabel(f))).ToList();
-
-                        // Use scrollable view for all features (no hard limit)
-                        const float itemHeight = 30f;
-                        const float maxScrollHeight = 400f;
-                        float totalHeight = visibleFeatures.Count * itemHeight;
-                        bool needsScroll = totalHeight > maxScrollHeight;
-
-                        if (needsScroll)
+                        // Known stockpile types from StockpileFilter.GetStockpileQuality
+                        var stockpileTypes = new List<(string defName, string label, string dlc)>
                         {
-                            var viewRect = listing.GetRect(maxScrollHeight);
-                            var scrollRect = new Rect(0f, 0f, viewRect.width - 16f, totalHeight);
+                            ("Gravcore", "Compacted Gravcore", "Anomaly"),
+                            ("Weapons", "Weapons Cache", null),
+                            ("Medicine", "Medical Supplies", null),
+                            ("Chemfuel", "Chemfuel Stockpile", null),
+                            ("Component", "Components & Parts", null),
+                            ("Drugs", "Drug Stockpile", null)
+                        };
 
-                            Widgets.BeginScrollView(viewRect, ref _mapFeaturesScrollPosition, scrollRect);
-
-                            float y = 0f;
-                            foreach (var feature in visibleFeatures)
-                            {
-                                var itemRect = new Rect(0f, y, scrollRect.width, itemHeight);
-                                var importance = filters.MapFeatures.GetImportance(feature);
-                                var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
-
-                                // Check DLC requirement
-                                string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(feature);
-                                bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                                string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
-
-                                UIHelpers.DrawImportanceSelector(itemRect, friendlyLabel, ref importance, null, isEnabled, disabledReason);
-
-                                // Only allow changes if DLC is available
-                                if (isEnabled)
-                                {
-                                    filters.MapFeatures.SetImportance(feature, importance);
-                                }
-
-                                y += itemHeight;
-                            }
-
-                            Widgets.EndScrollView();
-                        }
-                        else
+                        foreach (var (defName, label, dlc) in stockpileTypes)
                         {
-                            // Draw without scrolling if all items fit
-                            foreach (var feature in visibleFeatures)
+                            var importance = filters.Stockpiles.GetImportance(defName);
+
+                            // Check DLC requirement
+                            bool isEnabled = string.IsNullOrEmpty(dlc) || DLCDetectionService.IsDLCAvailable(dlc);
+                            string disabledReason = !isEnabled ? $"Requires {dlc} DLC (not installed)" : null;
+                            string displayLabel = isEnabled ? label : $"{label} (DLC Required)";
+
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, null, isEnabled, disabledReason);
+
+                            if (isEnabled)
                             {
-                                var importance = filters.MapFeatures.GetImportance(feature);
-                                var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(feature);
-
-                                // Check DLC requirement
-                                string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(feature);
-                                bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                                string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
-
-                                UIHelpers.DrawImportanceSelector(listing.GetRect(itemHeight), friendlyLabel, ref importance, null, isEnabled, disabledReason);
-
-                                // Only allow changes if DLC is available
-                                if (isEnabled)
-                                {
-                                    filters.MapFeatures.SetImportance(feature, importance);
-                                }
+                                filters.Stockpiles.SetImportance(defName, importance);
                             }
                         }
 
-                        if (visibleFeatures.Count == 0 && !string.IsNullOrEmpty(_searchText))
-                        {
-                            listing.Label("(no features match search)");
-                        }
+                        // Live selectivity feedback
+                        var stockpileImportance = filters.Stockpiles.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred;
+                        DrawSelectivityFeedback(listing, "stockpile", stockpileImportance);
                     },
-                    filters => (filters.MapFeatures.HasAnyImportance,
-                               filters.MapFeatures.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
+                    filters => (filters.Stockpiles.HasAnyImportance,
+                               filters.Stockpiles.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 ),
                 ImportanceOnlyControl(
                     "Landmarks",
                     f => f.LandmarkImportance,
                     (f, v) => f.LandmarkImportance = v
-                ),
-                ImportanceOnlyControl(
-                    "World Features (legacy)",
-                    f => f.FeatureImportance,
-                    (f, v) => f.FeatureImportance = v
                 )
             };
 
-            return new FilterGroup("special_features", "Features", filters);
+            return new FilterGroup("special_features", "Structures & Events", filters);
         }
 
         private static FilterGroup GetBiomeControlGroup()
@@ -580,6 +753,12 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Adjacent Biomes:");
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        listing.Label("(Affects weather patterns from neighboring tiles)");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                        listing.Gap(4f);
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.AdjacentBiomes.HasCritical)
@@ -703,7 +882,7 @@ namespace LandingZone.Core.UI
             float buttonWidth = (rect.width - 15f) / 5f;
             float x = rect.x;
 
-            // "All" button (resets to no restriction)
+            // "All" button (toggles between all types and default subset)
             Rect allButtonRect = new Rect(x, rect.y, buttonWidth, rect.height);
             bool allSelected = filters.AllowedHilliness.Count == 4;
 
@@ -711,7 +890,7 @@ namespace LandingZone.Core.UI
             var prevColor = GUI.color;
             if (allSelected)
             {
-                GUI.color = new Color(0.6f, 1f, 0.6f); // Light green = no restriction
+                GUI.color = new Color(0.8f, 1f, 0.8f); // Light green = no restriction
             }
 
             bool allClicked = Widgets.ButtonText(allButtonRect, "All");
@@ -719,12 +898,23 @@ namespace LandingZone.Core.UI
 
             if (allClicked)
             {
-                // Select all 4 types (removes restriction)
-                filters.AllowedHilliness.Clear();
-                filters.AllowedHilliness.Add(Hilliness.Flat);
-                filters.AllowedHilliness.Add(Hilliness.SmallHills);
-                filters.AllowedHilliness.Add(Hilliness.LargeHills);
-                filters.AllowedHilliness.Add(Hilliness.Mountainous);
+                if (allSelected)
+                {
+                    // Toggle off: Reset to default subset (Small/Large/Mountain - most common)
+                    filters.AllowedHilliness.Clear();
+                    filters.AllowedHilliness.Add(Hilliness.SmallHills);
+                    filters.AllowedHilliness.Add(Hilliness.LargeHills);
+                    filters.AllowedHilliness.Add(Hilliness.Mountainous);
+                }
+                else
+                {
+                    // Toggle on: Select all 4 types (removes restriction)
+                    filters.AllowedHilliness.Clear();
+                    filters.AllowedHilliness.Add(Hilliness.Flat);
+                    filters.AllowedHilliness.Add(Hilliness.SmallHills);
+                    filters.AllowedHilliness.Add(Hilliness.LargeHills);
+                    filters.AllowedHilliness.Add(Hilliness.Mountainous);
+                }
             }
 
             x += buttonWidth + 3f;
@@ -736,7 +926,15 @@ namespace LandingZone.Core.UI
                 Rect buttonRect = new Rect(x, rect.y, buttonWidth, rect.height);
 
                 bool isSelected = filters.AllowedHilliness.Contains(hilliness);
+
+                // Visual feedback: highlight selected buttons
+                if (isSelected)
+                {
+                    GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint
+                }
+
                 bool clicked = Widgets.ButtonText(buttonRect, labels[i], active: isSelected);
+                GUI.color = prevColor;
 
                 if (clicked)
                 {
@@ -756,10 +954,12 @@ namespace LandingZone.Core.UI
 
         private static List<string> GetAllStoneTypes()
         {
-            // Get all natural rock types from ThingDef (Granite, Marble, Sandstone, Limestone, Slate, etc.)
-            // These are the construction materials, not mineable ores
+            // Get ONLY natural construction stones (Granite, Marble, Sandstone, Limestone, Slate, etc.)
+            // Exclude mineable ores which are handled separately in GetMineableResources()
             var stoneTypes = DefDatabase<ThingDef>.AllDefsListForReading
-                .Where(def => def.building != null && def.building.isNaturalRock)
+                .Where(def => def.building != null &&
+                             def.building.isNaturalRock &&
+                             !def.defName.StartsWith("Mineable"))  // Exclude mineables
                 .Select(def => def.defName)
                 .OrderBy(name => name)
                 .ToList();
@@ -773,13 +973,159 @@ namespace LandingZone.Core.UI
             return stoneTypes;
         }
 
+        private static List<string> GetMineableResources()
+        {
+            // Get all mineable resources (gold, silver, plasteel, uranium, etc.)
+            // These are rare ores, not common construction stones
+            var mineableResources = DefDatabase<ThingDef>.AllDefsListForReading
+                .Where(def => def.defName.StartsWith("Mineable") && !def.building?.isNaturalRock == true)
+                .Select(def => def.defName)
+                .OrderBy(name => name)
+                .ToList();
+
+            // Fallback: if no mineables found, return common known types
+            if (mineableResources.Count == 0)
+            {
+                mineableResources = new List<string>
+                {
+                    "MineableGold", "MineableSilver", "MineableSteel",
+                    "MineablePlasteel", "MineableUranium", "MineableJade",
+                    "MineableComponentsIndustrial"
+                };
+            }
+
+            return mineableResources;
+        }
+
         private static List<BiomeDef> GetAllBiomes()
         {
-            // Get all 16 biomes from canonical SSoT
+            // Get only starting-location-compatible biomes (filter out space, orbit, labyrinth, etc.)
+            // Non-starting biomes: space, orbit, labyrinth, metal hell, lava field
+            var nonStartingBiomes = new HashSet<string>
+            {
+                "BiomeSpace", "Space", // Space biomes
+                "BiomeOrbit", "Orbit", // Orbital biomes
+                "Labyrinth", // Labyrinth (Anomaly DLC)
+                "MetalHell", "MechanoidBase", // Metal hell / mechanoid bases
+                "LavaField", // Lava field biomes
+            };
+
             return DefDatabase<BiomeDef>.AllDefsListForReading
-                .Where(b => !b.impassable)
+                .Where(b => !b.impassable && !nonStartingBiomes.Contains(b.defName))
                 .OrderBy(b => b.label)
                 .ToList();
+        }
+
+        // ============================================================================
+        // MUTATOR CATEGORIZATION (83 total mutators organized by user intent)
+        // ============================================================================
+
+        /// <summary>
+        /// Weather mutators only (for Climate & Weather tab).
+        /// </summary>
+        private static List<string> GetWeatherMutators()
+        {
+            return new List<string>
+            {
+                "SunnyMutator",
+                "FoggyMutator",
+                "WindyMutator",
+                "WetClimate",
+                "Pollution_Increased"
+            };
+        }
+
+        /// <summary>
+        /// Life/resource availability modifiers (for Resources & Production tab).
+        /// </summary>
+        private static List<string> GetLifeModifierMutators()
+        {
+            return new List<string>
+            {
+                "AnimalLife_Increased",
+                "AnimalLife_Decreased",
+                "PlantLife_Increased",
+                "PlantLife_Decreased",
+                "Fish_Increased",
+                "Fish_Decreased"
+            };
+        }
+
+        /// <summary>
+        /// DEPRECATED: Use GetWeatherMutators() + GetLifeModifierMutators() instead.
+        /// Kept for backward compatibility.
+        /// </summary>
+        private static List<string> GetClimateMutators()
+        {
+            var all = new List<string>();
+            all.AddRange(GetWeatherMutators());
+            all.AddRange(GetLifeModifierMutators());
+            return all;
+        }
+
+        private static List<string> GetGeographyMutators()
+        {
+            return new List<string>
+            {
+                // Water features
+                "River", "RiverDelta", "RiverConfluence", "RiverIsland", "Headwater",
+                "Lake", "LakeWithIsland", "LakeWithIslands", "Lakeshore", "Pond", "CaveLakes", "ToxicLake",
+
+                // Coastal/maritime
+                "Coast", "Peninsula", "Bay", "Cove", "Harbor", "Fjord",
+                "Archipelago", "CoastalAtoll", "CoastalIsland", "Iceberg",
+
+                // Mountain/elevation
+                "Mountain", "Valley", "Basin", "Plateau", "Hollow",
+                "Caves", "Cavern", "LavaCaves", "Cliffs", "Chasm", "Crevasse",
+
+                // Desert/arid
+                "Oasis", "Dunes",
+
+                // Volcanic/lava
+                "LavaFlow", "LavaCrater", "HotSprings",
+
+                // Terrain types
+                "DryGround", "DryLake", "Muddy", "Sandy", "Marshy", "Wetland",
+
+                // Biome blending
+                "MixedBiome"
+            };
+        }
+
+        private static List<string> GetResourceMutators()
+        {
+            return new List<string>
+            {
+                "Fertile",
+                "MineralRich",
+                "SteamGeysers_Increased",
+                "WildPlants",
+                "WildTropicalPlants",
+                "PlantGrove",
+                "AnimalHabitat",
+                "ObsidianDeposits"  // Volcanic glass - valuable construction material
+            };
+        }
+
+        private static List<string> GetSpecialSiteMutators()
+        {
+            return new List<string>
+            {
+                // Ancient sites
+                "AncientQuarry", "AncientRuins", "AncientRuins_Frozen",
+                "AncientUplink", "AncientLaunchSite", "AncientGarrison",
+                "AncientWarehouse", "AncientChemfuelRefinery", "AncientInfestedSettlement",
+
+                // Ancient vents
+                "AncientHeatVent", "AncientSmokeVent", "AncientToxVent",
+
+                // Abandoned/salvage
+                "AbandonedColonyOutlander", "AbandonedColonyTribal", "Junkyard", "Stockpile",
+
+                // Special/exotic
+                "ArcheanTrees", "InsectMegahive", "TerraformingScar"
+            };
         }
 
         // ============================================================================
@@ -788,8 +1134,9 @@ namespace LandingZone.Core.UI
 
         /// <summary>
         /// Draws live selectivity feedback for a filter (Tier 3 feature).
-        /// Shows "📊 Match: ~45% of settleable tiles (127k / 295k)" below the filter control.
-        /// Only renders if filter is not ignored and selectivity data is available.
+        /// Shows "~45% of tiles (127k/295k)" below the filter control.
+        /// Only renders if filter is not ignored and estimator is available.
+        /// Uses fast heuristic estimation for instant feedback.
         /// </summary>
         private static void DrawSelectivityFeedback(Listing_Standard listing, string filterId, FilterImportance importance)
         {
@@ -798,39 +1145,83 @@ namespace LandingZone.Core.UI
                 return;
 
             // Skip if context not ready
-            if (LandingZoneContext.Filters == null || LandingZoneContext.State == null)
+            if (LandingZoneContext.State == null)
                 return;
 
             try
             {
-                var selectivity = LandingZoneContext.Filters.GetFilterSelectivity(filterId, LandingZoneContext.State);
-                if (!selectivity.HasValue)
-                    return;
+                var estimator = LandingZoneContext.SelectivityEstimator;
+                var filters = LandingZoneContext.State.Preferences.GetActiveFilters();
 
-                var s = selectivity.Value;
-                var percentage = s.Ratio * 100f;
+                Filtering.SelectivityEstimate estimate;
 
-                // Format: "📊 Match: ~45.2% of tiles (127,342 / 295,732)"
-                string matchText = $"📊 Match: ~{percentage:F1}% of tiles ({s.MatchCount:N0} / {s.TotalTiles:N0})";
-
-                // Add category label (VeryCommon, Common, Uncommon, Rare, VeryRare, ExtremelyRare)
-                string categoryLabel = s.Category switch
+                // Map filterId to appropriate estimator method
+                switch (filterId)
                 {
-                    Filtering.SelectivityCategory.VeryCommon => "Very Common",
-                    Filtering.SelectivityCategory.Common => "Common",
-                    Filtering.SelectivityCategory.Uncommon => "Uncommon",
-                    Filtering.SelectivityCategory.Rare => "Rare",
-                    Filtering.SelectivityCategory.VeryRare => "Very Rare",
-                    Filtering.SelectivityCategory.ExtremelyRare => "Extremely Rare",
-                    _ => ""
-                };
+                    case "average_temperature":
+                        estimate = estimator.EstimateTemperatureRange(filters.AverageTemperatureRange, importance);
+                        break;
 
-                if (!string.IsNullOrEmpty(categoryLabel))
-                    matchText += $" [{categoryLabel}]";
+                    case "minimum_temperature":
+                        estimate = estimator.EstimateTemperatureRange(filters.MinimumTemperatureRange, importance);
+                        break;
+
+                    case "maximum_temperature":
+                        estimate = estimator.EstimateTemperatureRange(filters.MaximumTemperatureRange, importance);
+                        break;
+
+                    case "rainfall":
+                        estimate = estimator.EstimateRainfallRange(filters.RainfallRange, importance);
+                        break;
+
+                    case "growing_days":
+                        estimate = estimator.EstimateGrowingDaysRange(filters.GrowingDaysRange, importance);
+                        break;
+
+                    case "coastal":
+                        estimate = estimator.EstimateCoastal(importance);
+                        break;
+
+                    case "coastal_lake":
+                        // For lake coastal, use similar estimate as ocean coastal (slightly lower)
+                        estimate = estimator.EstimateCoastal(importance);
+                        break;
+
+                    case "water_access":
+                        estimate = estimator.EstimateWaterAccess(importance);
+                        break;
+
+                    case "forageable_food":
+                        // Approximate forageability as common feature (~50% of tiles)
+                        estimate = new Filtering.SelectivityEstimate(
+                            (int)(estimator.GetSettleableTiles() * 0.5f),
+                            estimator.GetSettleableTiles(),
+                            importance,
+                            false
+                        );
+                        break;
+
+                    case "graze":
+                        // Grazing available on ~60% of tiles (excluding deserts/ice)
+                        estimate = new Filtering.SelectivityEstimate(
+                            (int)(estimator.GetSettleableTiles() * 0.6f),
+                            estimator.GetSettleableTiles(),
+                            importance,
+                            false
+                        );
+                        break;
+
+                    default:
+                        // Unknown filter - skip feedback
+                        return;
+                }
+
+                // Format and display
+                string matchText = $"  ⟳ {estimate.FormatForDisplay()}";
 
                 // Render in small gray text
                 Text.Font = GameFont.Tiny;
-                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                GUI.color = new Color(0.65f, 0.65f, 0.65f);
                 listing.Label(matchText);
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
@@ -838,8 +1229,8 @@ namespace LandingZone.Core.UI
             }
             catch (System.Exception ex)
             {
-                // Silently fail - don't break UI if selectivity analysis fails
-                Log.Warning($"[LandingZone] Failed to get selectivity for {filterId}: {ex.Message}");
+                // Silently fail - don't break UI if estimation fails
+                Log.Warning($"[LandingZone] Failed to estimate selectivity for {filterId}: {ex.Message}");
             }
         }
 

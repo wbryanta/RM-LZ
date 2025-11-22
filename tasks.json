@@ -1,8 +1,8 @@
 {
   "meta": {
     "description": "LandingZone v0.2.x sprint toward 0.3.0",
-    "version": "0.2.1-beta",
-    "last_updated": "2025-11-19",
+    "version": "0.2.2-beta",
+    "last_updated": "2025-11-22",
     "forensic_analysis_date": "2025-11-16",
     "notes": [
       "v0.1.3-beta: Mode toggle fixed, tasks board operational, max candidates configurable (25k-150k).",
@@ -14,7 +14,8 @@
       "Documentation: Architecture docs aligned with v0.1.* reality, obsolete v0.0.* docs archived.",
       "2025-11-14: Crisis freeze \u2013 default vs advanced logic rejecting all tiles; see _downloads/debug-log-14112025-2004.txt for evidence.",
       "2025-11-15: Sprint Kickoff \u2013 Simple/Advanced rearchitecture, preset hub, canonical coverage, UX overhaul.",
-      "2025-11-19: P0 validation complete - all 5 critical tasks delivered and validated in-game (Scorched 0.9982, Exotic ArcheanTrees detected)."
+      "2025-11-19: P0 validation complete - all 5 critical tasks delivered and validated in-game (Scorched 0.9982, Exotic ArcheanTrees detected).",
+      "2025-11-22: Tier 3 Advanced Studio complete - filter reorganization (6-tab structure), live selectivity feedback, conflict detection, fallback tier preview, UI bug fixes (ObsidianDeposits placement, Adjacent Biomes clarity, Natural Stones OR warning, Live Preview selectivity display)."
     ],
     "principles": [
       "Game cache (Find.World.grid) as single source of truth - no duplication",
@@ -93,40 +94,6 @@
         ],
         "area": "UX/UI",
         "milestone": "0.2.2"
-      },
-      {
-        "id": "LZ-ADV-STUDIO-IMPLEMENT",
-        "title": "Rebuild Advanced Studio stack UI",
-        "priority": "P1 - High",
-        "estimate": "12-16 hours",
-        "owner": "team",
-        "description": "Deliver Tier 3 Advanced Studio: stacked filter groups with AND/OR containers, live tile counts, conflict warnings, and fallback chain editor.",
-        "deliverables": [
-          "Introduce filter group components (ALL/ANY containers) with drag-and-drop logic per spec",
-          "Add live tile-count feedback + warnings when matches drop below thresholds",
-          "Implement conflict detection (e.g., Desert + High Rainfall) with inline guidance",
-          "Expose fallback tier manager inside Advanced mode",
-          "Ensure Advanced edits sync correctly back to presets and Guided Builder"
-        ],
-        "area": "UX/UI",
-        "milestone": "0.2.3"
-      },
-      {
-        "id": "LZ-ANIMAL-PLANT-CACHE",
-        "title": "Extend cache with animal & plant mutator data",
-        "priority": "P1 - High",
-        "estimate": "6-8 hours",
-        "owner": "team",
-        "description": "Use the reflection pipeline to resolve TileMutatorWorker_AnimalHabitat, PlantGrove, and WildPlants data into cached species lists/quality ratings for scoring and UI.",
-        "deliverables": [
-            "Add reflection hooks for GetAnimalKind/AnimalCommonalityFactor and GetPlantKind/AdditionalWildPlants",
-            "Persist representative species per tile in MineralStockpileCache (or new cache) with rarity/quality metadata",
-            "Expose new data in MatchBreakdownV2 + UI (e.g., 'Flagship wildlife: Thrumbo')",
-            "Update filter catalogs/docs with validated defNames",
-            "Add validation logging similar to mineral/stockpile summaries"
-        ],
-        "area": "Filtering/Data",
-        "milestone": "0.3.0"
       }
     ],
     "p2_medium": [
@@ -613,6 +580,68 @@
         "Source/Core/Filtering/Filters/StoneFilter.cs",
         "Source/Data/Preset.cs",
         "docs/data/filter_variables_catalog.md"
+      ]
+    },
+    {
+      "id": "LZ-ANIMAL-PLANT-CACHE",
+      "title": "Extend cache with animal & plant mutator data",
+      "priority": "P1 - High",
+      "owner": "team",
+      "completed": "2025-11-21",
+      "impact": "Extended MineralStockpileCache with animal and plant mutator data. Added reflection hooks for AnimalHabitat/PlantGrove/WildPlants species resolution. Cache tracks animals/plants per tile with quality ratings. Comprehensive filter catalog documentation added (filter_variables_catalog.md lines 134-190). Validation logging implemented for animal/plant cache statistics (MineralStockpileCache.cs:143-257).",
+      "area": "Filtering/Data",
+      "files_modified": [
+        "Source/Data/MineralStockpileCache.cs",
+        "docs/data/filter_variables_catalog.md",
+        "docs/data/filter_variables_catalog.json"
+      ]
+    },
+    {
+      "id": "LZ-ADV-STUDIO-IMPLEMENT",
+      "title": "Tier 3 Advanced Studio implementation",
+      "priority": "P1 - High",
+      "owner": "team",
+      "completed": "2025-11-22",
+      "impact": "Delivered Tier 3 Advanced Studio: live tile-count feedback (FilterSelectivityEstimator.cs 324 lines), conflict detection using selectivity (ConflictDetector.cs), visual polish with color coding (red Critical, blue Preferred), fallback tier preview in Live Preview sidebar. All 4 phases complete: live feedback, conflict detection, visual polish, fallback manager.",
+      "area": "UX/UI",
+      "milestone": "0.2.2",
+      "files_modified": [
+        "Source/Core/Filtering/FilterSelectivityEstimator.cs",
+        "Source/Core/UI/ConflictDetector.cs",
+        "Source/Core/UI/UIHelpers.cs",
+        "Source/Core/UI/AdvancedModeUI.cs",
+        "Source/Core/UI/AdvancedModeUI_Controls.cs",
+        "docs/tier3_implementation_evidence.md"
+      ]
+    },
+    {
+      "id": "LZ-FILTER-REORG",
+      "title": "Advanced Mode filter reorganization",
+      "priority": "P1 - High",
+      "owner": "team",
+      "completed": "2025-11-22",
+      "impact": "Reorganized Advanced Mode into 6 intuitive tabs: Climate & Weather (5 weather mutators), Terrain & Water (46 geography mutators), Resources & Production (13 mutators + stones/mineables), Structures & Events (19 special site mutators), Biome Control, Results & Recovery. Fixed stockpile UI to show all 6 types with friendly labels and DLC detection. Moved filters between tabs for better UX: ObsidianDeposits→Resources, MixedBiome→Geography, Life modifiers→Resources, Rivers→Geography. All 83 mutators still accessible.",
+      "area": "UX/UI",
+      "milestone": "0.2.2",
+      "files_modified": [
+        "Source/Core/UI/AdvancedModeUI_Controls.cs",
+        "docs/filter_reorganization_plan.md",
+        "docs/filter_reorganization_complete.md"
+      ]
+    },
+    {
+      "id": "LZ-UI-BUGFIXES-001",
+      "title": "Advanced Mode UI bug fixes from in-game testing",
+      "priority": "P1 - High",
+      "owner": "team",
+      "completed": "2025-11-22",
+      "impact": "Fixed 4 critical UX issues: (1) Moved ObsidianDeposits from Geography to Resources tab, (2) Added '(Affects weather patterns from neighboring tiles)' note to Adjacent Biomes for clarity, (3) Added prominent 'Tiles have only ONE stone type - use OR operator' warning to Natural Stones, (4) Fixed Live Preview selectivity display bug where critical filters were detected correctly but tile count estimates showed '(No critical filters applied)' - restructured logic to build filter list first and show graceful fallback when selectivity data unavailable for container filter types.",
+      "area": "UX/UI",
+      "milestone": "0.2.2",
+      "files_modified": [
+        "Source/Core/UI/AdvancedModeUI_Controls.cs",
+        "Source/Core/UI/AdvancedModeUI.cs",
+        "docs/ui_bug_fixes_2025-11-22.md"
       ]
     }
   ],

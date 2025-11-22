@@ -11,28 +11,42 @@ namespace LandingZone.Core.UI
     /// </summary>
     public static class UIHelpers
     {
-        // Colors
-        public static readonly Color ActiveFilterColor = new Color(0.29f, 0.95f, 0.29f); // Bright green
-        public static readonly Color PreferredFilterColor = new Color(0.95f, 0.9f, 0.3f); // Yellow
-        public static readonly Color InactiveFilterColor = new Color(0.5f, 0.5f, 0.5f); // Grey
+        // Colors (Tier 3 visual polish)
+        public static readonly Color CriticalFilterColor = new Color(0.95f, 0.35f, 0.35f); // Red - Critical importance
+        public static readonly Color PreferredFilterColor = new Color(0.4f, 0.6f, 0.95f); // Blue - Preferred importance
+        public static readonly Color InactiveFilterColor = new Color(0.5f, 0.5f, 0.5f); // Grey - Ignored
         public static readonly Color PartialFilterColor = new Color(0.7f, 0.7f, 1f); // Light blue
 
+        // Background tints for filter rows (subtle)
+        public static readonly Color CriticalBackgroundTint = new Color(0.3f, 0.15f, 0.15f, 0.2f); // Dark red tint
+        public static readonly Color PreferredBackgroundTint = new Color(0.15f, 0.2f, 0.3f, 0.15f); // Dark blue tint
+
         /// <summary>
-        /// Draws an importance selector (Ignored/Preferred/Critical).
+        /// Draws an importance selector (Ignored/Preferred/Critical) with visual polish.
         /// Returns true if filter is active (not Ignored).
+        /// Tier 3 enhancement: Red accent for Critical, Blue for Preferred, subtle background tint.
         /// </summary>
         public static bool DrawImportanceSelector(Rect rect, string label, ref FilterImportance importance, string tooltip = null, bool isEnabled = true, string disabledReason = null)
         {
             var buttonRect = rect;
 
+            // Draw subtle background tint for active filters (Tier 3 visual polish)
+            if (isEnabled && importance != FilterImportance.Ignored)
+            {
+                Color bgTint = importance == FilterImportance.Critical
+                    ? CriticalBackgroundTint
+                    : PreferredBackgroundTint;
+                Widgets.DrawBoxSolid(rect, bgTint);
+            }
+
             // Draw state indicator
             var indicatorRect = new Rect(rect.x, rect.y, 20f, rect.height);
             var labelRect = new Rect(rect.x + 24f, rect.y, rect.width - 24f, rect.height);
 
-            // Draw colored indicator
+            // Draw colored indicator (Tier 3: Red for Critical, Blue for Preferred)
             Color stateColor = importance switch
             {
-                FilterImportance.Critical => ActiveFilterColor,
+                FilterImportance.Critical => CriticalFilterColor,
                 FilterImportance.Preferred => PreferredFilterColor,
                 FilterImportance.Ignored => InactiveFilterColor,
                 _ => Color.white
@@ -85,11 +99,29 @@ namespace LandingZone.Core.UI
                 };
             }
 
-            // Show appropriate tooltip
+            // Show enhanced tooltip (Tier 3: expanded explanations)
             string finalTooltip = tooltip;
+
+            // Add importance level explanation to tooltip
+            string importanceExplanation = importance switch
+            {
+                FilterImportance.Critical => "\n\n[CRITICAL] Hard requirement - tiles MUST match this filter.\nUsed in Apply phase to eliminate non-matching tiles.",
+                FilterImportance.Preferred => "\n\n[PREFERRED] Soft preference - tiles are scored higher if they match.\nUsed in Score phase to rank surviving tiles.",
+                FilterImportance.Ignored => "\n\n[IGNORED] Filter is disabled and won't affect results.",
+                _ => ""
+            };
+
             if (!isEnabled && !string.IsNullOrEmpty(disabledReason))
             {
                 finalTooltip = disabledReason;
+            }
+            else if (!string.IsNullOrEmpty(tooltip))
+            {
+                finalTooltip = tooltip + importanceExplanation;
+            }
+            else
+            {
+                finalTooltip = label + importanceExplanation;
             }
 
             if (!string.IsNullOrEmpty(finalTooltip))
@@ -333,7 +365,7 @@ namespace LandingZone.Core.UI
             // Draw colored indicator
             Color stateColor = importance switch
             {
-                FilterImportance.Critical => ActiveFilterColor,
+                FilterImportance.Critical => CriticalFilterColor,
                 FilterImportance.Preferred => PreferredFilterColor,
                 FilterImportance.Ignored => InactiveFilterColor,
                 _ => Color.white

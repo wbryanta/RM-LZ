@@ -15,8 +15,8 @@ namespace LandingZone.Core.UI
     /// </summary>
     public static class DefaultModeUI
     {
-        private const float PresetCardWidth = 120f;
-        private const float PresetCardHeight = 70f;
+        private const float PresetCardWidth = 160f;  // +33% from 120f
+        private const float PresetCardHeight = 93f;  // +33% from 70f
         private const float PresetCardSpacing = 8f;
 
         // Quick Tweaks panel state

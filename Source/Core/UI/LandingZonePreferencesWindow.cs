@@ -16,6 +16,12 @@ namespace LandingZone.Core.UI
         // UI state
         private Vector2 _scrollPos;
 
+        // Guided Builder state
+        private static PriorityGoal _priority1 = PriorityGoal.None;
+        private static PriorityGoal _priority2 = PriorityGoal.None;
+        private static PriorityGoal _priority3 = PriorityGoal.None;
+        private static PriorityGoal _priority4 = PriorityGoal.None;
+
         public LandingZonePreferencesWindow()
         {
             closeOnClickedOutside = true;
@@ -175,28 +181,231 @@ namespace LandingZone.Core.UI
 
         private void DrawGuidedBuilderContent(Rect contentRect)
         {
-            // Tier 2: Guided Builder renderer (multi-step priority wizard)
-            // TODO: Implement 4-step priority wizard in Phase 3
-            // For now, show placeholder text
-            var listing = new Listing_Standard { ColumnWidth = contentRect.width };
-            listing.Begin(contentRect);
+            // Tier 2: Guided Builder - 4-step priority wizard
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 800f);
+            Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
 
+            var listing = new Listing_Standard { ColumnWidth = viewRect.width };
+            listing.Begin(viewRect);
+
+            // Header
             Text.Font = GameFont.Medium;
-            listing.Label("Guided Builder (Coming Soon)");
+            listing.Label("Priority-Based Site Finder");
+            Text.Font = GameFont.Small;
+            listing.GapLine();
+            listing.Gap(8f);
+
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.8f, 0.8f, 0.8f);
+            listing.Label("Select 1-4 goals in priority order. Priority 1 = Critical filters, Priority 2-4 = Preferred filters.");
+            GUI.color = Color.white;
             Text.Font = GameFont.Small;
             listing.Gap(12f);
-            listing.Label("This will be a 4-step priority wizard:");
-            listing.Label("  1. Select Priority 1 goal (Climate Comfort, Resource Wealth, etc.)");
-            listing.Label("  2. Select Priority 2 goal");
-            listing.Label("  3. Select Priority 3 goal (optional)");
-            listing.Label("  4. Select Priority 4 goal (optional)");
-            listing.Gap(12f);
-            listing.Label("Then see combined recommendations with:");
-            listing.Label("  • Search Now");
-            listing.Label("  • Tweak in Advanced");
-            listing.Label("  • Save as Preset");
+
+            // Priority 1 (required)
+            DrawPrioritySlot(listing, 1, ref _priority1, true);
+            listing.Gap(8f);
+
+            // Priority 2-4 (optional)
+            DrawPrioritySlot(listing, 2, ref _priority2, false);
+            listing.Gap(8f);
+            DrawPrioritySlot(listing, 3, ref _priority3, false);
+            listing.Gap(8f);
+            DrawPrioritySlot(listing, 4, ref _priority4, false);
+            listing.Gap(16f);
+
+            listing.GapLine();
+            listing.Gap(16f);
+
+            // Preview of selected goals
+            DrawGoalPreview(listing);
+            listing.Gap(16f);
+
+            listing.GapLine();
+            listing.Gap(16f);
+
+            // Action buttons
+            var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
+            DrawActionButtons(listing, preferences);
 
             listing.End();
+            Widgets.EndScrollView();
+        }
+
+        private void DrawPrioritySlot(Listing_Standard listing, int slotNumber, ref PriorityGoal currentGoal, bool required)
+        {
+            string slotLabel = required
+                ? $"Priority {slotNumber} (Required)"
+                : $"Priority {slotNumber} (Optional)";
+
+            Text.Font = GameFont.Small;
+            GUI.color = required ? new Color(1f, 0.9f, 0.7f) : Color.white;
+            listing.Label(slotLabel);
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            // Dropdown button
+            string buttonLabel = currentGoal == PriorityGoal.None
+                ? "Select a goal..."
+                : GuidedBuilderGoals.GetGoalName(currentGoal);
+
+            if (listing.ButtonText(buttonLabel))
+            {
+                var options = new List<FloatMenuOption>();
+
+                // "None" option for optional slots
+                if (!required)
+                {
+                    options.Add(new FloatMenuOption("None", () => {
+                        if (slotNumber == 1) _priority1 = PriorityGoal.None;
+                        else if (slotNumber == 2) _priority2 = PriorityGoal.None;
+                        else if (slotNumber == 3) _priority3 = PriorityGoal.None;
+                        else if (slotNumber == 4) _priority4 = PriorityGoal.None;
+                    }));
+                }
+
+                // Collect already-selected goals from other slots (prevent duplicates)
+                var selectedGoals = new HashSet<PriorityGoal>();
+                if (slotNumber != 1 && _priority1 != PriorityGoal.None) selectedGoals.Add(_priority1);
+                if (slotNumber != 2 && _priority2 != PriorityGoal.None) selectedGoals.Add(_priority2);
+                if (slotNumber != 3 && _priority3 != PriorityGoal.None) selectedGoals.Add(_priority3);
+                if (slotNumber != 4 && _priority4 != PriorityGoal.None) selectedGoals.Add(_priority4);
+
+                // All available goals (skip already-selected ones)
+                foreach (var goal in GuidedBuilderGoals.GetAllGoals())
+                {
+                    var goalName = GuidedBuilderGoals.GetGoalName(goal);
+                    var goalDesc = GuidedBuilderGoals.GetGoalDescription(goal);
+                    var goalCapture = goal; // Capture for lambda
+
+                    // Skip if this goal is already selected in another slot
+                    if (selectedGoals.Contains(goal))
+                    {
+                        // Add disabled option to show it's taken
+                        options.Add(new FloatMenuOption($"{goalName} (already selected)", null));
+                    }
+                    else
+                    {
+                        options.Add(new FloatMenuOption(goalName, () => {
+                            if (slotNumber == 1) _priority1 = goalCapture;
+                            else if (slotNumber == 2) _priority2 = goalCapture;
+                            else if (slotNumber == 3) _priority3 = goalCapture;
+                            else if (slotNumber == 4) _priority4 = goalCapture;
+                        }));
+                    }
+                }
+
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+
+            // Show description if goal selected
+            if (currentGoal != PriorityGoal.None)
+            {
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label(GuidedBuilderGoals.GetGoalDescription(currentGoal));
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+            }
+        }
+
+        private void DrawGoalPreview(Listing_Standard listing)
+        {
+            var selectedGoals = new List<(int slot, PriorityGoal goal)>();
+            if (_priority1 != PriorityGoal.None) selectedGoals.Add((1, _priority1));
+            if (_priority2 != PriorityGoal.None) selectedGoals.Add((2, _priority2));
+            if (_priority3 != PriorityGoal.None) selectedGoals.Add((3, _priority3));
+            if (_priority4 != PriorityGoal.None) selectedGoals.Add((4, _priority4));
+
+            if (selectedGoals.Count == 0)
+            {
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Select at least Priority 1 to see recommendations.");
+                GUI.color = Color.white;
+                return;
+            }
+
+            Text.Font = GameFont.Small;
+            listing.Label("Selected Priorities:");
+            Text.Font = GameFont.Tiny;
+
+            foreach (var (slot, goal) in selectedGoals)
+            {
+                string importance = slot == 1 ? "Critical" : "Preferred";
+                GUI.color = slot == 1 ? new Color(1f, 0.7f, 0.7f) : new Color(0.7f, 0.7f, 1f);
+                listing.Label($"  {slot}. {GuidedBuilderGoals.GetGoalName(goal)} ({importance})");
+            }
+
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+        }
+
+        private void DrawActionButtons(Listing_Standard listing, UserPreferences preferences)
+        {
+            bool hasValidSelection = _priority1 != PriorityGoal.None;
+
+            // Search Now button
+            GUI.enabled = hasValidSelection;
+            if (listing.ButtonText("Apply & Search Now"))
+            {
+                ApplyGuidedBuilderFilters(preferences);
+                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
+            }
+            GUI.enabled = true;
+
+            listing.Gap(8f);
+
+            // Open in Advanced button
+            GUI.enabled = hasValidSelection;
+            if (listing.ButtonText("Apply & Open in Advanced"))
+            {
+                ApplyGuidedBuilderFilters(preferences);
+                preferences.Options.PreferencesUIMode = UIMode.Advanced;
+                Messages.Message("Applied priority-based filters to Advanced mode", MessageTypeDefOf.NeutralEvent, false);
+            }
+            GUI.enabled = true;
+
+            listing.Gap(8f);
+
+            // Save as Preset button
+            GUI.enabled = hasValidSelection;
+            if (listing.ButtonText("Save as Custom Preset"))
+            {
+                var tempFilters = new FilterSettings();
+                ApplyGuidedBuilderFilters(preferences, tempFilters);
+                Find.WindowStack.Add(new Dialog_SavePreset(tempFilters, null));
+            }
+            GUI.enabled = true;
+
+            listing.Gap(12f);
+
+            // Reset button
+            if (listing.ButtonText("Clear All Priorities"))
+            {
+                _priority1 = PriorityGoal.None;
+                _priority2 = PriorityGoal.None;
+                _priority3 = PriorityGoal.None;
+                _priority4 = PriorityGoal.None;
+            }
+        }
+
+        private void ApplyGuidedBuilderFilters(UserPreferences preferences, FilterSettings targetFilters = null)
+        {
+            var filters = targetFilters ?? preferences.GetActiveFilters();
+
+            // Reset to defaults first
+            filters.Reset();
+
+            // Apply each priority in order
+            if (_priority1 != PriorityGoal.None)
+                GuidedBuilderGoals.ApplyGoalFilters(_priority1, 1, filters);
+            if (_priority2 != PriorityGoal.None)
+                GuidedBuilderGoals.ApplyGoalFilters(_priority2, 2, filters);
+            if (_priority3 != PriorityGoal.None)
+                GuidedBuilderGoals.ApplyGoalFilters(_priority3, 3, filters);
+            if (_priority4 != PriorityGoal.None)
+                GuidedBuilderGoals.ApplyGoalFilters(_priority4, 4, filters);
         }
 
         private void DrawAdvancedModeContent(Rect contentRect)

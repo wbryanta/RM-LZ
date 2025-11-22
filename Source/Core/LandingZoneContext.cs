@@ -24,6 +24,20 @@ namespace LandingZone.Core
         public static Highlighting.HighlightState HighlightState => Highlighter?.State ?? _fallbackState;
         private static readonly Highlighting.HighlightState _fallbackState = new Highlighting.HighlightState();
 
+        private static FilterSelectivityEstimator? _selectivityEstimator;
+        public static FilterSelectivityEstimator SelectivityEstimator
+        {
+            get
+            {
+                if (_selectivityEstimator == null)
+                {
+                    _selectivityEstimator = new FilterSelectivityEstimator();
+                    _selectivityEstimator.Initialize();
+                }
+                return _selectivityEstimator;
+            }
+        }
+
         public static void Initialize(GameState state, Harmony harmony)
         {
             lock (Gate)
@@ -65,6 +79,9 @@ namespace LandingZone.Core
             {
                 Filters.TileCache.ResetIfWorldChanged(seed);
             }
+
+            // Reset selectivity estimator for new world
+            _selectivityEstimator = null;
 
             // Count settleable tiles from game cache
             int settleable = 0;

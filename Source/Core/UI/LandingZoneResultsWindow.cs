@@ -56,7 +56,9 @@ namespace LandingZone.Core.UI
 
             var highlightState = LandingZoneContext.HighlightState;
             bool showing = highlightState?.ShowBestSites ?? false;
-            if (listing.ButtonText(showing ? "Hide highlights" : "Show highlights"))
+
+            Rect highlightButtonRect = listing.GetRect(30f);
+            if (Widgets.ButtonText(highlightButtonRect, showing ? "Hide highlights" : "Show highlights"))
             {
                 if (highlightState != null)
                 {
@@ -67,6 +69,9 @@ namespace LandingZone.Core.UI
                     }
                 }
             }
+
+            // Tooltip explaining highlight functionality
+            TooltipHandler.TipRegion(highlightButtonRect, "Toggle colored markers on the world map showing top-scoring tiles from your search results");
 
             listing.Gap(4f);
             if (LandingZoneContext.IsEvaluating)
@@ -147,12 +152,24 @@ namespace LandingZone.Core.UI
 
             // Dev mode DEBUG button (right side, before Bookmark All)
             float rightX = rect.xMax - 4f;
+
             // Bookmark All button
             var bookmarkAllWidth = 85f;
             var bookmarkAllRect = new Rect(rightX - bookmarkAllWidth, rect.y + 2f, bookmarkAllWidth, rect.height - 4f);
             if (Widgets.ButtonText(bookmarkAllRect, "Bookmark All"))
             {
                 BookmarkAllResults();
+            }
+
+            // [DEBUG] Dump button (Dev mode only, left of Bookmark All)
+            if (Prefs.DevMode)
+            {
+                var dumpButtonWidth = 95f;
+                var dumpButtonRect = new Rect(bookmarkAllRect.x - dumpButtonWidth - 5f, rect.y + 2f, dumpButtonWidth, rect.height - 4f);
+                if (Widgets.ButtonText(dumpButtonRect, "[DEBUG] Dump"))
+                {
+                    DumpMatchDataForAnalysis();
+                }
             }
 
             Text.Font = prevFont;

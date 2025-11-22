@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -249,13 +251,34 @@ namespace LandingZone.Core.UI
             listing.GapLine();
             listing.Gap(8f);
 
-            // Live tile count estimates (using selectivity analysis)
+            // Build filter lists first (needed for both display and selectivity checks)
+            var allGroups = GetUserIntentGroups();
+            var criticalFilters = new List<string>();
+            var preferredFilters = new List<string>();
+
+            foreach (var group in allGroups)
+            {
+                foreach (var filter in group.Filters)
+                {
+                    var (isActive, importance) = filter.IsActiveFunc(filters);
+                    if (isActive)
+                    {
+                        if (importance == FilterImportance.Critical)
+                            criticalFilters.Add(filter.Label);
+                        else if (importance == FilterImportance.Preferred)
+                            preferredFilters.Add(filter.Label);
+                    }
+                }
+            }
+
+            // Live tile count estimates (try selectivity analysis if available)
             var selectivities = LandingZoneContext.Filters?.GetAllSelectivities(LandingZoneContext.State);
             if (selectivities != null && selectivities.Any())
             {
                 int totalSettleable = selectivities.FirstOrDefault().TotalTiles;
+                var criticalSelectivities = selectivities.Where(s => s.Importance == FilterImportance.Critical).ToList();
 
-                // Show baseline: total settleable tiles in world
+                // Show baseline
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
                 listing.Label("Baseline (all settleable tiles):");
@@ -266,10 +289,10 @@ namespace LandingZone.Core.UI
                 Text.Font = GameFont.Small;
                 listing.Gap(8f);
 
-                var criticalSelectivities = selectivities.Where(s => s.Importance == FilterImportance.Critical).ToList();
+                // Show estimate only if we have selectivity data for critical filters
                 if (criticalSelectivities.Any())
                 {
-                    // Estimate combined selectivity (product of individual ratios as rough approximation)
+                    // Estimate combined selectivity (product of individual ratios)
                     float combinedRatio = 1.0f;
                     foreach (var s in criticalSelectivities)
                     {
@@ -284,13 +307,13 @@ namespace LandingZone.Core.UI
                     listing.Label("After applying filters:");
                     Text.Font = GameFont.Medium;
 
-                    // Color code based on how restrictive the filters are
+                    // Color code based on how restrictive
                     if (estimatedMatches < 100)
-                        GUI.color = new Color(1f, 0.4f, 0.4f); // Red for very restrictive
+                        GUI.color = new Color(1f, 0.4f, 0.4f); // Red
                     else if (estimatedMatches < 1000)
-                        GUI.color = new Color(1f, 0.8f, 0.3f); // Yellow for moderate
+                        GUI.color = new Color(1f, 0.8f, 0.3f); // Yellow
                     else
-                        GUI.color = new Color(0.4f, 1f, 0.4f); // Green for plenty of results
+                        GUI.color = new Color(0.4f, 1f, 0.4f); // Green
 
                     listing.Label($"~{estimatedMatches:N0} tiles ({percentage:F1}%)");
                     GUI.color = Color.white;
@@ -314,12 +337,12 @@ namespace LandingZone.Core.UI
                     Text.Font = GameFont.Small;
                     listing.Gap(12f);
                 }
-                else
+                else if (criticalFilters.Any())
                 {
-                    // No critical filters - show message
+                    // We have critical filters but no selectivity data for them yet
                     Text.Font = GameFont.Tiny;
                     GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                    listing.Label("(No critical filters applied)");
+                    listing.Label("(Tile count estimate unavailable for these filter types)");
                     GUI.color = Color.white;
                     Text.Font = GameFont.Small;
                     listing.Gap(12f);
@@ -327,25 +350,6 @@ namespace LandingZone.Core.UI
             }
 
             // Critical Filters
-            var allGroups = GetUserIntentGroups();
-            var criticalFilters = new List<string>();
-            var preferredFilters = new List<string>();
-
-            foreach (var group in allGroups)
-            {
-                foreach (var filter in group.Filters)
-                {
-                    var (isActive, importance) = filter.IsActiveFunc(filters);
-                    if (isActive)
-                    {
-                        if (importance == FilterImportance.Critical)
-                            criticalFilters.Add(filter.Label);
-                        else if (importance == FilterImportance.Preferred)
-                            preferredFilters.Add(filter.Label);
-                    }
-                }
-            }
-
             if (criticalFilters.Any())
             {
                 listing.GapLine(); // Visual separator before filter lists
@@ -389,6 +393,12 @@ namespace LandingZone.Core.UI
                 listing.Gap(12f);
             }
 
+            // Fallback Tier Preview (Tier 3)
+            if (criticalFilters.Any())
+            {
+                DrawFallbackTierPreview(listing, filters);
+            }
+
             // Warnings
             if (_activeConflicts.Any())
             {
@@ -425,6 +435,139 @@ namespace LandingZone.Core.UI
 
             listing.End();
             Widgets.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws a compact fallback tier preview in the Live Preview sidebar.
+        /// Shows current strictness and top 1-2 alternative tiers with click-to-apply.
+        /// </summary>
+        private static void DrawFallbackTierPreview(Listing_Standard listing, FilterSettings filters)
+        {
+            // Skip if context not ready
+            if (LandingZoneContext.Filters == null || LandingZoneContext.State == null)
+                return;
+
+            try
+            {
+                // Get all critical filter selectivities
+                var allSelectivities = LandingZoneContext.Filters.GetAllSelectivities(LandingZoneContext.State);
+                var criticalSelectivities = allSelectivities
+                    .Where(s => s.Importance == FilterImportance.Critical)
+                    .ToList();
+
+                // No criticals? Skip
+                if (criticalSelectivities.Count == 0)
+                    return;
+
+                // Get current strictness estimate
+                var currentLikelihood = filters.CriticalStrictness >= 1.0f
+                    ? Filtering.MatchLikelihoodEstimator.EstimateAllCriticals(criticalSelectivities)
+                    : Filtering.MatchLikelihoodEstimator.EstimateRelaxedCriticals(criticalSelectivities, filters.CriticalStrictness);
+
+                // Only show if current strictness is low/medium (when fallback tiers are most useful)
+                if (currentLikelihood.Category == Filtering.LikelihoodCategory.High ||
+                    currentLikelihood.Category == Filtering.LikelihoodCategory.VeryHigh ||
+                    currentLikelihood.Category == Filtering.LikelihoodCategory.Guaranteed)
+                {
+                    return; // Don't clutter the sidebar if filters are already reasonable
+                }
+
+                // Visual separator
+                listing.GapLine();
+                listing.Gap(8f);
+
+                // Header
+                Text.Font = GameFont.Small;
+                GUI.color = new Color(1f, 0.8f, 0.4f);
+                listing.Label("Fallback Tiers");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                listing.Label("Consider relaxing strictness:");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(6f);
+
+                // Current strictness (compact display)
+                var currentRect = listing.GetRect(30f);
+                Color currentBgColor = currentLikelihood.Category switch
+                {
+                    Filtering.LikelihoodCategory.Medium => new Color(0.25f, 0.25f, 0.15f),
+                    Filtering.LikelihoodCategory.Low => new Color(0.3f, 0.2f, 0.15f),
+                    _ => new Color(0.3f, 0.15f, 0.15f)
+                };
+
+                Widgets.DrawBoxSolid(currentRect, currentBgColor);
+                Widgets.DrawBox(currentRect);
+
+                var contentRect = currentRect.ContractedBy(3f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.8f, 0.8f, 0.8f);
+                Widgets.Label(
+                    new Rect(contentRect.x, contentRect.y + 2f, contentRect.width, 24f),
+                    $"Current: {currentLikelihood.GetUserMessage()}"
+                );
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                listing.Gap(4f);
+
+                // Get fallback suggestions
+                var suggestions = Filtering.MatchLikelihoodEstimator.SuggestStrictness(criticalSelectivities);
+
+                // Only show top 2 suggestions different from current
+                var relevantSuggestions = suggestions
+                    .Where(s => Math.Abs(s.Strictness - filters.CriticalStrictness) > 0.01f)
+                    .Where(s => s.Category > currentLikelihood.Category) // Only show improvements
+                    .Take(2)
+                    .ToList();
+
+                if (relevantSuggestions.Any())
+                {
+                    foreach (var suggestion in relevantSuggestions)
+                    {
+                        var suggestionRect = listing.GetRect(28f);
+                        Color bgColor = suggestion.Category switch
+                        {
+                            Filtering.LikelihoodCategory.Guaranteed => new Color(0.15f, 0.25f, 0.15f),
+                            Filtering.LikelihoodCategory.VeryHigh => new Color(0.15f, 0.25f, 0.15f),
+                            Filtering.LikelihoodCategory.High => new Color(0.15f, 0.2f, 0.15f),
+                            Filtering.LikelihoodCategory.Medium => new Color(0.2f, 0.2f, 0.1f),
+                            _ => new Color(0.25f, 0.15f, 0.1f)
+                        };
+
+                        Widgets.DrawBoxSolid(suggestionRect, bgColor);
+                        Widgets.DrawBox(suggestionRect);
+
+                        var suggestionContent = suggestionRect.ContractedBy(3f);
+                        Text.Font = GameFont.Tiny;
+                        Widgets.Label(
+                            new Rect(suggestionContent.x, suggestionContent.y + 2f, suggestionContent.width, 24f),
+                            $"→ {suggestion.GetDisplayText()} ({suggestion.Strictness:P0})"
+                        );
+                        Text.Font = GameFont.Small;
+
+                        if (Widgets.ButtonInvisible(suggestionRect))
+                        {
+                            filters.CriticalStrictness = suggestion.Strictness;
+                            Messages.Message(
+                                $"Applied fallback tier: {suggestion.Description} (strictness {suggestion.Strictness:P0})",
+                                MessageTypeDefOf.NeutralEvent,
+                                false
+                            );
+                        }
+
+                        TooltipHandler.TipRegion(suggestionRect, $"{suggestion.Description}\nClick to set strictness to {suggestion.Strictness:P0}");
+                        listing.Gap(3f);
+                    }
+                }
+
+                listing.Gap(8f);
+            }
+            catch (System.Exception ex)
+            {
+                // Silently fail - don't break UI
+                Log.Warning($"[LandingZone] Failed to draw fallback tier preview: {ex.Message}");
+            }
         }
 
         private static void DrawFilterGroups(Listing_Standard listing, List<FilterGroup> groups, UserPreferences preferences)
