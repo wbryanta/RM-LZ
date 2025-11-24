@@ -70,17 +70,17 @@ namespace LandingZone.Core.UI
             // Draw button
             string stateLabel = importance switch
             {
-                FilterImportance.Critical => "Required",
-                FilterImportance.Preferred => "Preferred",
-                FilterImportance.Ignored => "Ignored",
-                _ => "?"
+                FilterImportance.Critical => "LandingZone_FilterRequired".Translate(),
+                FilterImportance.Preferred => "LandingZone_FilterPreferred".Translate(),
+                FilterImportance.Ignored => "LandingZone_FilterIgnored".Translate(),
+                _ => "LandingZone_FilterUnknown".Translate()
             };
 
             string displayLabel = $"{label}: {stateLabel}";
             if (!isEnabled)
             {
                 // Add DLC indicator to label
-                displayLabel = $"{label}: (DLC Required)";
+                displayLabel = $"{label}: ({ "LandingZone_FilterDlcRequired".Translate()})";
                 GUI.color = new Color(0.5f, 0.5f, 0.5f); // Grey out text
             }
 
@@ -105,9 +105,9 @@ namespace LandingZone.Core.UI
             // Add importance level explanation to tooltip
             string importanceExplanation = importance switch
             {
-                FilterImportance.Critical => "\n\n[CRITICAL] Hard requirement - tiles MUST match this filter.\nUsed in Apply phase to eliminate non-matching tiles.",
-                FilterImportance.Preferred => "\n\n[PREFERRED] Soft preference - tiles are scored higher if they match.\nUsed in Score phase to rank surviving tiles.",
-                FilterImportance.Ignored => "\n\n[IGNORED] Filter is disabled and won't affect results.",
+                FilterImportance.Critical => "LandingZone_ImportanceExplanation_Critical".Translate(),
+                FilterImportance.Preferred => "LandingZone_ImportanceExplanation_Preferred".Translate(),
+                FilterImportance.Ignored => "LandingZone_ImportanceExplanation_Ignored".Translate(),
                 _ => ""
             };
 
@@ -174,17 +174,17 @@ namespace LandingZone.Core.UI
             var noneRect = new Rect(rect.x + buttonWidth + 4f, rect.y, buttonWidth, rect.height);
             var resetRect = new Rect(rect.x + (buttonWidth + 4f) * 2, rect.y, buttonWidth, rect.height);
 
-            if (Widgets.ButtonText(allRect, "All"))
+            if (Widgets.ButtonText(allRect, "LandingZone_All".Translate()))
             {
                 onAll?.Invoke();
             }
 
-            if (Widgets.ButtonText(noneRect, "None"))
+            if (Widgets.ButtonText(noneRect, "LandingZone_NoneLabel".Translate()))
             {
                 onNone?.Invoke();
             }
 
-            if (Widgets.ButtonText(resetRect, "Reset"))
+            if (Widgets.ButtonText(resetRect, "LandingZone_Reset".Translate()))
             {
                 onReset?.Invoke();
             }
@@ -212,14 +212,14 @@ namespace LandingZone.Core.UI
 
             if (!isAvailable)
             {
-                TooltipHandler.TipRegion(rect, $"{dlcName} DLC not installed");
+                TooltipHandler.TipRegion(rect, "LandingZone_DLCNotInstalled".Translate(dlcName));
             }
         }
 
         /// <summary>
         /// Draws a search text field for filtering lists.
         /// </summary>
-        public static string DrawSearchBox(Listing_Standard listing, string currentSearch, string placeholder = "Search...")
+        public static string DrawSearchBox(Listing_Standard listing, string currentSearch, string placeholder = "LandingZone_SearchPlaceholder")
         {
             var rect = listing.GetRect(28f);
             var searchRect = rect.ContractedBy(2f);
@@ -238,7 +238,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.5f, 0.5f, 0.5f);
                 var prevAnchor = Text.Anchor;
                 Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(textRect, placeholder);
+                Widgets.Label(textRect, placeholder.Translate());
                 Text.Anchor = prevAnchor;
                 GUI.color = prevColor;
             }
@@ -295,7 +295,7 @@ namespace LandingZone.Core.UI
             var items = availableItems.ToList();
             if (items.Count == 0)
             {
-                listing.Label("No items available");
+                listing.Label("LandingZone_NoItems".Translate());
                 return 0;
             }
 
@@ -379,10 +379,10 @@ namespace LandingZone.Core.UI
             // Draw button with label and current state
             string stateLabel = importance switch
             {
-                FilterImportance.Critical => "Required",
-                FilterImportance.Preferred => "Preferred",
-                FilterImportance.Ignored => "Ignored",
-                _ => "?"
+                FilterImportance.Critical => "LandingZone_ImportanceState_Required".Translate(),
+                FilterImportance.Preferred => "LandingZone_ImportanceState_Preferred".Translate(),
+                FilterImportance.Ignored => "LandingZone_ImportanceState_Ignored".Translate(),
+                _ => "LandingZone_ImportanceState_Unknown".Translate()
             };
 
             var oldImportance = importance;
@@ -422,22 +422,22 @@ namespace LandingZone.Core.UI
             var allIgnoredRect = new Rect(rect.x + (buttonWidth + 4f) * 2, rect.y, buttonWidth, rect.height);
             var resetRect = new Rect(rect.x + (buttonWidth + 4f) * 3, rect.y, buttonWidth, rect.height);
 
-            if (Widgets.ButtonText(allCriticalRect, "All Critical"))
+            if (Widgets.ButtonText(allCriticalRect, "LandingZone_AllCritical".Translate()))
             {
                 container.SetAllTo(availableItems, FilterImportance.Critical);
             }
 
-            if (Widgets.ButtonText(allPreferredRect, "All Preferred"))
+            if (Widgets.ButtonText(allPreferredRect, "LandingZone_AllPreferred".Translate()))
             {
                 container.SetAllTo(availableItems, FilterImportance.Preferred);
             }
 
-            if (Widgets.ButtonText(allIgnoredRect, "All Ignored"))
+            if (Widgets.ButtonText(allIgnoredRect, "LandingZone_AllIgnored".Translate()))
             {
                 container.SetAllTo(availableItems, FilterImportance.Ignored);
             }
 
-            if (Widgets.ButtonText(resetRect, "Reset"))
+            if (Widgets.ButtonText(resetRect, "LandingZone_Reset".Translate()))
             {
                 container.Reset();
             }
@@ -502,9 +502,9 @@ namespace LandingZone.Core.UI
 
             string severityLabel = conflict.Severity switch
             {
-                ConflictSeverity.Error => "ERROR",
-                ConflictSeverity.Warning => "WARNING",
-                ConflictSeverity.Info => "INFO",
+                ConflictSeverity.Error => "LandingZone_ConflictSeverity_Error".Translate(),
+                ConflictSeverity.Warning => "LandingZone_ConflictSeverity_Warning".Translate(),
+                ConflictSeverity.Info => "LandingZone_ConflictSeverity_Info".Translate(),
                 _ => ""
             };
 

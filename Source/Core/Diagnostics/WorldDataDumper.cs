@@ -279,7 +279,7 @@ namespace LandingZone.Core.Diagnostics
                 var world = Find.World;
                 if (world?.grid == null)
                 {
-                    Log.Error("[LandingZone] WorldDataDumper: World or grid is null");
+                    Log.Error("LandingZone_DevTools_WorldNullError".Translate());
                     return;
                 }
 
@@ -288,16 +288,16 @@ namespace LandingZone.Core.Diagnostics
 
                 var sb = new StringBuilder();
                 sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine($"LandingZone FULL WORLD CACHE DUMP - {timestamp}");
-                sb.AppendLine($"World: {world.info.name}");
-                sb.AppendLine($"Seed: {world.info.seedString}");
-                sb.AppendLine($"Total Tiles: {world.grid.TilesCount}");
+                sb.AppendLine("LandingZone_DevTools_WorldDataDump".Translate(timestamp));
+                sb.AppendLine("LandingZone_DevTools_WorldInfo".Translate(world.info.name));
+                sb.AppendLine("LandingZone_DevTools_Seed".Translate(world.info.seedString));
+                sb.AppendLine("LandingZone_DevTools_TotalTiles".Translate(world.grid.TilesCount));
                 sb.AppendLine("=".PadRight(80, '='));
                 sb.AppendLine();
 
                 // INSPECT WORLD OBJECT - DUMP ALL FIELDS AND PROPERTIES
                 sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine("WORLD OBJECT INSPECTION (ALL fields/properties)");
+                sb.AppendLine("LandingZone_DevTools_WorldObjectInspection".Translate());
                 sb.AppendLine("=".PadRight(80, '='));
                 sb.AppendLine();
 
@@ -311,7 +311,7 @@ namespace LandingZone.Core.Diagnostics
                         System.Reflection.BindingFlags.NonPublic |
                         System.Reflection.BindingFlags.Instance);
 
-                    sb.AppendLine($"--- WORLD FIELDS ({worldFields.Length} total) ---");
+                    sb.AppendLine("LandingZone_DevTools_WorldFields".Translate(worldFields.Length));
                     sb.AppendLine();
 
                     foreach (var field in worldFields)
@@ -556,7 +556,7 @@ namespace LandingZone.Core.Diagnostics
                         System.Reflection.BindingFlags.NonPublic |
                         System.Reflection.BindingFlags.Instance);
 
-                    sb.AppendLine($"--- WORLD PROPERTIES ({worldProps.Length} total) ---");
+                    sb.AppendLine("LandingZone_DevTools_WorldProperties".Translate(worldProps.Length));
                     sb.AppendLine();
 
                     foreach (var prop in worldProps)
@@ -608,11 +608,11 @@ namespace LandingZone.Core.Diagnostics
                 }
                 catch (Exception ex)
                 {
-                    sb.AppendLine($"Error inspecting World object: {ex.Message}");
+                    sb.AppendLine("LandingZone_DevTools_ErrorInspecting".Translate(ex.Message));
                 }
 
                 sb.AppendLine("=".PadRight(80, '='));
-                sb.AppendLine("TILE DATA");
+                sb.AppendLine("LandingZone_DevTools_TileData".Translate());
                 sb.AppendLine("=".PadRight(80, '='));
                 sb.AppendLine();
 
@@ -681,12 +681,12 @@ namespace LandingZone.Core.Diagnostics
                     File.AppendAllText(filePath, sb.ToString());
                 }
 
-                Log.Message($"[LandingZone] Full world cache dumped to: {filePath}");
-                Messages.Message($"LandingZone: Full cache dumped to {Path.GetFileName(filePath)}", MessageTypeDefOf.SilentInput, false);
+                Log.Message("LandingZone_DevTools_DumpToFile".Translate(filePath));
+                Messages.Message("LandingZone_DevTools_DumpSuccess".Translate(Path.GetFileName(filePath)), MessageTypeDefOf.SilentInput, false);
             }
             catch (Exception ex)
             {
-                Log.Error($"[LandingZone] WorldDataDumper full cache error: {ex}");
+                Log.Error($"[LandingZone] {ex}");
             }
         }
     }

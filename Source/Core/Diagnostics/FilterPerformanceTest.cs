@@ -22,7 +22,7 @@ namespace LandingZone.Core.Diagnostics
             var world = Find.World;
             if (world?.grid == null)
             {
-                Log.Error("[LandingZone] FilterPerformanceTest: No world loaded");
+                Log.Error("LandingZone_DevTools_PerfTestNoWorld".Translate());
                 return;
             }
 
@@ -42,18 +42,32 @@ namespace LandingZone.Core.Diagnostics
                 }
             }
 
-            Log.Message($"[LandingZone] Performance Test: Testing {settleable.Count} settleable tiles");
+            Log.Message("LandingZone_DevTools_PerfTestTesting".Translate(settleable.Count));
 
-            // Test 1: GenTemperature.MinTemperatureAtTile (supposed to be Heavy)
-            TestOperation("MinTemperatureAtTile", settleable, id =>
+            // Test 1a: GenTemperature.MinTemperatureAtTile METHOD (expensive?)
+            TestOperation("GenTemperature.MinTemperatureAtTile (method)", settleable, id =>
             {
                 return GenTemperature.MinTemperatureAtTile(id);
             });
 
-            // Test 2: GenTemperature.MaxTemperatureAtTile (supposed to be Heavy)
-            TestOperation("MaxTemperatureAtTile", settleable, id =>
+            // Test 1b: tile.MinTemperature PROPERTY (cached?)
+            TestOperation("tile.MinTemperature (property)", settleable, id =>
+            {
+                var tile = world.grid[id];
+                return tile.MinTemperature;
+            });
+
+            // Test 2a: GenTemperature.MaxTemperatureAtTile METHOD (expensive?)
+            TestOperation("GenTemperature.MaxTemperatureAtTile (method)", settleable, id =>
             {
                 return GenTemperature.MaxTemperatureAtTile(id);
+            });
+
+            // Test 2b: tile.MaxTemperature PROPERTY (cached?)
+            TestOperation("tile.MaxTemperature (property)", settleable, id =>
+            {
+                var tile = world.grid[id];
+                return tile.MaxTemperature;
             });
 
             // Test 3: world.NaturalRockTypesIn (supposed to be Heavy)
@@ -78,7 +92,7 @@ namespace LandingZone.Core.Diagnostics
                 return tile.PrimaryBiome != null ? 1 : 0;
             });
 
-            Log.Message("[LandingZone] Performance Test: Complete. Check results above.");
+            Log.Message("LandingZone_DevTools_PerfTestComplete".Translate());
         }
 
         private static void TestOperation<T>(string name, System.Collections.Generic.List<int> tiles, Func<int, T> operation)
@@ -95,21 +109,21 @@ namespace LandingZone.Core.Diagnostics
             double msPerTile = (double)sw.ElapsedMilliseconds / tiles.Count;
             double estimatedFullWorld = msPerTile * 295000; // Estimate for full world
 
-            Log.Message($"[LandingZone] PerformanceTest: {name}");
-            Log.Message($"  - {tiles.Count} tiles in {sw.ElapsedMilliseconds}ms ({msPerTile:F4}ms/tile)");
-            Log.Message($"  - Estimated full world (295k): {estimatedFullWorld:F0}ms = {estimatedFullWorld/1000:F1}s");
+            Log.Message("LandingZone_DevTools_PerfTestTiles".Translate(name));
+            Log.Message("LandingZone_DevTools_PerfTestResult".Translate(tiles.Count, sw.ElapsedMilliseconds, msPerTile.ToString("F4")));
+            Log.Message("LandingZone_DevTools_PerfTestEstimate".Translate(estimatedFullWorld.ToString("F0"), (estimatedFullWorld/1000).ToString("F1")));
 
             if (estimatedFullWorld > 2000)
             {
-                Log.Warning($"[LandingZone] ⚠️ {name} is EXPENSIVE - needs optimization!");
+                Log.Warning("LandingZone_DevTools_PerfTestExpensive".Translate(name));
             }
             else if (estimatedFullWorld > 500)
             {
-                Log.Message($"[LandingZone] ⚠️ {name} is moderate - consider optimizing");
+                Log.Message("LandingZone_DevTools_PerfTestModerate".Translate(name));
             }
             else
             {
-                Log.Message($"[LandingZone] ✓ {name} is cheap - no optimization needed");
+                Log.Message("LandingZone_DevTools_PerfTestCheap".Translate(name));
             }
         }
     }

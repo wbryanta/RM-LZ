@@ -175,6 +175,170 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
+        /// Estimates selectivity for pollution range.
+        /// </summary>
+        public SelectivityEstimate EstimatePollutionRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Most tiles have 0 pollution; only ~1% have pollution > 0.25
+            float selectivity = range.min <= 0f ? 0.99f : 0.01f;
+            if (range.max >= 0.5f) selectivity = 0.001f; // High pollution is very rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.001f, 0.99f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for forageability range.
+        /// </summary>
+        public SelectivityEstimate EstimateForageabilityRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Forageability typically 0.5-1.0 for ~60% of tiles
+            float rangeWidth = range.max - range.min;
+            float rangeMid = (range.min + range.max) / 2f;
+
+            float baseSelectivity = rangeMid >= 0.5f ? 0.60f : 0.40f;
+            float widthFactor = Math.Min(rangeWidth / 0.5f, 2.0f);
+            float selectivity = baseSelectivity * widthFactor;
+
+            selectivity = Mathf.Clamp(selectivity, 0.05f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for swampiness range.
+        /// </summary>
+        public SelectivityEstimate EstimateSwampinessRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Most tiles have 0 swampiness; only ~10% have significant swamp
+            float selectivity = range.min <= 0f && range.max >= 0.5f ? 0.90f : 0.10f;
+            if (range.min > 0.5f) selectivity = 0.05f; // Very swampy tiles are rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.01f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for animal density range.
+        /// </summary>
+        public SelectivityEstimate EstimateAnimalDensityRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Animal density typically 1.0-5.0 for ~70% of tiles
+            float rangeWidth = range.max - range.min;
+            float rangeMid = (range.min + range.max) / 2f;
+
+            float baseSelectivity = rangeMid >= 1.0f && rangeMid <= 5.0f ? 0.70f : 0.50f;
+            float widthFactor = Math.Min(rangeWidth / 4.0f, 2.0f);
+            float selectivity = baseSelectivity * widthFactor;
+
+            if (range.min > 6.0f) selectivity *= 0.2f; // Very high density is rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.05f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for fish population range.
+        /// </summary>
+        public SelectivityEstimate EstimateFishPopulationRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Only ~30% of tiles have water access; of those, ~70% have decent fish
+            float waterAccessFactor = 0.30f;
+            float fishQualityFactor = range.min <= 100f ? 0.70f : 0.40f;
+            float selectivity = waterAccessFactor * fishQualityFactor;
+
+            if (range.min > 500f) selectivity *= 0.3f; // Very high fish pop is rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.01f, 0.30f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for plant density range.
+        /// </summary>
+        public SelectivityEstimate EstimatePlantDensityRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Plant density typically 0.5-1.0 for ~65% of tiles
+            float rangeWidth = range.max - range.min;
+            float rangeMid = (range.min + range.max) / 2f;
+
+            float baseSelectivity = rangeMid >= 0.5f && rangeMid <= 1.0f ? 0.65f : 0.50f;
+            float widthFactor = Math.Min(rangeWidth / 0.5f, 2.0f);
+            float selectivity = baseSelectivity * widthFactor;
+
+            if (range.min > 1.2f) selectivity *= 0.3f; // Very dense plant coverage is rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.05f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for elevation range.
+        /// </summary>
+        public SelectivityEstimate EstimateElevationRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Elevation roughly 0-5000m; most tiles 0-2000m (~80%)
+            float rangeWidth = range.max - range.min;
+            float selectivity = Math.Min(rangeWidth / 5000f, 1.0f);
+
+            if (range.min > 3000f) selectivity *= 0.2f; // High elevation tiles are rare
+            if (range.max < 1000f && range.min > 0f) selectivity *= 0.6f; // Narrow mid-range
+
+            selectivity = Mathf.Clamp(selectivity, 0.05f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
+        /// Estimates selectivity for movement difficulty range.
+        /// </summary>
+        public SelectivityEstimate EstimateMovementDifficultyRange(FloatRange range, FilterImportance importance)
+        {
+            if (importance == FilterImportance.Ignored)
+                return SelectivityEstimate.FullMatch(_totalSettleableTiles);
+
+            // Heuristic: Most tiles 0.5-1.5 movement difficulty (~75%)
+            float rangeWidth = range.max - range.min;
+            float rangeMid = (range.min + range.max) / 2f;
+
+            float baseSelectivity = rangeMid >= 0.5f && rangeMid <= 1.5f ? 0.75f : 0.50f;
+            float widthFactor = Math.Min(rangeWidth / 2.0f, 2.0f);
+            float selectivity = baseSelectivity * widthFactor;
+
+            if (range.min > 2.5f) selectivity *= 0.2f; // Very difficult terrain is rare
+
+            selectivity = Mathf.Clamp(selectivity, 0.05f, 0.95f);
+            int estimatedMatches = (int)(_totalSettleableTiles * selectivity);
+            return new SelectivityEstimate(estimatedMatches, _totalSettleableTiles, importance, false);
+        }
+
+        /// <summary>
         /// Estimates selectivity for a specific map feature/mutator.
         /// Uses canonical rarity data where available.
         /// </summary>

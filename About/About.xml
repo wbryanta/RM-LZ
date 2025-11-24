@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>LandingZone</name>
+  <name>LandingZone (DEV)</name>
   <author>wcbryant</author>
   <url>https://github.com/wbryanta/RM-LZ</url>
-  <packageId>wcb.landingzone</packageId>
-  <modVersion>0.3.0-beta</modVersion>
+  <packageId>wcb.landingzone.dev</packageId>
+  <modVersion>0.3.2-beta</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
   <description>
+    [DEVELOPMENT VERSION - DO NOT USE FOR NORMAL PLAY]
+
+This is the development version of LandingZone with Source/, Managed/, and other dev files. Use the regular "LandingZone" mod for normal gameplay.
+
     LandingZone helps you find the perfect settlement location by filtering world tiles based on climate, terrain, resources, and geographic features.
 
 This is a beta release. While heavily tested with a wide range of popular mods, there are likely things to add, edit, remove, improve, etc. I will rely heavily on your feedback in Workshop or via https://github.com/wbryanta/RM-LZ

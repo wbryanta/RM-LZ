@@ -111,7 +111,7 @@ namespace LandingZone.Core.UI
             var filters = new List<FilterControl>
             {
                 FloatRangeControl(
-                    "Temperature (Average)",
+                    "LandingZone_Filter_TemperatureAverage".Translate(),
                     f => f.AverageTemperatureRange,
                     (f, v) => f.AverageTemperatureRange = v,
                     f => f.AverageTemperatureImportance,
@@ -120,7 +120,7 @@ namespace LandingZone.Core.UI
                     "average_temperature"
                 ),
                 FloatRangeControl(
-                    "Temperature (Minimum)",
+                    "LandingZone_Filter_TemperatureMinimum".Translate(),
                     f => f.MinimumTemperatureRange,
                     (f, v) => f.MinimumTemperatureRange = v,
                     f => f.MinimumTemperatureImportance,
@@ -129,7 +129,7 @@ namespace LandingZone.Core.UI
                     "minimum_temperature"
                 ),
                 FloatRangeControl(
-                    "Temperature (Maximum)",
+                    "LandingZone_Filter_TemperatureMaximum".Translate(),
                     f => f.MaximumTemperatureRange,
                     (f, v) => f.MaximumTemperatureRange = v,
                     f => f.MaximumTemperatureImportance,
@@ -138,7 +138,7 @@ namespace LandingZone.Core.UI
                     "maximum_temperature"
                 ),
                 FloatRangeControl(
-                    "Rainfall",
+                    "LandingZone_Filter_Rainfall".Translate(),
                     f => f.RainfallRange,
                     (f, v) => f.RainfallRange = v,
                     f => f.RainfallImportance,
@@ -147,7 +147,7 @@ namespace LandingZone.Core.UI
                     "rainfall"
                 ),
                 FloatRangeControl(
-                    "Growing Days",
+                    "LandingZone_Filter_GrowingDays".Translate(),
                     f => f.GrowingDaysRange,
                     (f, v) => f.GrowingDaysRange = v,
                     f => f.GrowingDaysImportance,
@@ -156,7 +156,7 @@ namespace LandingZone.Core.UI
                     "growing_days"
                 ),
                 FloatRangeControl(
-                    "Pollution",
+                    "LandingZone_Filter_Pollution".Translate(),
                     f => f.PollutionRange,
                     (f, v) => f.PollutionRange = v,
                     f => f.PollutionImportance,
@@ -165,10 +165,10 @@ namespace LandingZone.Core.UI
                     // No filter ID - pollution may not have dedicated predicate
                 ),
                 new FilterControl(
-                    "Weather Patterns",
+                    "LandingZone_Filter_WeatherPatterns".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Weather Patterns:");
+                        listing.Label("LandingZone_Filter_WeatherPatterns".Translate());
 
                         var weatherMutators = GetWeatherMutators();
                         foreach (var mutator in weatherMutators)
@@ -179,7 +179,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
                             bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -208,7 +208,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("climate_comfort", "Climate & Weather", filters);
+            return new FilterGroup("climate_comfort", "LandingZone_Filter_ClimateWeatherGroup".Translate(), filters);
         }
 
         private static FilterGroup GetTerrainAccessGroup()
@@ -222,8 +222,8 @@ namespace LandingZone.Core.UI
                         // Show status: filtering vs allowing all
                         bool isFiltering = filters.AllowedHilliness.Count < 4;
                         string statusText = isFiltering
-                            ? $"Hilliness (filtering - {filters.AllowedHilliness.Count} of 4 allowed):"
-                            : "Hilliness (all types allowed - no restriction):";
+                            ? "LandingZone_Filter_HillinessFiltering".Translate(filters.AllowedHilliness.Count)
+                            : "LandingZone_Filter_HillinessAllAllowed".Translate();
                         listing.Label(statusText);
 
                         var rect = listing.GetRect(30f);
@@ -232,19 +232,19 @@ namespace LandingZone.Core.UI
                     filters => (filters.AllowedHilliness.Count < 4, FilterImportance.Critical)
                 ),
                 ImportanceOnlyControl(
-                    "Coastal (Ocean)",
+                    "LandingZone_Filter_CoastalOcean".Translate(),
                     f => f.CoastalImportance,
                     (f, v) => f.CoastalImportance = v,
                     "coastal"
                 ),
                 ImportanceOnlyControl(
-                    "Coastal (Lake)",
+                    "LandingZone_Filter_CoastalLake".Translate(),
                     f => f.CoastalLakeImportance,
                     (f, v) => f.CoastalLakeImportance = v,
                     "coastal_lake"
                 ),
                 FloatRangeControl(
-                    "Elevation",
+                    "LandingZone_Filter_Elevation".Translate(),
                     f => f.ElevationRange,
                     (f, v) => f.ElevationRange = v,
                     f => f.ElevationImportance,
@@ -252,7 +252,7 @@ namespace LandingZone.Core.UI
                     0f, 3100f, " m"
                 ),
                 FloatRangeControl(
-                    "Movement Difficulty",
+                    "LandingZone_Filter_MovementDifficulty".Translate(),
                     f => f.MovementDifficultyRange,
                     (f, v) => f.MovementDifficultyRange = v,
                     f => f.MovementDifficultyImportance,
@@ -260,7 +260,7 @@ namespace LandingZone.Core.UI
                     0f, 2f
                 ),
                 FloatRangeControl(
-                    "Swampiness",
+                    "LandingZone_Filter_Swampiness".Translate(),
                     f => f.SwampinessRange,
                     (f, v) => f.SwampinessRange = v,
                     f => f.SwampinessImportance,
@@ -271,7 +271,7 @@ namespace LandingZone.Core.UI
                     "Geographic Features",
                     (listing, filters) =>
                     {
-                        listing.Label("Geographic Features (terrain, water, mountains):");
+                        listing.Label("LandingZone_Filter_GeographicFeatures".Translate());
 
                         var geographyMutators = GetGeographyMutators();
                         foreach (var mutator in geographyMutators)
@@ -282,7 +282,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
                             bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -304,7 +304,7 @@ namespace LandingZone.Core.UI
                     "Rivers",
                     (listing, filters) =>
                     {
-                        listing.Label("Rivers:");
+                        listing.Label("LandingZone_Filter_Rivers".Translate());
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.Rivers.HasCritical)
@@ -340,7 +340,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("terrain_access", "Terrain & Water", filters);
+            return new FilterGroup("terrain_access", "LandingZone_Filter_TerrainAccessGroup".Translate(), filters);
         }
 
         private static FilterGroup GetResourcesProductionGroup()
@@ -348,7 +348,7 @@ namespace LandingZone.Core.UI
             var filters = new List<FilterControl>
             {
                 FloatRangeControl(
-                    "Forageability",
+                    "LandingZone_Filter_Forageability".Translate(),
                     f => f.ForageabilityRange,
                     (f, v) => f.ForageabilityRange = v,
                     f => f.ForageImportance,
@@ -358,13 +358,13 @@ namespace LandingZone.Core.UI
                     "forageable_food"
                 ),
                 ImportanceOnlyControl(
-                    "Animals Can Graze",
+                    "LandingZone_Filter_Grazeable".Translate(),
                     f => f.GrazeImportance,
                     (f, v) => f.GrazeImportance = v,
                     "graze"
                 ),
                 FloatRangeControl(
-                    "Animal Density",
+                    "LandingZone_Filter_AnimalDensity".Translate(),
                     f => f.AnimalDensityRange,
                     (f, v) => f.AnimalDensityRange = v,
                     f => f.AnimalDensityImportance,
@@ -372,7 +372,7 @@ namespace LandingZone.Core.UI
                     0f, 6.5f
                 ),
                 FloatRangeControl(
-                    "Fish Population",
+                    "LandingZone_Filter_FishPopulation".Translate(),
                     f => f.FishPopulationRange,
                     (f, v) => f.FishPopulationRange = v,
                     f => f.FishPopulationImportance,
@@ -380,7 +380,7 @@ namespace LandingZone.Core.UI
                     0f, 900f
                 ),
                 FloatRangeControl(
-                    "Plant Density",
+                    "LandingZone_Filter_PlantDensity".Translate(),
                     f => f.PlantDensityRange,
                     (f, v) => f.PlantDensityRange = v,
                     f => f.PlantDensityImportance,
@@ -402,7 +402,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
                             bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -435,7 +435,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
                             bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -458,11 +458,6 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Natural Stones (construction materials):");
-                        Text.Font = GameFont.Tiny;
-                        GUI.color = new Color(1f, 0.8f, 0.4f);
-                        listing.Label("Note: Tiles have only ONE stone type - use OR operator for multiple choices");
-                        GUI.color = Color.white;
-                        Text.Font = GameFont.Small;
                         listing.Gap(4f);
 
                         // Operator toggle (only show if critical items configured)
@@ -524,27 +519,16 @@ namespace LandingZone.Core.UI
                     (listing, filters) =>
                     {
                         listing.Label("Mineable Resources (rare ores):");
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(1f, 0.8f, 0.4f);
+                        listing.Label("Note: Tiles have only ONE mineable resource type (Gold OR Silver OR Uranium, etc.)");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                        listing.Gap(4f);
 
-                        // Operator toggle (shares same operator with natural stones)
+                        // Mineable resources are always OR-only (tiles can only have one type)
                         var mineables = GetMineableResources();
                         var hasMineableCritical = mineables.Any(m => filters.Stones.GetImportance(m) == FilterImportance.Critical);
-
-                        if (hasMineableCritical)
-                        {
-                            var operatorRect = listing.GetRect(30f);
-                            var operatorLabel = ConflictDetector.GetOperatorDescription(filters.Stones.Operator, "mineable resources");
-                            var criticalCount = mineables.Count(m => filters.Stones.GetImportance(m) == FilterImportance.Critical);
-                            var operatorTooltip = ConflictDetector.GetOperatorTooltip(filters.Stones.Operator, "mineable resources", criticalCount);
-
-                            if (Widgets.ButtonText(operatorRect, operatorLabel))
-                            {
-                                filters.Stones.Operator = filters.Stones.Operator == ImportanceOperator.OR
-                                    ? ImportanceOperator.AND
-                                    : ImportanceOperator.OR;
-                            }
-                            TooltipHandler.TipRegion(operatorRect, operatorTooltip);
-                            listing.Gap(4f);
-                        }
 
                         // Individual mineable resource list (Gold, Plasteel, etc.)
                         foreach (var mineable in mineables)
@@ -568,7 +552,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("resources_production", "Resources & Production", filters);
+            return new FilterGroup("resources_production", "LandingZone_Filter_ResourcesGroup".Translate(), filters);
         }
 
         private static FilterGroup GetSpecialFeaturesGroup()
@@ -579,7 +563,7 @@ namespace LandingZone.Core.UI
                     "Roads",
                     (listing, filters) =>
                     {
-                        listing.Label("Roads:");
+                        listing.Label("LandingZone_Filter_Roads".Translate());
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.Roads.HasCritical)
@@ -628,7 +612,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
                             bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? $"Requires {dlcRequirement} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -687,7 +671,7 @@ namespace LandingZone.Core.UI
 
                             // Check DLC requirement
                             bool isEnabled = string.IsNullOrEmpty(dlc) || DLCDetectionService.IsDLCAvailable(dlc);
-                            string disabledReason = !isEnabled ? $"Requires {dlc} DLC (not installed)" : null;
+                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlc) : null;
                             string displayLabel = isEnabled ? label : $"{label} (DLC Required)";
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, null, isEnabled, disabledReason);
@@ -712,7 +696,7 @@ namespace LandingZone.Core.UI
                 )
             };
 
-            return new FilterGroup("special_features", "Structures & Events", filters);
+            return new FilterGroup("special_features", "LandingZone_Filter_ConnectionsGroup".Translate(), filters);
         }
 
         private static FilterGroup GetBiomeControlGroup()
@@ -825,30 +809,21 @@ namespace LandingZone.Core.UI
                     filters => (true, FilterImportance.Ignored) // Always active, not a filter
                 ),
                 new FilterControl(
-                    "Strictness (Legacy k-of-n)",
+                    "Critical Filtering",
                     (listing, filters) =>
                     {
-                        listing.Label($"Critical Strictness: {filters.CriticalStrictness:F2}");
-                        var sliderRect = listing.GetRect(30f);
-                        float strictness = Widgets.HorizontalSlider(
-                            sliderRect,
-                            filters.CriticalStrictness,
-                            0f,
-                            1f,
-                            true,
-                            $"{filters.CriticalStrictness:F2}",
-                            "0.0 (fuzzy)",
-                            "1.0 (hard)"
-                        );
-                        filters.CriticalStrictness = strictness;
+                        Text.Font = GameFont.Small;
+                        listing.Label("Critical Filtering: Adaptive (automatic)");
 
                         Text.Font = GameFont.Tiny;
-                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                        listing.Label("0.0 = fuzzy matching (k-of-n), 1.0 = all critical filters must match (legacy)");
+                        GUI.color = new Color(0.7f, 0.85f, 0.7f);
+                        listing.Label("Stage A uses intelligent k-of-n fallback to keep candidate count reasonable.");
+                        listing.Label("Example: 6 criticals → tries 6/6, 5/6, 4/6... until 1,000-10,000 candidates found.");
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
+                        listing.Gap(4f);
                     },
-                    filters => (filters.CriticalStrictness < 1.0f, FilterImportance.Ignored)
+                    filters => (true, FilterImportance.Ignored) // Always show
                 ),
                 new FilterControl(
                     "Fallback Tiers",
@@ -893,7 +868,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green = no restriction
             }
 
-            bool allClicked = Widgets.ButtonText(allButtonRect, "All");
+            bool allClicked = Widgets.ButtonText(allButtonRect, "LandingZone_All".Translate());
             GUI.color = prevColor;
 
             if (allClicked)
@@ -1110,21 +1085,28 @@ namespace LandingZone.Core.UI
 
         private static List<string> GetSpecialSiteMutators()
         {
+            // Alphabetically sorted for easy scanning
             return new List<string>
             {
-                // Ancient sites
-                "AncientQuarry", "AncientRuins", "AncientRuins_Frozen",
-                "AncientUplink", "AncientLaunchSite", "AncientGarrison",
-                "AncientWarehouse", "AncientChemfuelRefinery", "AncientInfestedSettlement",
-
-                // Ancient vents
-                "AncientHeatVent", "AncientSmokeVent", "AncientToxVent",
-
-                // Abandoned/salvage
-                "AbandonedColonyOutlander", "AbandonedColonyTribal", "Junkyard", "Stockpile",
-
-                // Special/exotic
-                "ArcheanTrees", "InsectMegahive", "TerraformingScar"
+                "AbandonedColonyOutlander",
+                "AbandonedColonyTribal",
+                "AncientChemfuelRefinery",
+                "AncientGarrison",
+                "AncientHeatVent",
+                "AncientInfestedSettlement",
+                "AncientLaunchSite",
+                "AncientQuarry",
+                "AncientRuins",
+                "AncientRuins_Frozen",
+                "AncientSmokeVent",
+                "AncientToxVent",
+                "AncientUplink",
+                "AncientWarehouse",
+                "ArcheanTrees",
+                "InsectMegahive",
+                "Junkyard",
+                "Stockpile",
+                "TerraformingScar"
             };
         }
 
@@ -1245,7 +1227,7 @@ namespace LandingZone.Core.UI
             {
                 Text.Font = GameFont.Tiny;
                 GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                listing.Label("Fallback tier manager available when world is loaded");
+                listing.Label("LandingZone_FallbackTierManager_NoWorld".Translate());
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
                 return;
@@ -1264,7 +1246,7 @@ namespace LandingZone.Core.UI
                 {
                     Text.Font = GameFont.Tiny;
                     GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                    listing.Label("Set filters to Critical importance to see fallback tiers");
+                    listing.Label("LandingZone_FallbackTierManager_NoCriticals".Translate());
                     GUI.color = Color.white;
                     Text.Font = GameFont.Small;
                     return;
@@ -1277,10 +1259,10 @@ namespace LandingZone.Core.UI
 
                 // Header
                 Text.Font = GameFont.Small;
-                listing.Label($"Fallback Tier Manager ({criticalSelectivities.Count} critical filters)");
+                listing.Label("LandingZone_FallbackTierManager_Title".Translate(criticalSelectivities.Count));
                 Text.Font = GameFont.Tiny;
                 GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                listing.Label("If current strictness is too restrictive, use these preset fallback tiers:");
+                listing.Label("LandingZone_FallbackTierManager_Instructions".Translate());
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
                 listing.Gap(8f);
@@ -1304,7 +1286,7 @@ namespace LandingZone.Core.UI
                 Text.Font = GameFont.Tiny;
                 Widgets.Label(
                     new Rect(contentRect.x, contentRect.y, contentRect.width, 14f),
-                    "CURRENT:"
+                    "LandingZone_FallbackTierManager_CurrentLabel".Translate()
                 );
                 Text.Font = GameFont.Small;
                 Widgets.Label(
@@ -1327,7 +1309,7 @@ namespace LandingZone.Core.UI
                 {
                     Text.Font = GameFont.Tiny;
                     GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                    listing.Label("Click to apply fallback tier:");
+                    listing.Label("LandingZone_FallbackTierManager_ClickToApply".Translate());
                     GUI.color = Color.white;
                     Text.Font = GameFont.Small;
                     listing.Gap(4f);
@@ -1358,7 +1340,7 @@ namespace LandingZone.Core.UI
                         GUI.color = new Color(0.7f, 0.7f, 0.7f);
                         Widgets.Label(
                             new Rect(suggestionContent.x, suggestionContent.y + 18f, suggestionContent.width, 14f),
-                            $"Strictness: {suggestion.Strictness:P0}"
+                            "LandingZone_FallbackTierManager_Strictness".Translate(suggestion.Strictness.ToStringPercent())
                         );
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
@@ -1367,13 +1349,13 @@ namespace LandingZone.Core.UI
                         {
                             filters.CriticalStrictness = suggestion.Strictness;
                             Messages.Message(
-                                $"Applied fallback tier: {suggestion.Description} (strictness {suggestion.Strictness:P0})",
+                                "LandingZone_FallbackTierManager_Applied".Translate(suggestion.Description, suggestion.Strictness.ToStringPercent()),
                                 MessageTypeDefOf.NeutralEvent,
                                 false
                             );
                         }
 
-                        TooltipHandler.TipRegion(suggestionRect, $"{suggestion.Description}\nClick to set strictness to {suggestion.Strictness:P0}");
+                        TooltipHandler.TipRegion(suggestionRect, "LandingZone_FallbackTierManager_Tooltip".Translate(suggestion.Description, suggestion.Strictness.ToStringPercent()));
                         listing.Gap(4f);
                     }
                 }
@@ -1381,7 +1363,7 @@ namespace LandingZone.Core.UI
                 {
                     Text.Font = GameFont.Tiny;
                     GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                    listing.Label("No alternative tiers available (adjust strictness manually if needed)");
+                    listing.Label("LandingZone_FallbackTierManager_NoAlternatives".Translate());
                     GUI.color = Color.white;
                     Text.Font = GameFont.Small;
                 }
@@ -1391,7 +1373,7 @@ namespace LandingZone.Core.UI
                 Log.Warning($"[LandingZone] Failed to draw fallback tier manager: {ex.Message}");
                 Text.Font = GameFont.Tiny;
                 GUI.color = new Color(0.7f, 0.3f, 0.3f);
-                listing.Label($"Error loading fallback tiers: {ex.Message}");
+                listing.Label("LandingZone_FallbackTierManager_Error".Translate(ex.Message));
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
             }

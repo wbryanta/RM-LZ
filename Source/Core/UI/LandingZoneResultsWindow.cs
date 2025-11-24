@@ -51,14 +51,14 @@ namespace LandingZone.Core.UI
         {
             var listing = new Listing_Standard();
             listing.Begin(inRect);
-            listing.Label($"Landing Zone Results ({LandingZoneMod.Version})");
+            listing.Label("LandingZone_ResultsTitle".Translate(LandingZoneMod.Version));
             listing.GapLine();
 
             var highlightState = LandingZoneContext.HighlightState;
             bool showing = highlightState?.ShowBestSites ?? false;
 
             Rect highlightButtonRect = listing.GetRect(30f);
-            if (Widgets.ButtonText(highlightButtonRect, showing ? "Hide highlights" : "Show highlights"))
+            if (Widgets.ButtonText(highlightButtonRect, (showing ? "LandingZone_HideHighlights" : "LandingZone_ShowHighlights").Translate()))
             {
                 if (highlightState != null)
                 {
@@ -71,18 +71,18 @@ namespace LandingZone.Core.UI
             }
 
             // Tooltip explaining highlight functionality
-            TooltipHandler.TipRegion(highlightButtonRect, "Toggle colored markers on the world map showing top-scoring tiles from your search results");
+            TooltipHandler.TipRegion(highlightButtonRect, "LandingZone_HighlightsTooltip".Translate());
 
             listing.Gap(4f);
             if (LandingZoneContext.IsEvaluating)
             {
-                listing.Label($"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%");
+                listing.Label("LandingZone_SearchingEllipsis".Translate((LandingZoneContext.EvaluationProgress * 100f).ToString("F0")));
             }
             else
             {
                 listing.Label(LandingZoneContext.LastEvaluationCount > 0
-                    ? $"{LandingZoneContext.LastEvaluationCount} matches in {LandingZoneContext.LastEvaluationMs:F0} ms"
-                    : "No active match data. Run a search to populate this list.");
+                    ? "LandingZone_SearchComplete".Translate(LandingZoneContext.LastEvaluationCount, LandingZoneContext.LastEvaluationMs.ToString("F0"))
+                    : "LandingZone_NoSearchData".Translate());
 
                 // Add summary statistics when results available
                 if (LandingZoneContext.LastEvaluationCount > 0 && LandingZoneContext.LatestResults.Count > 0)
@@ -115,17 +115,17 @@ namespace LandingZone.Core.UI
 
             // Sort dropdown
             var sortLabelRect = new Rect(rect.x + 4f, rect.y + 2f, 40f, rect.height - 4f);
-            Widgets.Label(sortLabelRect, "Sort:");
+            Widgets.Label(sortLabelRect, "LandingZone_SortLabel".Translate());
 
             var sortButtonRect = new Rect(sortLabelRect.xMax + 3f, rect.y + 2f, 90f, rect.height - 4f);
             if (Widgets.ButtonText(sortButtonRect, GetSortModeLabel(_sortMode)))
             {
                 var sortOptions = new List<FloatMenuOption>
                 {
-                    new FloatMenuOption("Score", () => _sortMode = SortMode.Score),
-                    new FloatMenuOption("Growing Days", () => _sortMode = SortMode.GrowingDays),
-                    new FloatMenuOption("Temperature", () => _sortMode = SortMode.Temperature),
-                    new FloatMenuOption("Biome Name", () => _sortMode = SortMode.BiomeName)
+                    new FloatMenuOption("LandingZone_SortByScore".Translate(), () => _sortMode = SortMode.Score),
+                    new FloatMenuOption("LandingZone_SortByGrowingDays".Translate(), () => _sortMode = SortMode.GrowingDays),
+                    new FloatMenuOption("LandingZone_SortByTemperature".Translate(), () => _sortMode = SortMode.Temperature),
+                    new FloatMenuOption("LandingZone_SortByBiomeName".Translate(), () => _sortMode = SortMode.BiomeName)
                 };
                 Find.WindowStack.Add(new FloatMenu(sortOptions));
             }
@@ -133,22 +133,22 @@ namespace LandingZone.Core.UI
             // Quick filter buttons
             var filterX = sortButtonRect.xMax + 10f;
             var filterLabelRect = new Rect(filterX, rect.y + 2f, 35f, rect.height - 4f);
-            Widgets.Label(filterLabelRect, "Show:");
+            Widgets.Label(filterLabelRect, "LandingZone_ShowLabel".Translate());
 
             var buttonWidth = 55f;
             var buttonGap = 3f;
             filterX = filterLabelRect.xMax + 3f;
 
             var allRect = new Rect(filterX, rect.y + 2f, buttonWidth, rect.height - 4f);
-            DrawFilterButton(allRect, "All", 0f);
+            DrawFilterButton(allRect, "LandingZone_ShowAll".Translate(), 0f);
 
             filterX += buttonWidth + buttonGap;
             var excellentRect = new Rect(filterX, rect.y + 2f, buttonWidth, rect.height - 4f);
-            DrawFilterButton(excellentRect, "90%+", 0.90f);
+            DrawFilterButton(excellentRect, "LandingZone_Show90Plus".Translate(), 0.90f);
 
             filterX += buttonWidth + buttonGap;
             var goodRect = new Rect(filterX, rect.y + 2f, buttonWidth, rect.height - 4f);
-            DrawFilterButton(goodRect, "75%+", 0.75f);
+            DrawFilterButton(goodRect, "LandingZone_Show75Plus".Translate(), 0.75f);
 
             // Dev mode DEBUG button (right side, before Bookmark All)
             float rightX = rect.xMax - 4f;
@@ -156,7 +156,7 @@ namespace LandingZone.Core.UI
             // Bookmark All button
             var bookmarkAllWidth = 85f;
             var bookmarkAllRect = new Rect(rightX - bookmarkAllWidth, rect.y + 2f, bookmarkAllWidth, rect.height - 4f);
-            if (Widgets.ButtonText(bookmarkAllRect, "Bookmark All"))
+            if (Widgets.ButtonText(bookmarkAllRect, "LandingZone_BookmarkAll".Translate()))
             {
                 BookmarkAllResults();
             }
@@ -166,7 +166,7 @@ namespace LandingZone.Core.UI
             {
                 var dumpButtonWidth = 95f;
                 var dumpButtonRect = new Rect(bookmarkAllRect.x - dumpButtonWidth - 5f, rect.y + 2f, dumpButtonWidth, rect.height - 4f);
-                if (Widgets.ButtonText(dumpButtonRect, "[DEBUG] Dump"))
+                if (Widgets.ButtonText(dumpButtonRect, "LandingZone_DebugDump".Translate()))
                 {
                     DumpMatchDataForAnalysis();
                 }
@@ -194,11 +194,11 @@ namespace LandingZone.Core.UI
         {
             return mode switch
             {
-                SortMode.Score => "Score",
-                SortMode.GrowingDays => "Growing Days",
-                SortMode.Temperature => "Temperature",
-                SortMode.BiomeName => "Biome Name",
-                _ => "Score"
+                SortMode.Score => "LandingZone_SortByScore".Translate(),
+                SortMode.GrowingDays => "LandingZone_SortByGrowingDays".Translate(),
+                SortMode.Temperature => "LandingZone_SortByTemperature".Translate(),
+                SortMode.BiomeName => "LandingZone_SortByBiomeName".Translate(),
+                _ => "LandingZone_SortByScore".Translate()
             };
         }
 
@@ -227,11 +227,11 @@ namespace LandingZone.Core.UI
             var prevFont = Text.Font;
             Text.Font = GameFont.Tiny;
 
-            var summaryText = $"Top: {(topScore * 100f):F0}% | Avg: {(avgScore * 100f):F0}% | ";
-            if (excellent > 0) summaryText += $"Excellent: {excellent}  ";
-            if (good > 0) summaryText += $"Good: {good}  ";
-            if (acceptable > 0) summaryText += $"Acceptable: {acceptable}  ";
-            if (poor > 0) summaryText += $"Poor: {poor}";
+            var summaryText = "LandingZone_SummaryTop".Translate((topScore * 100f).ToString("F0")) + " | " + "LandingZone_SummaryAverage".Translate((avgScore * 100f).ToString("F0")) + " | ";
+            if (excellent > 0) summaryText += "LandingZone_SummaryExcellent".Translate(excellent) + "  ";
+            if (good > 0) summaryText += "LandingZone_SummaryGood".Translate(good) + "  ";
+            if (acceptable > 0) summaryText += "LandingZone_SummaryAcceptable".Translate(acceptable) + "  ";
+            if (poor > 0) summaryText += "LandingZone_SummaryPoor".Translate(poor);
 
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             listing.Label(summaryText);
@@ -246,8 +246,8 @@ namespace LandingZone.Core.UI
             if (allMatches.Count == 0)
             {
                 var label = LandingZoneContext.IsEvaluating
-                    ? $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}% complete."
-                    : "Once LandingZone finishes a search the ranked sites will appear here.";
+                    ? "LandingZone_SearchingProgress".Translate((LandingZoneContext.EvaluationProgress * 100f).ToString("F0"))
+                    : "LandingZone_WaitingForSearch".Translate();
                 Widgets.Label(rect.ContractedBy(6f), label);
                 return;
             }
@@ -340,10 +340,10 @@ namespace LandingZone.Core.UI
 
         private static string GetForageQualityLabel(float forageability)
         {
-            if (forageability >= 0.8f) return "excellent";
-            if (forageability >= 0.5f) return "good";
-            if (forageability >= 0.2f) return "poor";
-            return "minimal";
+            if (forageability >= 0.8f) return "LandingZone_ForageExcellent".Translate();
+            if (forageability >= 0.5f) return "LandingZone_ForageGood".Translate();
+            if (forageability >= 0.2f) return "LandingZone_ForagePoor".Translate();
+            return "LandingZone_ForageMinimal".Translate();
         }
 
         private static Color GetMetricMatchColor(float value, FloatRange range, FilterImportance importance)
@@ -388,7 +388,7 @@ namespace LandingZone.Core.UI
             {
                 // Fallback to grey if no filters
                 GUI.color = new Color(0.85f, 0.85f, 0.85f);
-                Widgets.Label(rect, "No filter data available");
+                Widgets.Label(rect, "LandingZone_NoFilterData".Translate());
                 return;
             }
 
@@ -396,7 +396,7 @@ namespace LandingZone.Core.UI
             float maxGrowingDays = 60f; // Default to 60 for now - could calculate actual max
 
             // Growing days: "XX/YYd grow"
-            string growText = $"{extended.GrowingDays:F0}/{maxGrowingDays:F0}d grow";
+            string growText = "LandingZone_GrowingDaysLabel".Translate(extended.GrowingDays.ToString("F0"), maxGrowingDays.ToString("F0"));
             GUI.color = GetMetricMatchColor(extended.GrowingDays, filters.GrowingDaysRange, filters.GrowingDaysImportance);
             var growRect = new Rect(x, y, Text.CalcSize(growText).x, rect.height);
             Widgets.Label(growRect, growText);
@@ -411,8 +411,14 @@ namespace LandingZone.Core.UI
 
             // Temperature: "XX.X°F (min°F to max°F)"
             string tempText = LandingZoneMod.UseFahrenheit
-                ? $"{GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit):F1}°F ({GenTemperature.CelsiusTo(tempRange.min, TemperatureDisplayMode.Fahrenheit):F0}°F to {GenTemperature.CelsiusTo(tempRange.max, TemperatureDisplayMode.Fahrenheit):F0}°F)"
-                : $"{tempRange.avg:F1}°C ({tempRange.min:F0}°C to {tempRange.max:F0}°C)";
+                ? "LandingZone_TemperatureFahrenheit".Translate(
+                    GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit).ToString("F1"),
+                    GenTemperature.CelsiusTo(tempRange.min, TemperatureDisplayMode.Fahrenheit).ToString("F0"),
+                    GenTemperature.CelsiusTo(tempRange.max, TemperatureDisplayMode.Fahrenheit).ToString("F0"))
+                : "LandingZone_TemperatureCelsius".Translate(
+                    tempRange.avg.ToString("F1"),
+                    tempRange.min.ToString("F0"),
+                    tempRange.max.ToString("F0"));
             GUI.color = GetMetricMatchColor(tile.temperature, filters.AverageTemperatureRange, filters.AverageTemperatureImportance);
             var tempRect = new Rect(x, y, Text.CalcSize(tempText).x, rect.height);
             Widgets.Label(tempRect, tempText);
@@ -425,7 +431,7 @@ namespace LandingZone.Core.UI
             x += sep2Rect.width;
 
             // Rainfall: "XXXXmm rain"
-            string rainText = $"{tile.rainfall:F0}mm rain";
+            string rainText = "LandingZone_RainfallLabel".Translate(tile.rainfall.ToString("F0"));
             GUI.color = GetMetricMatchColor(tile.rainfall, filters.RainfallRange, filters.RainfallImportance);
             var rainRect = new Rect(x, y, Text.CalcSize(rainText).x, rect.height);
             Widgets.Label(rainRect, rainText);
@@ -438,8 +444,8 @@ namespace LandingZone.Core.UI
             x += sep3Rect.width;
 
             // Forage: "forage: XX% (food type)"
-            string forageFood = GetPrimaryForageFood(tile?.PrimaryBiome) ?? "none";
-            string forageText = $"forage: {(extended.Forageability * 100f):F0}% ({forageFood})";
+            string forageFood = GetPrimaryForageFood(tile?.PrimaryBiome) ?? "LandingZone_ForageNone".Translate();
+            string forageText = "LandingZone_ForageLabel".Translate((extended.Forageability * 100f).ToString("F0"), forageFood);
             GUI.color = GetMetricMatchColor(extended.Forageability, filters.ForageabilityRange, filters.ForageImportance);
             var forageRect = new Rect(x, y, Text.CalcSize(forageText).x, rect.height);
             Widgets.Label(forageRect, forageText);
@@ -458,8 +464,12 @@ namespace LandingZone.Core.UI
                 {
                     var tempRange = GetSeasonalTempRange(tileId);
                     string tempText = LandingZoneMod.UseFahrenheit
-                        ? $"Temp: {GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit):F1}°F (wanted {GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, TemperatureDisplayMode.Fahrenheit):F0}-{GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, TemperatureDisplayMode.Fahrenheit):F0}°F)"
-                        : $"Temp: {tempRange.avg:F1}°C (wanted {filters.AverageTemperatureRange.min:F0}-{filters.AverageTemperatureRange.max:F0}°C)";
+                        ? "LandingZone_MismatchTemp".Translate(
+                            GenTemperature.CelsiusTo(tempRange.avg, TemperatureDisplayMode.Fahrenheit).ToString("F1") + "°F",
+                            GenTemperature.CelsiusTo(filters.AverageTemperatureRange.min, TemperatureDisplayMode.Fahrenheit).ToString("F0") + "-" + GenTemperature.CelsiusTo(filters.AverageTemperatureRange.max, TemperatureDisplayMode.Fahrenheit).ToString("F0") + "°F")
+                        : "LandingZone_MismatchTemp".Translate(
+                            tempRange.avg.ToString("F1") + "°C",
+                            filters.AverageTemperatureRange.min.ToString("F0") + "-" + filters.AverageTemperatureRange.max.ToString("F0") + "°C");
                     Color color = filters.AverageTemperatureImportance == FilterImportance.Critical
                         ? new Color(1f, 0.27f, 0.27f) // Bright red #ff4444
                         : new Color(1f, 0.67f, 0.27f); // Orange-yellow #ffaa44
@@ -472,7 +482,7 @@ namespace LandingZone.Core.UI
             {
                 if (tile.rainfall < filters.RainfallRange.min || tile.rainfall > filters.RainfallRange.max)
                 {
-                    string rainText = $"Rain: {tile.rainfall:F0}mm (wanted {filters.RainfallRange.min:F0}-{filters.RainfallRange.max:F0}mm)";
+                    string rainText = "LandingZone_MismatchRain".Translate(tile.rainfall.ToString("F0"), filters.RainfallRange.min.ToString("F0"), filters.RainfallRange.max.ToString("F0"));
                     Color color = filters.RainfallImportance == FilterImportance.Critical
                         ? new Color(1f, 0.27f, 0.27f)
                         : new Color(1f, 0.67f, 0.27f);
@@ -485,7 +495,7 @@ namespace LandingZone.Core.UI
             {
                 if (extended.GrowingDays < filters.GrowingDaysRange.min || extended.GrowingDays > filters.GrowingDaysRange.max)
                 {
-                    string growText = $"Grow: {extended.GrowingDays:F0}d (wanted {filters.GrowingDaysRange.min:F0}-{filters.GrowingDaysRange.max:F0}d)";
+                    string growText = "LandingZone_MismatchGrow".Translate(extended.GrowingDays.ToString("F0"), filters.GrowingDaysRange.min.ToString("F0"), filters.GrowingDaysRange.max.ToString("F0"));
                     Color color = filters.GrowingDaysImportance == FilterImportance.Critical
                         ? new Color(1f, 0.27f, 0.27f)
                         : new Color(1f, 0.67f, 0.27f);
@@ -498,7 +508,7 @@ namespace LandingZone.Core.UI
             {
                 if (extended.Forageability < filters.ForageabilityRange.min || extended.Forageability > filters.ForageabilityRange.max)
                 {
-                    string forageText = $"Forage: {(extended.Forageability * 100f):F0}% (wanted {(filters.ForageabilityRange.min * 100f):F0}-{(filters.ForageabilityRange.max * 100f):F0}%)";
+                    string forageText = "LandingZone_MismatchForage".Translate((extended.Forageability * 100f).ToString("F0"), (filters.ForageabilityRange.min * 100f).ToString("F0"), (filters.ForageabilityRange.max * 100f).ToString("F0"));
                     Color color = filters.ForageImportance == FilterImportance.Critical
                         ? new Color(1f, 0.27f, 0.27f)
                         : new Color(1f, 0.67f, 0.27f);
@@ -509,7 +519,7 @@ namespace LandingZone.Core.UI
             // Check coastal
             if (filters.CoastalImportance != FilterImportance.Ignored && !tile.IsCoastal)
             {
-                string coastText = "Coastal: no (required)";
+                string coastText = "LandingZone_CoastalNoRequired".Translate();
                 Color color = filters.CoastalImportance == FilterImportance.Critical
                     ? new Color(1f, 0.27f, 0.27f)
                     : new Color(1f, 0.67f, 0.27f);
@@ -633,7 +643,7 @@ namespace LandingZone.Core.UI
 
                 // Draw label in bottom-right corner (inside border buffer)
                 Text.Font = GameFont.Tiny;
-                string label = isPerfectPlus ? "Perfect+" : "Perfect";
+                string label = isPerfectPlus ? "LandingZone_TierPerfectPlus".Translate() : "LandingZone_TierPerfect".Translate();
                 Vector2 labelSize = Text.CalcSize(label);
                 var labelBgRect = new Rect(borderRect.xMax - labelSize.x - 8f, borderRect.yMax - labelSize.y - 4f, labelSize.x + 6f, labelSize.y + 2f);
                 Widgets.DrawBoxSolid(labelBgRect, borderColor);
@@ -648,7 +658,7 @@ namespace LandingZone.Core.UI
             var worldGrid = Find.World?.grid;
             var tile = worldGrid?[score.TileId];
             bool hasInfo = tile != null;
-            string biomeLabel = tile?.PrimaryBiome?.LabelCap ?? "Unknown biome";
+            string biomeLabel = tile?.PrimaryBiome?.LabelCap ?? "LandingZone_UnknownBiome".Translate();
 
             // Line 1: Rank and tile ID (with trophy if perfect, star if rare)
             const float leftPad = 8f;
@@ -661,7 +671,7 @@ namespace LandingZone.Core.UI
             var totalResults = LandingZoneContext.LatestResults.Count;
             bool isRare = totalResults < 10 && (index + 1) <= 5;
 
-            string rankLabel = $"#{index + 1} • Tile {score.TileId}";
+            string rankLabel = "LandingZone_RankLabel".Translate(index + 1, score.TileId);
             if (isPerfectMatch) rankLabel += " 🏆";
             if (isRare && !isPerfectMatch) rankLabel += " ⭐"; // Star for rare finds
 
@@ -695,14 +705,14 @@ namespace LandingZone.Core.UI
                     else
                     {
                         Color color = GetBookmarkColorByRank(index + 1);
-                        manager.AddBookmark(score.TileId, color, $"Rank {index + 1}");
+                        manager.AddBookmark(score.TileId, color, "LandingZone_RankBookmarkLabel".Translate(index + 1));
                     }
                 }
             }
 
             // Focus button (top right)
             var focusRect = new Rect(rect.xMax - 62f, rect.y + 3f, 54f, 18f);
-            if (Widgets.ButtonText(focusRect, "Focus"))
+            if (Widgets.ButtonText(focusRect, "LandingZone_Focus".Translate()))
             {
                 LandingZoneContext.FocusTile(score.TileId);
             }
@@ -713,7 +723,7 @@ namespace LandingZone.Core.UI
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = bgColor;
             string tierLabel = GetScoreTierLabel(score.Score, score.BreakdownV2);
-            Widgets.Label(scoreRect, $"Score: {score.Score:F3} ({tierLabel})");
+            Widgets.Label(scoreRect, "LandingZone_ScoreLabel".Translate(score.Score.ToString("F3"), tierLabel));
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
 
@@ -770,9 +780,16 @@ namespace LandingZone.Core.UI
 
                     // Terrain line
                     string terrainLine = tile.hilliness.GetLabelCap().ToString();
-                    if (extended.StoneDefNames != null && extended.StoneDefNames.Length > 0)
+                    // Get stone types directly (cheap: 0.0014ms/tile)
+                    var world = Find.World;
+                    var planetTile = new PlanetTile(score.TileId, world.grid.Surface);
+                    var stoneTypes = world.NaturalRockTypesIn(planetTile)?
+                        .Where(t => t != null)
+                        .Select(t => t.defName)
+                        .ToArray();
+                    if (stoneTypes != null && stoneTypes.Length > 0)
                     {
-                        terrainLine += " • " + string.Join("/", extended.StoneDefNames);
+                        terrainLine += " • " + string.Join("/", stoneTypes);
                     }
                     GUI.color = new Color(0.85f, 0.85f, 0.85f);
                     var terrainRect = new Rect(rect.x + 4f, curY, rect.width - 8f, 16f);
@@ -786,7 +803,7 @@ namespace LandingZone.Core.UI
                 else
                 {
                     GUI.color = new Color(0.85f, 0.85f, 0.85f);
-                    Widgets.Label(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), "No snapshot data");
+                    Widgets.Label(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), "LandingZone_NoSnapshotData".Translate());
                     curY += 20f;
                 }
             }
@@ -819,21 +836,21 @@ namespace LandingZone.Core.UI
 
                 // Perfect+ = all criticals/preferreds matched perfectly AND modifiers pushed score > 1.0
                 if (b.IsPerfectPlus)
-                    return "Perfect+";
+                    return "LandingZone_TierPerfectPlus".Translate();
 
                 // Perfect = all criticals/preferreds matched perfectly AND final score >= 1.0
                 if (b.IsPerfectMatch && score >= 1.0f)
-                    return "Perfect";
+                    return "LandingZone_TierPerfect".Translate();
 
                 // Perfect- = all criticals/preferreds matched perfectly BUT modifiers/penalty dragged below 1.0
                 if (b.IsPerfectMatch && score < 1.0f)
-                    return "Perfect-";
+                    return "LandingZone_TierPerfectMinus".Translate();
             }
 
             // Fallback to numeric thresholds (for tiles without breakdown, or imperfect matches)
-            if (score >= 0.95f) return "Near Perfect";
-            if (score >= 0.80f) return "Good";
-            return "Fair";
+            if (score >= 0.95f) return "LandingZone_TierNearPerfect".Translate();
+            if (score >= 0.80f) return "LandingZone_TierGood".Translate();
+            return "LandingZone_TierFair".Translate();
         }
 
         /// <summary>
@@ -876,7 +893,7 @@ namespace LandingZone.Core.UI
             var manager = Current.Game?.GetComponent<BookmarkManager>();
             if (manager == null)
             {
-                Messages.Message("Bookmark manager not available", MessageTypeDefOf.RejectInput, false);
+                Messages.Message("LandingZone_BookmarkNotAvailable".Translate(), MessageTypeDefOf.RejectInput, false);
                 return;
             }
 
@@ -904,7 +921,7 @@ namespace LandingZone.Core.UI
                         removed++;
                 }
 
-                Messages.Message($"Removed {removed} bookmark(s)", MessageTypeDefOf.SilentInput, false);
+                Messages.Message("LandingZone_RemovedBookmarks".Translate(removed), MessageTypeDefOf.SilentInput, false);
             }
             else
             {
@@ -917,7 +934,7 @@ namespace LandingZone.Core.UI
                     int rank = i + 1;
                     var match = matches[i];
                     Color color = GetBookmarkColorByRank(rank);
-                    string label = $"Rank {rank}";
+                    string label = "LandingZone_RankBookmarkLabel".Translate(rank);
 
                     if (manager.AddBookmark(match.TileId, color, label))
                         bookmarked++;
@@ -927,12 +944,12 @@ namespace LandingZone.Core.UI
 
                 if (bookmarked > 0)
                 {
-                    Messages.Message($"Bookmarked {bookmarked} result(s)", MessageTypeDefOf.SilentInput, false);
+                    Messages.Message("LandingZone_BookmarkedResults".Translate(bookmarked), MessageTypeDefOf.SilentInput, false);
                 }
 
                 if (skipped > 0)
                 {
-                    Messages.Message($"{skipped} tile(s) already bookmarked or capacity reached", MessageTypeDefOf.RejectInput, false);
+                    Messages.Message("LandingZone_AlreadyBookmarked".Translate(skipped), MessageTypeDefOf.RejectInput, false);
                 }
             }
         }
@@ -990,7 +1007,7 @@ namespace LandingZone.Core.UI
                             }
                         }
                     }
-                    return "Map Features";
+                    return "LandingZone_MapFeatures".Translate();
 
                 case "river":
                     // Show specific river on this tile (e.g., "Large River" instead of "River")
@@ -1019,7 +1036,7 @@ namespace LandingZone.Core.UI
                             }
                         }
                     }
-                    return "River";
+                    return "LandingZone_River".Translate();
 
                 case "road":
                     // Show specific road on this tile (e.g., "Ancient Asphalt Road" instead of "Road")
@@ -1048,43 +1065,49 @@ namespace LandingZone.Core.UI
                             }
                         }
                     }
-                    return "Road";
+                    return "LandingZone_Road".Translate();
 
                 case "specificstone" or "individualstone" or "stones":
                     // Show specific stones on this tile (e.g., "Granite, Marble" instead of "Stones")
                     if (filters?.Stones.HasAnyImportance == true)
                     {
-                        var extended = LandingZoneContext.Filters?.TileCache.GetOrCompute(tileId) ?? default;
-                        if (extended.StoneDefNames != null && extended.StoneDefNames.Length > 0)
+                        // Get stone types directly (cheap: 0.0014ms/tile)
+                        var world = Find.World;
+                        var planetTile = new PlanetTile(tileId, world.grid.Surface);
+                        var stoneTypes = world.NaturalRockTypesIn(planetTile)?
+                            .Where(t => t != null)
+                            .Select(t => t.defName)
+                            .ToArray();
+                        if (stoneTypes != null && stoneTypes.Length > 0)
                         {
-                            var selectedStones = extended.StoneDefNames.Where(s => filters.Stones.GetImportance(s) != FilterImportance.Ignored).ToList();
+                            var selectedStones = stoneTypes.Where(s => filters.Stones.GetImportance(s) != FilterImportance.Ignored).ToList();
                             if (selectedStones.Any())
                                 return string.Join(", ", selectedStones);
                         }
                     }
-                    return "Stones";
+                    return "LandingZone_Stones".Translate();
             }
 
             // Standard single-value filters
             return filterId.ToLowerInvariant() switch
             {
-                "temperature" or "averagetemperature" or "average_temperature" => "Temperature",
-                "mintemperature" or "minimumtemperature" or "minimum_temperature" => "Min Temperature",
-                "maxtemperature" or "maximumtemperature" or "maximum_temperature" => "Max Temperature",
-                "rainfall" => "Rainfall",
-                "growing" or "growingseason" => "Growing Season",
-                "pollution" => "Pollution",
-                "forage" or "forageablefood" or "forageable_food" => "Forageable Food",
-                "movement" => "Movement Cost",
-                "coastal" => "Coastal (Ocean)",
-                "coastallake" or "coastal_lake" => "Coastal (Lake)",
-                "caves" or "hascave" or "has_cave" => "Caves",
-                "graze" => "Grazing",
-                "stonecount" or "stone_count" => "Stone Count",
-                "feature" or "worldfeature" or "world_feature" => "World Feature",
-                "landmark" => "Landmark",
-                "adjacentbiomes" or "adjacent_biomes" => "Adjacent Biomes",
-                "elevation" => "Elevation",
+                "temperature" or "averagetemperature" or "average_temperature" => "LandingZone_Temperature".Translate(),
+                "mintemperature" or "minimumtemperature" or "minimum_temperature" => "LandingZone_MinTemperature".Translate(),
+                "maxtemperature" or "maximumtemperature" or "maximum_temperature" => "LandingZone_MaxTemperature".Translate(),
+                "rainfall" => "LandingZone_Rainfall".Translate(),
+                "growing" or "growingseason" => "LandingZone_GrowingSeason".Translate(),
+                "pollution" => "LandingZone_Pollution".Translate(),
+                "forage" or "forageablefood" or "forageable_food" => "LandingZone_ForageableFood".Translate(),
+                "movement" => "LandingZone_MovementCost".Translate(),
+                "coastal" => "LandingZone_CoastalOcean".Translate(),
+                "coastallake" or "coastal_lake" => "LandingZone_CoastalLake".Translate(),
+                "caves" or "hascave" or "has_cave" => "LandingZone_Caves".Translate(),
+                "graze" => "LandingZone_Grazing".Translate(),
+                "stonecount" or "stone_count" => "LandingZone_StoneCount".Translate(),
+                "feature" or "worldfeature" or "world_feature" => "LandingZone_WorldFeature".Translate(),
+                "landmark" => "LandingZone_Landmark".Translate(),
+                "adjacentbiomes" or "adjacent_biomes" => "LandingZone_AdjacentBiomes".Translate(),
+                "elevation" => "LandingZone_Elevation".Translate(),
                 _ => filterId // Fallback to raw ID if unknown
             };
         }
@@ -1104,7 +1127,7 @@ namespace LandingZone.Core.UI
 
             // Section header (clickable)
             var headerRect = new Rect(rect.x, curY, rect.width, 18f);
-            if (DrawClickableSectionHeader(headerRect, "✓ Matched", new Color(0.3f, 0.9f, 0.3f), matchedFilters.Count, isExpanded))
+            if (DrawClickableSectionHeader(headerRect, "LandingZone_MatchedSection".Translate(), new Color(0.3f, 0.9f, 0.3f), matchedFilters.Count, isExpanded))
             {
                 _matchedExpanded[tileId] = !isExpanded;
             }
@@ -1183,7 +1206,7 @@ namespace LandingZone.Core.UI
 
             // Section header (clickable)
             var headerRect = new Rect(rect.x, curY, rect.width, 18f);
-            if (DrawClickableSectionHeader(headerRect, "✗ Missed", new Color(1.0f, 0.3f, 0.3f), missedFilters.Count, isExpanded))
+            if (DrawClickableSectionHeader(headerRect, "LandingZone_MissedSection".Translate(), new Color(1.0f, 0.3f, 0.3f), missedFilters.Count, isExpanded))
             {
                 _missedExpanded[tileId] = !isExpanded;
             }
@@ -1247,8 +1270,8 @@ namespace LandingZone.Core.UI
             // Section header with net contribution (clickable)
             float netContribution = mutators.Sum(m => m.Contribution);
             string headerLabel = netContribution >= 0
-                ? $"⚡ Modifiers (+{netContribution:F2})"
-                : $"⚡ Modifiers ({netContribution:F2})";
+                ? "LandingZone_ModifiersSectionWithBonus".Translate(netContribution.ToString("F2"))
+                : "LandingZone_ModifiersSectionWithPenalty".Translate(netContribution.ToString("F2"));
             Color headerColor = netContribution >= 0 ? new Color(0.4f, 0.9f, 0.9f) : new Color(0.9f, 0.7f, 0.3f);
 
             var headerRect = new Rect(rect.x, curY, rect.width, 18f);
@@ -1329,14 +1352,14 @@ namespace LandingZone.Core.UI
             var presetLabel = preset != null ? $"{preset.Id} ({preset.Name})" : (LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
 
             sb.AppendLine("========================================");
-            sb.AppendLine("LANDING ZONE [DEBUG] MATCH DATA DUMP");
-            sb.AppendLine($"Total matches: {matches.Count} (filtered from {allMatches.Count})");
-            sb.AppendLine($"Min score filter: {(_minScoreFilter > 0 ? $"{_minScoreFilter:P0}" : "All")}");
-            sb.AppendLine($"Sort mode: {_sortMode}");
-            sb.AppendLine($"Preset: {presetLabel} | Mode: {modeLabel}");
+            sb.AppendLine("LandingZone_DebugDumpHeader".Translate());
+            sb.AppendLine("LandingZone_DebugTotalMatches".Translate(matches.Count, allMatches.Count));
+            sb.AppendLine("LandingZone_DebugMinScoreFilter".Translate(_minScoreFilter > 0 ? $"{_minScoreFilter:P0}" : "All"));
+            sb.AppendLine("LandingZone_DebugSortMode".Translate(_sortMode));
+            sb.AppendLine("LandingZone_DebugPresetMode".Translate(presetLabel, modeLabel));
             if (preset != null)
-                sb.AppendLine($"Mutator overrides: Using ActivePreset ({preset.MutatorQualityOverrides.Count} overrides)");
-            sb.AppendLine($"Logging tier: {LandingZoneSettings.LogLevel} (dumping {(LandingZoneLogger.IsVerbose ? "ALL" : "top-3")} matches)");
+                sb.AppendLine("LandingZone_DebugMutatorOverrides".Translate(preset.MutatorQualityOverrides.Count));
+            sb.AppendLine("LandingZone_DebugLoggingTier".Translate(LandingZoneSettings.LogLevel, LandingZoneLogger.IsVerbose ? "LandingZone_DebugAllCaps".Translate() : "LandingZone_DebugTop3".Translate()));
             sb.AppendLine("========================================\n");
 
             int dumpLimit = LandingZoneLogger.IsVerbose ? matches.Count : Math.Min(3, matches.Count);
@@ -1347,46 +1370,46 @@ namespace LandingZone.Core.UI
                 var worldGrid = Find.World?.grid;
                 var tile = worldGrid?[match.TileId];
 
-                sb.AppendLine($"--- RANK #{i + 1} | Tile {match.TileId} ---");
-                sb.AppendLine($"Score: {match.Score:F6}");
-                sb.AppendLine($"Biome: {tile?.PrimaryBiome?.LabelCap ?? "Unknown"}");
+                sb.AppendLine("LandingZone_DebugRankTile".Translate(i + 1, match.TileId));
+                sb.AppendLine("LandingZone_DebugScore".Translate(match.Score.ToString("F6")));
+                sb.AppendLine("LandingZone_DebugBiome".Translate(tile?.PrimaryBiome?.LabelCap ?? "Unknown"));
 
                 if (match.BreakdownV2.HasValue)
                 {
                     var breakdown = match.BreakdownV2.Value;
 
-                    sb.AppendLine($"Perfect Match: {breakdown.IsPerfectMatch}");
-                    sb.AppendLine($"Perfect+: {breakdown.IsPerfectPlus}");
-                    sb.AppendLine($"Critical Score: {breakdown.CriticalScore:F4}");
-                    sb.AppendLine($"Preferred Score: {breakdown.PreferredScore:F4}");
-                    sb.AppendLine($"Mutator Score: {breakdown.MutatorScore:F4}");
-                    sb.AppendLine($"Penalty: {breakdown.Penalty:F4}");
-                    sb.AppendLine($"Critical Misses: {breakdown.CriticalMissCount}");
+                    sb.AppendLine("LandingZone_DebugPerfectMatch".Translate(breakdown.IsPerfectMatch));
+                    sb.AppendLine("LandingZone_DebugPerfectPlus".Translate(breakdown.IsPerfectPlus));
+                    sb.AppendLine("LandingZone_DebugCriticalScore".Translate(breakdown.CriticalScore.ToString("F4")));
+                    sb.AppendLine("LandingZone_DebugPreferredScore".Translate(breakdown.PreferredScore.ToString("F4")));
+                    sb.AppendLine("LandingZone_DebugMutatorScore".Translate(breakdown.MutatorScore.ToString("F4")));
+                    sb.AppendLine("LandingZone_DebugPenalty".Translate(breakdown.Penalty.ToString("F4")));
+                    sb.AppendLine("LandingZone_DebugCriticalMisses".Translate(breakdown.CriticalMissCount));
 
                     // Matched filters
                     if (breakdown.MatchedFilters.Count > 0)
                     {
-                        sb.AppendLine($"\n  ✓ MATCHED ({breakdown.MatchedFilters.Count}):");
+                        sb.AppendLine("\n  " + "LandingZone_DebugMatchedFilters".Translate(breakdown.MatchedFilters.Count));
                         foreach (var filter in breakdown.MatchedFilters)
                         {
-                            string criticalTag = filter.IsCritical ? " [CRITICAL]" : " [PREFERRED]";
-                            string rangeTag = filter.IsRangeFilter ? " [RANGE]" : " [BOOLEAN]";
+                            string criticalTag = filter.IsCritical ? " " + "LandingZone_DebugCriticalTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
+                            string rangeTag = filter.IsRangeFilter ? " " + "LandingZone_DebugRangeTag".Translate() : " " + "LandingZone_DebugBooleanTag".Translate();
                             sb.AppendLine($"    - {filter.FilterName}{criticalTag}{rangeTag}");
-                            sb.AppendLine($"      Membership: {filter.Membership:F4}, Penalty: {filter.Penalty:F4}");
+                            sb.AppendLine("      " + "LandingZone_DebugMembership".Translate(filter.Membership.ToString("F4"), filter.Penalty.ToString("F4")));
                         }
                     }
 
                     // Missed filters
                     if (breakdown.MissedFilters.Count > 0)
                     {
-                        sb.AppendLine($"\n  ✗ MISSED ({breakdown.MissedFilters.Count}):");
+                        sb.AppendLine("\n  " + "LandingZone_DebugMissedFilters".Translate(breakdown.MissedFilters.Count));
                         foreach (var filter in breakdown.MissedFilters)
                         {
-                            string criticalTag = filter.IsCritical ? " [CRITICAL]" : " [PREFERRED]";
-                            string rangeTag = filter.IsRangeFilter ? " [RANGE]" : " [BOOLEAN]";
-                            string nearMissTag = filter.IsNearMiss ? " [NEAR-MISS]" : "";
+                            string criticalTag = filter.IsCritical ? " " + "LandingZone_DebugCriticalTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
+                            string rangeTag = filter.IsRangeFilter ? " " + "LandingZone_DebugRangeTag".Translate() : " " + "LandingZone_DebugBooleanTag".Translate();
+                            string nearMissTag = filter.IsNearMiss ? "LandingZone_NearMissTag".Translate() : "";
                             sb.AppendLine($"    - {filter.FilterName}{criticalTag}{rangeTag}{nearMissTag}");
-                            sb.AppendLine($"      Membership: {filter.Membership:F4}, Penalty: {filter.Penalty:F4}");
+                            sb.AppendLine("      " + "LandingZone_DebugMembership".Translate(filter.Membership.ToString("F4"), filter.Penalty.ToString("F4")));
                         }
                     }
 
@@ -1412,7 +1435,7 @@ namespace LandingZone.Core.UI
             int remaining = matches.Count - dumpLimit;
             if (remaining > 0)
             {
-                sb.AppendLine($"... and {remaining} more matches (truncated; enable verbose to log all)");
+                sb.AppendLine("LandingZone_MoreMatchesTruncated".Translate(remaining));
             }
 
             sb.AppendLine("========================================");
@@ -1420,7 +1443,7 @@ namespace LandingZone.Core.UI
             sb.AppendLine("========================================");
 
             Log.Message($"[LandingZone] MATCH DATA DUMP:\n{sb}");
-            Messages.Message($"Match data dumped to Player.log ({matches.Count} results)", MessageTypeDefOf.NeutralEvent, false);
+            Messages.Message("LandingZone_MatchDataDumped".Translate(matches.Count), MessageTypeDefOf.NeutralEvent, false);
         }
     }
 }

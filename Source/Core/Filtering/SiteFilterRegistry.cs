@@ -52,6 +52,8 @@ namespace LandingZone.Core.Filtering
         /// <summary>
         /// Converts all registered filters to predicates and partitions by heaviness.
         /// Used for k-of-n symmetric evaluation.
+        /// PERFORMANCE OPTIMIZATION: Heavy filters set to Critical are auto-demoted to Preferred
+        /// to prevent expensive operations (Growing Days, etc.) from hard-filtering 100k+ candidates.
         /// </summary>
         public (List<IFilterPredicate> Cheap, List<IFilterPredicate> Heavy) GetAllPredicates(GameState state)
         {
@@ -68,6 +70,18 @@ namespace LandingZone.Core.Filtering
                 // Skip ignored filters
                 if (importance == FilterImportance.Ignored)
                     continue;
+
+                // AUTO-DEMOTION: Heavy + Critical → Preferred for performance
+                // Heavy filters (Growing Days, etc.) are too expensive to use as hard gates.
+                // Instead, they contribute to SCORING after cheap filters reduce candidates.
+                if (filter.Heaviness == FilterHeaviness.Heavy && importance == FilterImportance.Critical)
+                {
+                    Log.Warning($"[LandingZone] Filter '{filter.Id}' is Heavy + Critical. " +
+                               $"Auto-demoting to Preferred for performance. " +
+                               $"Heavy filters are used for SCORING top candidates, not hard filtering. " +
+                               $"This prevents {filter.Id} from processing 100k+ candidates (multi-minute delays).");
+                    importance = FilterImportance.Preferred;
+                }
 
                 // Create predicate adapter
                 var predicate = new FilterPredicateAdapter(filter, importance);
@@ -101,10 +115,17 @@ namespace LandingZone.Core.Filtering
                 "pollution" => settings.PollutionImportance,
                 "forageability" => settings.ForageImportance,
                 "forageable_food" => settings.ForageableFoodImportance,
+                "swampiness" => settings.SwampinessImportance,
+
+                // Wildlife & Ecology filters
+                "animal_density" => settings.AnimalDensityImportance,
+                "fish_population" => settings.FishPopulationImportance,
+                "plant_density" => settings.PlantDensityImportance,
 
                 // Geography filters
                 "elevation" => settings.ElevationImportance,
                 "movement_difficulty" => settings.MovementDifficultyImportance,
+                "hilliness" => settings.AllowedHilliness.Count < 4 ? FilterImportance.Critical : FilterImportance.Ignored,
                 "coastal" => settings.CoastalImportance,
                 "coastal_lake" => settings.CoastalLakeImportance,
                 "water_access" => settings.WaterAccessImportance, // Coastal OR any river

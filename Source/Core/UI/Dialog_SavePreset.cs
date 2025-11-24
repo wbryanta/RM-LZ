@@ -32,13 +32,13 @@ namespace LandingZone.Core.UI
             listing.Begin(inRect);
 
             Text.Font = GameFont.Medium;
-            listing.Label("Save Preset");
+            listing.Label("LandingZone_SavePresetTitle".Translate());
             Text.Font = GameFont.Small;
             listing.GapLine();
 
             listing.Gap(10f);
 
-            listing.Label("Preset Name (max 10 characters):");
+            listing.Label("LandingZone_PresetNameLabel".Translate());
             _presetName = listing.TextEntry(_presetName);
 
             // Enforce 10-character limit
@@ -56,28 +56,28 @@ namespace LandingZone.Core.UI
             Rect saveRect = new Rect(buttonRect.x, buttonRect.y, buttonWidth, buttonRect.height);
             Rect cancelRect = new Rect(buttonRect.x + buttonWidth + 10f, buttonRect.y, buttonWidth, buttonRect.height);
 
-            if (Widgets.ButtonText(saveRect, "Save"))
+            if (Widgets.ButtonText(saveRect, "LandingZone_Save".Translate()))
             {
                 if (string.IsNullOrWhiteSpace(_presetName))
                 {
-                    Messages.Message("Please enter a preset name", MessageTypeDefOf.RejectInput, false);
+                    Messages.Message("LandingZone_PresetNameRequired".Translate(), MessageTypeDefOf.RejectInput, false);
                 }
                 else
                 {
                     bool saved = PresetLibrary.SaveUserPreset(_presetName, _filters, _activePreset);
                     if (saved)
                     {
-                        Messages.Message($"Saved preset: {_presetName}", MessageTypeDefOf.PositiveEvent, false);
+                        Messages.Message("LandingZone_PresetSaved".Translate(_presetName), MessageTypeDefOf.PositiveEvent, false);
                         Close();
                     }
                     else
                     {
-                        Messages.Message($"Preset name '{_presetName}' already exists. Please choose a different name.", MessageTypeDefOf.RejectInput, false);
+                        Messages.Message("LandingZone_PresetNameExists".Translate(_presetName), MessageTypeDefOf.RejectInput, false);
                     }
                 }
             }
 
-            if (Widgets.ButtonText(cancelRect, "Cancel"))
+            if (Widgets.ButtonText(cancelRect, "LandingZone_Cancel".Translate()))
             {
                 Close();
             }

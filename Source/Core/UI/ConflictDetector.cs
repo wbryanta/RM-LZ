@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Core.Filtering;
 using LandingZone.Data;
+using Verse;
 
 namespace LandingZone.Core.UI
 {
@@ -86,8 +87,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Error,
                         FilterId = "rivers",
-                        Message = $"Impossible: {criticalCount} river types with AND (tiles have max 1 river)",
-                        Suggestion = "Switch to OR operator or keep only 1 Critical river type"
+                        Message = "LandingZone_ConflictRiverAnd".Translate(criticalCount),
+                        Suggestion = "LandingZone_ConflictRiverSuggestion".Translate()
                     });
                 }
             }
@@ -110,8 +111,8 @@ namespace LandingZone.Core.UI
                 {
                     Severity = ConflictSeverity.Error,
                     FilterId = "stones",
-                    Message = $"Impossible requirement: {criticalStones.Count} stones with AND operator",
-                    Suggestion = "Switch to OR operator (tiles only have 1 ore type)"
+                    Message = "LandingZone_ConflictStoneAnd".Translate(criticalStones.Count),
+                    Suggestion = "LandingZone_ConflictStoneSuggestion".Translate()
                 });
             }
         }
@@ -132,8 +133,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Error,
                         FilterId = "climate",
-                        Message = "Contradictory: High growing days require warm temperatures",
-                        Suggestion = "Increase minimum temperature or decrease growing days requirement"
+                        Message = "LandingZone_ConflictGrowingTemp".Translate(),
+                        Suggestion = "LandingZone_ConflictGrowingTempSuggestion".Translate()
                     });
                 }
             }
@@ -149,8 +150,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Info,
                         FilterId = "climate",
-                        Message = "High rainfall requirement limits biome options",
-                        Suggestion = "Desert and arid biomes will be excluded"
+                        Message = "LandingZone_ConflictHighRainfall".Translate(),
+                        Suggestion = "LandingZone_ConflictHighRainfallSuggestion".Translate()
                     });
                 }
             }
@@ -220,8 +221,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Error,
                         FilterId = "general",
-                        Message = $"Very restrictive config: Only ~{estimatedMatches} tiles estimated ({estimates.Count} critical filters)",
-                        Suggestion = "Relax some Critical→Preferred, use Fallback Tiers, or widen ranges"
+                        Message = "LandingZone_ConflictVeryRestrictive".Translate(estimatedMatches, estimates.Count),
+                        Suggestion = "LandingZone_ConflictVeryRestrictiveSuggestion".Translate()
                     });
                 }
                 else if (estimatedMatches < LowThreshold)
@@ -230,8 +231,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Warning,
                         FilterId = "general",
-                        Message = $"Restrictive config: Only ~{estimatedMatches} tiles estimated ({estimates.Count} critical filters)",
-                        Suggestion = "Consider relaxing some Critical filters to Preferred if search yields few results"
+                        Message = "LandingZone_ConflictRestrictive".Translate(estimatedMatches, estimates.Count),
+                        Suggestion = "LandingZone_ConflictRestrictiveSuggestion".Translate()
                     });
                 }
             }
@@ -246,8 +247,8 @@ namespace LandingZone.Core.UI
                     {
                         Severity = ConflictSeverity.Warning,
                         FilterId = "general",
-                        Message = $"{criticalCount} Critical filters may be too restrictive",
-                        Suggestion = "Consider changing some Critical filters to Preferred for more results"
+                        Message = "LandingZone_ConflictManyCriticals".Translate(criticalCount),
+                        Suggestion = "LandingZone_ConflictManyCriticalsSuggestion".Translate()
                     });
                 }
             }
@@ -278,8 +279,8 @@ namespace LandingZone.Core.UI
                 {
                     Severity = ConflictSeverity.Error,
                     FilterId = "map_features",
-                    Message = $"Ultra-rare AND: {presentUltraRare.Count} ultra-rare features (each <0.1% of tiles)",
-                    Suggestion = "Switch to OR operator or relax some to Preferred importance"
+                    Message = "LandingZone_ConflictUltraRareAnd".Translate(presentUltraRare.Count),
+                    Suggestion = "LandingZone_ConflictUltraRareAndSuggestion".Translate()
                 });
             }
 
@@ -290,8 +291,8 @@ namespace LandingZone.Core.UI
                 {
                     Severity = ConflictSeverity.Warning,
                     FilterId = "map_features",
-                    Message = $"{criticalFeatures.Count} Critical features with AND may produce very few results",
-                    Suggestion = "Switch to OR operator or reduce Critical feature count"
+                    Message = "LandingZone_ConflictManyFeaturesAnd".Translate(criticalFeatures.Count),
+                    Suggestion = "LandingZone_ConflictManyFeaturesAndSuggestion".Translate()
                 });
             }
         }
@@ -343,8 +344,8 @@ namespace LandingZone.Core.UI
         public static string GetOperatorDescription(ImportanceOperator op, string itemType)
         {
             return op == ImportanceOperator.OR
-                ? $"Match: ANY of the selected {itemType}"
-                : $"Match: ALL of the selected {itemType}";
+                ? "LandingZone_OperatorAny".Translate(itemType)
+                : "LandingZone_OperatorAll".Translate(itemType);
         }
 
         /// <summary>
@@ -354,13 +355,11 @@ namespace LandingZone.Core.UI
         {
             if (op == ImportanceOperator.OR)
             {
-                return $"OR operator: Tiles need AT LEAST ONE of the {criticalCount} selected {itemType}.\n\n" +
-                       $"More flexible - typically produces more results.";
+                return "LandingZone_OperatorOrTooltip".Translate(criticalCount, itemType);
             }
             else
             {
-                return $"AND operator: Tiles need ALL {criticalCount} selected {itemType}.\n\n" +
-                       $"Very restrictive - may produce few or zero results.";
+                return "LandingZone_OperatorAndTooltip".Translate(criticalCount, itemType);
             }
         }
     }

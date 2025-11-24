@@ -12,17 +12,32 @@ namespace LandingZone.Data
     /// Represents a fallback tier for presets targeting extremely rare features.
     /// If a preset's primary filters yield zero results, the system tries fallback tiers in sequence.
     /// </summary>
-    public class FallbackTier
+    public class FallbackTier : IExposable
     {
         public string Name { get; set; } = "";
         public FilterSettings Filters { get; set; } = new FilterSettings();
+
+        public void ExposeData()
+        {
+            string name = Name;
+            FilterSettings filters = Filters;
+
+            Scribe_Values.Look(ref name, "name", "");
+            Scribe_Deep.Look(ref filters, "filters");
+
+            if (Scribe.mode == LoadSaveMode.LoadingVars || Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                Name = name ?? "";
+                Filters = filters ?? new FilterSettings();
+            }
+        }
     }
 
     /// <summary>
     /// A preset configuration bundle that can be applied to Simple mode.
     /// Contains filter settings, metadata, and rarity targeting information.
     /// </summary>
-    public class Preset
+    public class Preset : IExposable
     {
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
@@ -83,6 +98,51 @@ namespace LandingZone.Data
 
             target.CopyFrom(Filters);
         }
+
+        /// <summary>
+        /// Serializes/deserializes preset data for persistence
+        /// </summary>
+        public void ExposeData()
+        {
+            // Use local variables for properties (Scribe requires ref to variables)
+            string id = Id;
+            string name = Name;
+            string description = Description;
+            string category = Category;
+            TileRarity? targetRarity = TargetRarity;
+            string filterSummary = FilterSummary;
+            float? minimumStrictness = MinimumStrictness;
+            FilterSettings filters = Filters;
+            Dictionary<string, int> mutatorOverrides = MutatorQualityOverrides;
+            List<FallbackTier>? fallbackTiers = FallbackTiers;
+
+            Scribe_Values.Look(ref id, "id", "");
+            Scribe_Values.Look(ref name, "name", "");
+            Scribe_Values.Look(ref description, "description", "");
+            Scribe_Values.Look(ref category, "category", "User");
+            Scribe_Values.Look(ref targetRarity, "targetRarity", null);
+            Scribe_Values.Look(ref filterSummary, "filterSummary", "");
+            Scribe_Values.Look(ref minimumStrictness, "minimumStrictness", null);
+
+            Scribe_Deep.Look(ref filters, "filters");
+            Scribe_Collections.Look(ref mutatorOverrides, "mutatorQualityOverrides", LookMode.Value, LookMode.Value);
+            Scribe_Collections.Look(ref fallbackTiers, "fallbackTiers", LookMode.Deep);
+
+            // Write back to properties after loading
+            if (Scribe.mode == LoadSaveMode.LoadingVars || Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                Id = id ?? "";
+                Name = name ?? "";
+                Description = description ?? "";
+                Category = category ?? "User";
+                TargetRarity = targetRarity;
+                FilterSummary = filterSummary ?? "";
+                MinimumStrictness = minimumStrictness;
+                Filters = filters ?? new FilterSettings();
+                MutatorQualityOverrides = mutatorOverrides ?? new Dictionary<string, int>();
+                FallbackTiers = fallbackTiers;
+            }
+        }
     }
 
     /// <summary>
@@ -91,7 +151,6 @@ namespace LandingZone.Data
     public static class PresetLibrary
     {
         private static List<Preset> _curated = new List<Preset>();
-        private static List<Preset> _userPresets = new List<Preset>();
         private static bool _initialized = false;
 
         /// <summary>
@@ -122,7 +181,7 @@ namespace LandingZone.Data
             };
 
             _initialized = true;
-            Log.Message($"[LandingZone] PresetLibrary initialized with {_curated.Count} curated presets");
+            Log.Message("LandingZone_PresetLibraryInitialized".Translate(_curated.Count));
         }
 
         /// <summary>
@@ -135,11 +194,62 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Gets user-saved presets
+        /// Gets user-saved presets (globally persisted in ModSettings)
         /// </summary>
         public static IReadOnlyList<Preset> GetUserPresets()
         {
-            return _userPresets;
+            // User presets are stored globally in ModSettings and persist across all saves
+            return LandingZoneMod.Instance?.Settings?.UserPresets ?? new List<Preset>();
+        }
+
+        /// <summary>
+        /// Gets a preset by ID (searches both curated and user presets)
+        /// </summary>
+        public static Preset? GetById(string id)
+        {
+            if (!_initialized) Initialize();
+
+            // Search curated presets first
+            var preset = _curated.FirstOrDefault(p => p.Id == id);
+            if (preset != null) return preset;
+
+            // Then search user presets
+            return GetUserPresets().FirstOrDefault(p => p.Id == id);
+        }
+
+        /// <summary>
+        /// Saves a fully-formed preset (e.g., from token import) preserving all fields.
+        /// Returns true if saved successfully, false if name already exists.
+        /// </summary>
+        /// <param name="preset">Complete preset to save</param>
+        public static bool SaveUserPreset(Preset preset)
+        {
+            var userPresets = LandingZoneMod.Instance?.Settings?.UserPresets;
+            if (userPresets == null)
+            {
+                Log.Error("[LandingZone] Cannot save preset - mod settings not available");
+                return false;
+            }
+
+            // Check for duplicate names
+            if (userPresets.Any(p => p.Name.Equals(preset.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                Log.Warning("LandingZone_PresetAlreadyExists".Translate(preset.Name));
+                return false;
+            }
+
+            // Ensure category is User and ID is unique
+            preset.Category = "User";
+            if (string.IsNullOrEmpty(preset.Id) || !preset.Id.StartsWith("user_"))
+                preset.Id = $"user_{Guid.NewGuid():N}";
+
+            userPresets.Add(preset);
+            Log.Message("LandingZone_PresetSavedLog".Translate(preset.Name));
+
+            // Persist to disk immediately
+            LandingZoneMod.Instance.WriteSettings();
+
+            return true;
         }
 
         /// <summary>
@@ -151,10 +261,17 @@ namespace LandingZone.Data
         /// <param name="sourcePreset">Optional source preset to copy quality overrides from</param>
         public static bool SaveUserPreset(string name, FilterSettings filters, Preset? sourcePreset = null)
         {
-            // Check for duplicate names
-            if (_userPresets.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            var userPresets = LandingZoneMod.Instance?.Settings?.UserPresets;
+            if (userPresets == null)
             {
-                Log.Warning($"[LandingZone] User preset '{name}' already exists");
+                Log.Error("[LandingZone] Cannot save preset - mod settings not available");
+                return false;
+            }
+
+            // Check for duplicate names
+            if (userPresets.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                Log.Warning("LandingZone_PresetAlreadyExists".Translate(name));
                 return false;
             }
 
@@ -162,7 +279,7 @@ namespace LandingZone.Data
             {
                 Id = $"user_{Guid.NewGuid():N}",
                 Name = name,
-                Description = "User-created preset from Simple mode",
+                Description = "LandingZone_UserCreatedPresetDesc".Translate(),
                 Category = "User",
                 Filters = new FilterSettings()
             };
@@ -174,11 +291,15 @@ namespace LandingZone.Data
             if (sourcePreset?.MutatorQualityOverrides != null && sourcePreset.MutatorQualityOverrides.Count > 0)
             {
                 preset.MutatorQualityOverrides = new Dictionary<string, int>(sourcePreset.MutatorQualityOverrides);
-                Log.Message($"[LandingZone] Saved user preset '{name}' with {preset.MutatorQualityOverrides.Count} quality overrides");
+                Log.Message("LandingZone_PresetSavedWithOverrides".Translate(name, preset.MutatorQualityOverrides.Count));
             }
 
-            _userPresets.Add(preset);
-            Log.Message($"[LandingZone] Saved user preset: {name}");
+            userPresets.Add(preset);
+            Log.Message("LandingZone_PresetSavedLog".Translate(name));
+
+            // Persist to disk immediately
+            LandingZoneMod.Instance.WriteSettings();
+
             return true;
         }
 
@@ -187,11 +308,22 @@ namespace LandingZone.Data
         /// </summary>
         public static bool DeleteUserPreset(string name)
         {
-            var preset = _userPresets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            var userPresets = LandingZoneMod.Instance?.Settings?.UserPresets;
+            if (userPresets == null)
+            {
+                Log.Error("[LandingZone] Cannot delete preset - mod settings not available");
+                return false;
+            }
+
+            var preset = userPresets.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
             if (preset != null)
             {
-                _userPresets.Remove(preset);
-                Log.Message($"[LandingZone] Deleted user preset: {name}");
+                userPresets.Remove(preset);
+                Log.Message("LandingZone_PresetDeleted".Translate(name));
+
+                // Persist to disk immediately
+                LandingZoneMod.Instance.WriteSettings();
+
                 return true;
             }
             return false;
@@ -228,11 +360,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "elysian",
-                Name = "Elysian",
-                Description = "The easiest RimWorld experience - perfect climate, ideal biome, abundant resources, stacked +10 quality mutators. God-tier colonist paradise.",
+                Name = "LandingZone_Preset_elysian_Name".Translate(),
+                Description = "LandingZone_Preset_elysian_Description".Translate(),
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
-                FilterSummary = "Perfect Climate | +10 Mutators | Best Resources"
+                FilterSummary = "LandingZone_Preset_elysian_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -327,11 +459,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "exotic",
-                Name = "Exotic",
-                Description = "Chase the rarest features in RimWorld - ArcheanTrees anchor (24 tiles globally), with bonus scoring for stacking additional rare mutators.",
+                Name = "LandingZone_Preset_exotic_Name".Translate(),
+                Description = "LandingZone_Preset_exotic_Description".Translate(),
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
-                FilterSummary = "ArcheanTrees | Stack Rare Features"
+                FilterSummary = "LandingZone_Preset_exotic_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -366,7 +498,7 @@ namespace LandingZone.Data
             // Tier 2: Any ultra-rare feature (if ArcheanTrees yields zero)
             var tier2 = new FallbackTier
             {
-                Name = "Ultra-Rares (any)",
+                Name = "LandingZone_Preset_exotic_FallbackTier2".Translate(),
                 Filters = new FilterSettings()
             };
             tier2.Filters.CopyFrom(filters); // Copy base settings
@@ -400,11 +532,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "subzero",
-                Name = "SubZero",
-                Description = "Extreme cold survival challenge - frozen tundra, ice sheets, barely any growing season. For masochists only.",
+                Name = "LandingZone_Preset_subzero_Name".Translate(),
+                Description = "LandingZone_Preset_subzero_Description".Translate(),
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Frozen | Tundra/Boreal | Ice Features"
+                FilterSummary = "LandingZone_Preset_subzero_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -439,11 +571,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "scorched",
-                Name = "Scorched",
-                Description = "Volcanic nightmare - extreme heat, lava flows, toxic atmosphere. Embrace the fire!",
+                Name = "LandingZone_Preset_scorched_Name".Translate(),
+                Description = "LandingZone_Preset_scorched_Description".Translate(),
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Lava | Extreme Heat | Toxic | Volcanic",
+                FilterSummary = "LandingZone_Preset_scorched_FilterSummary".Translate(),
                 MinimumStrictness = 1.0f  // Enforce ALL Critical filters (temp + rainfall + lava features)
             };
 
@@ -500,7 +632,7 @@ namespace LandingZone.Data
             // Tier 2: Keep lava features Critical, relax temperature requirement
             var tier2 = new FallbackTier
             {
-                Name = "Lava features (relaxed temp)",
+                Name = "LandingZone_Preset_scorched_FallbackTier2".Translate(),
                 Filters = new FilterSettings()
             };
             tier2.Filters.CopyFrom(filters);
@@ -511,7 +643,7 @@ namespace LandingZone.Data
             // Tier 3: Drop lava requirement, focus on extreme heat/dry desert
             var tier3 = new FallbackTier
             {
-                Name = "Extreme heat desert (no lava)",
+                Name = "LandingZone_Preset_scorched_FallbackTier3".Translate(),
                 Filters = new FilterSettings()
             };
             tier3.Filters.AverageTemperatureRange = new FloatRange(35f, 60f);
@@ -534,11 +666,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "savannah",
-                Name = "Savannah",
-                Description = "Warm grasslands with abundant wildlife, wind, open terrain - perfect for hunting, herding, and wind power.",
+                Name = "LandingZone_Preset_savannah_Name".Translate(),
+                Description = "LandingZone_Preset_savannah_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Common,
-                FilterSummary = "Wildlife | Warm | Grasslands | Grazing"
+                FilterSummary = "LandingZone_Preset_savannah_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -594,11 +726,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "aquatic",
-                Name = "Aquatic",
-                Description = "Maximum water access - coastal tiles with rivers, lakes, headwaters. Fish, trade, and naval supremacy.",
+                Name = "LandingZone_Preset_aquatic_Name".Translate(),
+                Description = "LandingZone_Preset_aquatic_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "Coastal | Rivers | Lakes | Fish"
+                FilterSummary = "LandingZone_Preset_aquatic_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -651,11 +783,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "desert_oasis",
-                Name = "Desert Oasis",
-                Description = "Water in the wasteland - desert tiles with life-sustaining rivers. Coastal access is a bonus!",
+                Name = "LandingZone_Preset_desert_oasis_Name".Translate(),
+                Description = "LandingZone_Preset_desert_oasis_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "Desert | Rivers | Hot"
+                FilterSummary = "LandingZone_Preset_desert_oasis_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -700,11 +832,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "defense",
-                Name = "Defense",
-                Description = "Natural defensibility - mountains, caves, chokepoints, stone abundance. Build an impenetrable fortress.",
+                Name = "LandingZone_Preset_defense_Name".Translate(),
+                Description = "LandingZone_Preset_defense_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Uncommon,
-                FilterSummary = "Mountainous | Caves | Granite+Slate | Chokepoints"
+                FilterSummary = "LandingZone_Preset_defense_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -750,11 +882,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "agrarian",
-                Name = "Agrarian",
-                Description = "Maximum agricultural potential - fertile soil, perfect climate, water abundance, year-round growing. Feed the world.",
+                Name = "LandingZone_Preset_agrarian_Name".Translate(),
+                Description = "LandingZone_Preset_agrarian_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Common,
-                FilterSummary = "50-60 Grow Days | Fertile | High Rain | Flat"
+                FilterSummary = "LandingZone_Preset_agrarian_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -803,11 +935,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "power",
-                Name = "Power",
-                Description = "Maximum power generation - geothermal, hydro, wind, solar. Energy independence through diversified infrastructure.",
+                Name = "LandingZone_Preset_power_Name".Translate(),
+                Description = "LandingZone_Preset_power_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "Geothermal | Rivers | Wind | Solar"
+                FilterSummary = "LandingZone_Preset_power_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -856,11 +988,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "bayou",
-                Name = "Bayou",
-                Description = "Hot, wet, diseased marshlands - swamps, mud, difficult terrain, overgrown vegetation. Swamp horror survival.",
+                Name = "LandingZone_Preset_bayou_Name".Translate(),
+                Description = "LandingZone_Preset_bayou_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.Uncommon,
-                FilterSummary = "Swampy | Hot+Wet | Muddy | Overgrown"
+                FilterSummary = "LandingZone_Preset_bayou_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;
@@ -917,11 +1049,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "homestead",
-                Name = "Homestead",
-                Description = "Move-in ready! Find abandoned settlements and ancient structures with existing buildings to salvage.",
+                Name = "LandingZone_Preset_homestead_Name".Translate(),
+                Description = "LandingZone_Preset_homestead_Description".Translate(),
                 Category = "Curated",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "Ruins | Abandoned Colonies | Ancient Sites"
+                FilterSummary = "LandingZone_Preset_homestead_FilterSummary".Translate()
             };
 
             var filters = preset.Filters;

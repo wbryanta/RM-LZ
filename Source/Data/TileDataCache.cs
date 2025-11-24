@@ -72,18 +72,6 @@ namespace LandingZone.Data
             var daysPerTwelfth = GenDate.DaysPerYear / (float)GenDate.TwelfthsPerYear;
             var growingDays = (growingTwelfths?.Count ?? 0) * daysPerTwelfth;
 
-            // EXPENSIVE: Stone types query (1-2ms per tile)
-            var stoneDefNames = world.NaturalRockTypesIn(planetTile)?
-                .Where(t => t != null)
-                .Select(t => t.defName)
-                .ToArray() ?? System.Array.Empty<string>();
-
-            // EXPENSIVE: Grazing check (1-2ms per tile)
-            var canGrazeNow = VirtualPlantsUtility.EnvironmentAllowsEatingVirtualPlantsNowAt(planetTile);
-
-            // EXPENSIVE: Movement difficulty calculation (1-2ms per tile)
-            var movementDifficulty = WorldPathGrid.CalculatedMovementDifficultyAt(planetTile, perceivedStatic: true);
-
             // CHEAP: Direct property access
             var pollution = tile.pollution;
             var forageability = biome?.forageability ?? 0f;
@@ -94,9 +82,6 @@ namespace LandingZone.Data
 
             return new TileInfoExtended(
                 growingDays,
-                stoneDefNames,
-                canGrazeNow,
-                movementDifficulty,
                 pollution,
                 forageability,
                 minTemp,
@@ -108,23 +93,21 @@ namespace LandingZone.Data
     /// <summary>
     /// Extended tile information requiring expensive calculations.
     /// Computed lazily via TileDataCache.
+    /// NOTE: Cheap operations removed and accessed directly instead:
+    /// - MovementDifficulty: Use WorldPathGrid.PerceivedMovementDifficultyAt() (0.00xms/tile)
+    /// - StoneDefNames: Use World.NaturalRockTypesIn() (0.0014ms/tile)
+    /// - CanGrazeNow: Use VirtualPlantsUtility.EnvironmentAllowsEatingVirtualPlantsNowAt() (0.0003ms/tile)
     /// </summary>
     public readonly struct TileInfoExtended
     {
         public TileInfoExtended(
             float growingDays,
-            string[] stoneDefNames,
-            bool canGrazeNow,
-            float movementDifficulty,
             float pollution,
             float forageability,
             float minTemperature,
             float maxTemperature)
         {
             GrowingDays = growingDays;
-            StoneDefNames = stoneDefNames;
-            CanGrazeNow = canGrazeNow;
-            MovementDifficulty = movementDifficulty;
             Pollution = pollution;
             Forageability = forageability;
             MinTemperature = minTemperature;
@@ -132,9 +115,6 @@ namespace LandingZone.Data
         }
 
         public float GrowingDays { get; }
-        public string[] StoneDefNames { get; }
-        public bool CanGrazeNow { get; }
-        public float MovementDifficulty { get; }
         public float Pollution { get; }
         public float Forageability { get; }
         public float MinTemperature { get; }

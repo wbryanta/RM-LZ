@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using LandingZone.Core.Filtering.Filters;
 using LandingZone.Data;
@@ -35,7 +37,7 @@ namespace LandingZone.Core.UI
 
             // Header
             Text.Font = GameFont.Medium;
-            listing.Label("Quick Setup");
+            listing.Label("LandingZone_QuickSetup".Translate());
             Text.Font = GameFont.Small;
             listing.GapLine();
 
@@ -87,7 +89,7 @@ namespace LandingZone.Core.UI
             listing.GapLine(); // Visual separator between curated and user presets
             listing.Gap(10f);
             Text.Font = GameFont.Tiny;
-            listing.Label("My Presets:");
+            listing.Label("LandingZone_MyPresets".Translate());
             Text.Font = GameFont.Small;
 
             Rect userRowRect = listing.GetRect(PresetCardHeight + PresetCardSpacing);
@@ -100,12 +102,69 @@ namespace LandingZone.Core.UI
                 DrawPresetCard(cardRect, userPresets[i], filters, preferences);
             }
 
-            // Add "Save Custom Preset" button (creates new card in user presets section)
+            // Community Presets section
+            listing.Gap(16f);
+            listing.GapLine(); // Visual separator
             listing.Gap(10f);
-            if (listing.ButtonText("Save Custom Preset"))
+            Text.Font = GameFont.Tiny;
+            listing.Label("LandingZone_CommunityPresets".Translate());
+            Text.Font = GameFont.Small;
+
+            // Placeholder box for community presets
+            Rect communityPlaceholderRect = listing.GetRect(90f);
+            GUI.color = new Color(0.2f, 0.2f, 0.2f, 0.5f); // Subtle dark background
+            Widgets.DrawBoxSolid(communityPlaceholderRect, GUI.color);
+            GUI.color = Color.white;
+            Widgets.DrawBox(communityPlaceholderRect);
+
+            // Draw placeholder text
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Rect textRect = communityPlaceholderRect.ContractedBy(8f);
+            Widgets.Label(textRect, "LandingZone_CommunityPresetsPlaceholder".Translate());
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+
+            // Token import/export buttons (two columns)
+            listing.Gap(8f);
+            var tokenButtonsRect = listing.GetRect(32f);
+            var importButtonRect = new Rect(tokenButtonsRect.x, tokenButtonsRect.y, (tokenButtonsRect.width / 2f) - 4f, tokenButtonsRect.height);
+            var exportButtonRect = new Rect(tokenButtonsRect.x + (tokenButtonsRect.width / 2f) + 4f, tokenButtonsRect.y, (tokenButtonsRect.width / 2f) - 4f, tokenButtonsRect.height);
+
+            // Import button
+            if (Widgets.ButtonText(importButtonRect, "LandingZone_ImportPresetToken".Translate()))
             {
-                Find.WindowStack.Add(new Dialog_SavePreset(filters, preferences.ActivePreset));
+                Find.WindowStack.Add(new Dialog_ImportPresetToken());
             }
+
+            // Export button (disabled if no user presets)
+            GUI.enabled = userPresets.Count > 0;
+            if (Widgets.ButtonText(exportButtonRect, "LandingZone_ExportPresetToken".Translate()))
+            {
+                // Show menu to select which preset to export
+                var exportOptions = new List<FloatMenuOption>();
+                foreach (var preset in userPresets)
+                {
+                    var presetCapture = preset;
+                    exportOptions.Add(new FloatMenuOption(preset.Name, () =>
+                    {
+                        var token = PresetTokenCodec.EncodePreset(presetCapture);
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            // Copy to clipboard and show dialog with token
+                            GUIUtility.systemCopyBuffer = token;
+                            Messages.Message("LandingZone_TokenCopied".Translate(presetCapture.Name), MessageTypeDefOf.NeutralEvent, false);
+                            Find.WindowStack.Add(new Dialog_ShowToken(presetCapture.Name, token));
+                        }
+                        else
+                        {
+                            Messages.Message("LandingZone_TokenExportFailed".Translate(), MessageTypeDefOf.RejectInput, false);
+                        }
+                    }));
+                }
+                Find.WindowStack.Add(new FloatMenu(exportOptions));
+            }
+            GUI.enabled = true;
         }
 
         private static void DrawQuickTweaksPanel(Listing_Standard listing, UserPreferences preferences)
@@ -119,7 +178,7 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.MiddleLeft;
             Rect labelRect = new Rect(headerRect.x + 30f, headerRect.y, headerRect.width - 30f, headerRect.height);
-            Widgets.Label(labelRect, "Quick Tweaks");
+            Widgets.Label(labelRect, "LandingZone_QuickTweaks".Translate());
             Text.Anchor = TextAnchor.UpperLeft;
 
             // Collapse/expand indicator
@@ -136,7 +195,7 @@ namespace LandingZone.Core.UI
                 listing.Gap(8f);
 
                 // Result Count slider
-                listing.Label($"Result Limit: {filters.MaxResults}");
+                listing.Label("LandingZone_ResultLimit".Translate(filters.MaxResults));
                 Rect resultSliderRect = listing.GetRect(30f);
                 int resultCount = (int)Widgets.HorizontalSlider(
                     resultSliderRect,
@@ -144,7 +203,7 @@ namespace LandingZone.Core.UI
                     FilterSettings.MinMaxResults,
                     FilterSettings.MaxResultsLimit,
                     true,
-                    $"{filters.MaxResults} results",
+                    "LandingZone_ResultCountLabel".Translate(filters.MaxResults),
                     $"{FilterSettings.MinMaxResults}",
                     $"{FilterSettings.MaxResultsLimit}"
                 );
@@ -164,7 +223,7 @@ namespace LandingZone.Core.UI
                 float sliderMin = GenTemperature.CelsiusTo(-60f, tempMode);
                 float sliderMax = GenTemperature.CelsiusTo(60f, tempMode);
 
-                listing.Label($"Temperature Center: {displayCenter:F0}{tempUnit}");
+                listing.Label("LandingZone_TemperatureCenter".Translate(displayCenter.ToString("F0"), tempUnit));
                 Rect tempSliderRect = listing.GetRect(30f);
                 float newDisplayCenter = Widgets.HorizontalSlider(
                     tempSliderRect,
@@ -185,13 +244,13 @@ namespace LandingZone.Core.UI
                 listing.Gap(8f);
 
                 // Biome lock dropdown
-                listing.Label($"Biome Lock: {(filters.LockedBiome?.LabelCap ?? "Any")}");
-                if (listing.ButtonText(filters.LockedBiome?.LabelCap ?? "Any Biome"))
+                listing.Label("LandingZone_BiomeLock".Translate(filters.LockedBiome?.LabelCap ?? "LandingZone_Any".Translate()));
+                if (listing.ButtonText(filters.LockedBiome?.LabelCap ?? "LandingZone_AnyBiome".Translate()))
                 {
                     var biomeOptions = new System.Collections.Generic.List<FloatMenuOption>();
 
                     // "Any" option (clear lock)
-                    biomeOptions.Add(new FloatMenuOption("Any Biome", () => {
+                    biomeOptions.Add(new FloatMenuOption("LandingZone_AnyBiome".Translate(), () => {
                         filters.LockedBiome = null;
                     }));
 
@@ -274,7 +333,7 @@ namespace LandingZone.Core.UI
                 // Tooltip for modification badge
                 if (Mouse.IsOver(modBadgeRect))
                 {
-                    TooltipHandler.TipRegion(modBadgeRect, $"Modified from '{preset.Name}' preset");
+                    TooltipHandler.TipRegion(modBadgeRect, "LandingZone_ModifiedFromPreset".Translate(preset.Name));
                 }
             }
 
@@ -312,24 +371,60 @@ namespace LandingZone.Core.UI
 
             Text.Anchor = TextAnchor.UpperLeft;
 
+            // For user presets only, add Delete button
+            bool isUserPreset = preset.Category == "User";
+            float remixXOffset = 42f; // Remix button offset
+
+            if (isUserPreset)
+            {
+                // Delete button (for user presets only) - X icon
+                Rect deleteRect = new Rect(contentRect.xMax - 66f, contentRect.yMax - 20f, 20f, 16f);
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+
+                GUI.color = new Color(1f, 0.3f, 0.3f); // Red for delete
+                bool deleteClicked = Widgets.ButtonText(deleteRect, "X", false, true, true);
+                GUI.color = Color.white;
+
+                if (deleteClicked)
+                {
+                    // Simple confirmation using Find.WindowStack
+                    Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
+                        "LandingZone_DeletePresetConfirm".Translate(preset.Name),
+                        delegate
+                        {
+                            if (PresetLibrary.DeleteUserPreset(preset.Name))
+                            {
+                                Messages.Message("LandingZone_PresetDeleted".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
+                            }
+                        },
+                        destructive: true
+                    ));
+                }
+            }
+
             // Remix button (bottom-right corner) - opens preset in Advanced mode for editing
             // Add 4px padding from edges for breathing room
-            Rect remixRect = new Rect(contentRect.xMax - 42f, contentRect.yMax - 20f, 38f, 16f);
+            Rect remixRect = new Rect(contentRect.xMax - remixXOffset, contentRect.yMax - 20f, 38f, 16f);
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
 
             // Yellow color to stand out from card background
             GUI.color = Color.yellow;
-            bool remixClicked = Widgets.ButtonText(remixRect, "Remix", false, true, true);
+            bool remixClicked = Widgets.ButtonText(remixRect, "LandingZone_Remix".Translate(), false, true, true);
             GUI.color = Color.white;
 
             if (remixClicked)
             {
+                var remixTimer = Stopwatch.StartNew();
+                Log.Message($"[LandingZone][Remix] Start remix of preset '{preset.Name}' into Advanced mode");
                 // Apply preset to Advanced mode filters (not Simple mode)
                 preset.ApplyTo(preferences.AdvancedFilters);
                 preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
                 preferences.Options.PreferencesUIMode = UIMode.Advanced; // Switch to Advanced mode
-                Messages.Message($"Loaded '{preset.Name}' into Advanced mode for editing", MessageTypeDefOf.NeutralEvent, false);
+                remixTimer.Stop();
+                Log.Message($"[LandingZone][Remix] Completed remix of '{preset.Name}' in {remixTimer.ElapsedMilliseconds} ms");
+                Messages.Message("LandingZone_LoadedPresetForEditing".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
             }
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
@@ -337,7 +432,7 @@ namespace LandingZone.Core.UI
             // Hover tooltip for Remix button
             if (Mouse.IsOver(remixRect))
             {
-                string remixTooltip = "Load this preset into Advanced mode for customization";
+                string remixTooltip = "LandingZone_LoadPresetTooltip".Translate();
                 TooltipHandler.TipRegion(remixRect, remixTooltip);
             }
 
@@ -349,7 +444,7 @@ namespace LandingZone.Core.UI
                 {
                     preset.ApplyTo(filters);
                     preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
-                    Messages.Message($"Applied preset: {preset.Name}", MessageTypeDefOf.NeutralEvent, false);
+                    Messages.Message("LandingZone_AppliedPreset".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
                 }
             }
 
@@ -358,10 +453,10 @@ namespace LandingZone.Core.UI
             {
                 string tooltip = $"{preset.Name}\n\n{preset.Description}\n\n";
                 if (!string.IsNullOrEmpty(preset.FilterSummary))
-                    tooltip += $"Filters: {preset.FilterSummary}\n\n";
+                    tooltip += "LandingZone_PresetFilters".Translate(preset.FilterSummary) + "\n\n";
                 if (preset.TargetRarity.HasValue)
-                    tooltip += $"Target Rarity: {preset.TargetRarity.Value.ToLabel()}\n\n";
-                tooltip += "Click to apply this preset.\nRemix: Load into Advanced mode for editing.";
+                    tooltip += "LandingZone_TargetRarity".Translate(preset.TargetRarity.Value.ToLabel()) + "\n\n";
+                tooltip += "LandingZone_PresetTooltipAction".Translate();
 
                 TooltipHandler.TipRegion(rect, tooltip);
             }

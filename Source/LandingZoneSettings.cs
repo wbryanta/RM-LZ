@@ -18,10 +18,29 @@ namespace LandingZone
         public int EvaluationChunkSize = 500;
         public static MaxCandidateTilesLimit MaxCandidates = MaxCandidateTilesLimit.Standard;
         public static bool AllowCancelSearch = true;
+        public static PerformanceProfile CurrentPerformanceProfile = PerformanceProfile.Default;
+
+        /// <summary>
+        /// Maximum candidates to process with Heavy filters (Growing Days, etc).
+        /// Heavy filters are deferred until top N candidates by cheap filter scoring.
+        /// This prevents 100k+ candidates × expensive operations = multi-minute delays.
+        /// Default: 1000 (1000 tiles × 3ms = 3 seconds vs 100k tiles × 3ms = 5 minutes)
+        /// </summary>
+        public static int MaxCandidatesForHeavyFilters = 1000;
 
         // ===== SCORING WEIGHT PRESETS =====
 
         public static ScoringWeightPreset WeightPreset = ScoringWeightPreset.CriticalFocused;
+
+        // ===== USER PRESETS (GLOBAL PERSISTENCE) =====
+
+        private List<Data.Preset> _userPresets = new List<Data.Preset>();
+
+        /// <summary>
+        /// Gets the global user presets list. Presets are stored in ModSettings and
+        /// persist across all saves/games. Modified by PresetLibrary.
+        /// </summary>
+        public List<Data.Preset> UserPresets => _userPresets;
 
         /// <summary>
         /// Gets the scoring weight values for the currently selected preset.
@@ -55,15 +74,96 @@ namespace LandingZone
             Scribe_Values.Look(ref LogLevel, "logLevel", LoggingLevel.Standard);
             Scribe_Values.Look(ref MaxCandidates, "maxCandidates", MaxCandidateTilesLimit.Standard);
             Scribe_Values.Look(ref AllowCancelSearch, "allowCancelSearch", true);
+            Scribe_Values.Look(ref CurrentPerformanceProfile, "performanceProfile", PerformanceProfile.Default);
+            Scribe_Values.Look(ref MaxCandidatesForHeavyFilters, "maxCandidatesForHeavyFilters", 1000);
+
+            // User presets (global persistence)
+            Scribe_Collections.Look(ref _userPresets, "userPresets", LookMode.Deep);
 
             // Clamp evaluation chunk size
             EvaluationChunkSize = Mathf.Clamp(EvaluationChunkSize, 50, 1000);
+
+            // Clamp heavy filter candidates (100 to 10000)
+            MaxCandidatesForHeavyFilters = Mathf.Clamp(MaxCandidatesForHeavyFilters, 100, 10000);
+
+            // Ensure user presets list is never null
+            if (Scribe.mode == LoadSaveMode.LoadingVars && _userPresets == null)
+            {
+                _userPresets = new List<Data.Preset>();
+            }
+        }
+
+        /// <summary>
+        /// Applies a performance profile, updating EvaluationChunkSize and MaxCandidates.
+        /// Persists settings to disk immediately.
+        /// </summary>
+        public void ApplyPerformanceProfile(PerformanceProfile profile)
+        {
+            CurrentPerformanceProfile = profile;
+
+            switch (profile)
+            {
+                case PerformanceProfile.Default:
+                    EvaluationChunkSize = 500;
+                    MaxCandidates = MaxCandidateTilesLimit.Standard;
+                    break;
+
+                case PerformanceProfile.HighEnd:
+                    EvaluationChunkSize = 1000;
+                    MaxCandidates = MaxCandidateTilesLimit.Unlimited;
+                    break;
+
+                case PerformanceProfile.Safe:
+                    EvaluationChunkSize = 250;
+                    MaxCandidates = MaxCandidateTilesLimit.Conservative;
+                    break;
+            }
+
+            LandingZoneMod.Instance?.WriteSettings();
         }
 
         public void DoSettingsWindowContents(Rect inRect)
         {
             Listing_Standard listingStandard = new Listing_Standard();
             listingStandard.Begin(inRect);
+
+            // Section: Performance Profile (Quick Apply)
+            listingStandard.Label("Performance Profile:");
+            listingStandard.Gap(4f);
+
+            Rect profileButtonsRect = listingStandard.GetRect(30f);
+            float buttonWidth = (profileButtonsRect.width - 16f) / 3f; // 3 buttons with 8px gaps
+
+            // Default button
+            if (Widgets.ButtonText(new Rect(profileButtonsRect.x, profileButtonsRect.y, buttonWidth, 30f),
+                PerformanceProfile.Default.ToLabel()))
+            {
+                ApplyPerformanceProfile(PerformanceProfile.Default);
+                Messages.Message("Performance profile set to Default (Chunk: 500, Max: 100k)", MessageTypeDefOf.NeutralEvent, false);
+            }
+
+            // High-end button
+            if (Widgets.ButtonText(new Rect(profileButtonsRect.x + buttonWidth + 8f, profileButtonsRect.y, buttonWidth, 30f),
+                PerformanceProfile.HighEnd.ToLabel()))
+            {
+                ApplyPerformanceProfile(PerformanceProfile.HighEnd);
+                Messages.Message("Performance profile set to High-end (Chunk: 1000, Max: Unlimited)", MessageTypeDefOf.TaskCompletion, false);
+            }
+
+            // Safe button
+            if (Widgets.ButtonText(new Rect(profileButtonsRect.x + (buttonWidth + 8f) * 2f, profileButtonsRect.y, buttonWidth, 30f),
+                PerformanceProfile.Safe.ToLabel()))
+            {
+                ApplyPerformanceProfile(PerformanceProfile.Safe);
+                Messages.Message("Performance profile set to Safe (Chunk: 250, Max: 25k)", MessageTypeDefOf.CautionInput, false);
+            }
+
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            listingStandard.Label($"Current: {CurrentPerformanceProfile.ToLabel()} - {CurrentPerformanceProfile.GetTooltip()}");
+            Text.Font = GameFont.Small;
+
+            listingStandard.Gap(12f);
 
             // Section: Performance Settings
             listingStandard.CheckboxLabeled("Auto-run search when world loads", ref AutoRunSearchOnWorldLoad);
@@ -96,6 +196,16 @@ namespace LandingZone
             listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
             listingStandard.Label(MaxCandidates.GetTooltip());
+            Text.Font = GameFont.Small;
+
+            listingStandard.Gap(12f);
+
+            // Max candidates for Heavy filters
+            listingStandard.Label($"Max candidates for Heavy filters: {MaxCandidatesForHeavyFilters}");
+            MaxCandidatesForHeavyFilters = Mathf.RoundToInt(listingStandard.Slider(MaxCandidatesForHeavyFilters, 100, 10000));
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            listingStandard.Label("Heavy filters (Growing Days) deferred until top N candidates. Lower = faster. Higher = more thorough.");
             Text.Font = GameFont.Small;
 
             listingStandard.Gap(12f);
@@ -246,6 +356,34 @@ namespace LandingZone
         Unlimited
     }
 
+    /// <summary>
+    /// Performance profile presets for quick configuration.
+    /// Provides one-click settings for different hardware capabilities and use cases.
+    /// </summary>
+    public enum PerformanceProfile
+    {
+        /// <summary>
+        /// Default - Balanced settings for most systems.
+        /// EvaluationChunkSize=500, MaxCandidates=Standard (100k).
+        /// Recommended for systems with 16GB+ RAM.
+        /// </summary>
+        Default,
+
+        /// <summary>
+        /// HighEnd - Maximum performance for powerful systems.
+        /// EvaluationChunkSize=1000, MaxCandidates=Unlimited.
+        /// Requires 32GB+ RAM. Fastest searches, highest memory usage.
+        /// </summary>
+        HighEnd,
+
+        /// <summary>
+        /// Safe - Conservative settings for low-memory systems or large worlds.
+        /// EvaluationChunkSize=250, MaxCandidates=Conservative (25k).
+        /// Recommended for systems with 8-16GB RAM or worlds with 200k+ tiles.
+        /// </summary>
+        Safe
+    }
+
     // ===== EXTENSION METHODS =====
 
     public static class ScoringWeightPresetExtensions
@@ -357,6 +495,34 @@ namespace LandingZone
                 MaxCandidateTilesLimit.Maximum => 150000,
                 MaxCandidateTilesLimit.Unlimited => int.MaxValue,
                 _ => 100000
+            };
+        }
+    }
+
+    public static class PerformanceProfileExtensions
+    {
+        public static string ToLabel(this PerformanceProfile profile)
+        {
+            return profile switch
+            {
+                PerformanceProfile.Default => "Default",
+                PerformanceProfile.HighEnd => "High-end",
+                PerformanceProfile.Safe => "Safe",
+                _ => "Unknown"
+            };
+        }
+
+        public static string GetTooltip(this PerformanceProfile profile)
+        {
+            return profile switch
+            {
+                PerformanceProfile.Default =>
+                    "Balanced settings. Chunk: 500, Max Candidates: 100k. Good for most systems (16GB+ RAM).",
+                PerformanceProfile.HighEnd =>
+                    "Maximum performance. Chunk: 1000, Max Candidates: Unlimited. Requires 32GB+ RAM. Fastest searches.",
+                PerformanceProfile.Safe =>
+                    "Conservative settings. Chunk: 250, Max Candidates: 25k. For low-memory systems (8-16GB) or large worlds (200k+ tiles).",
+                _ => ""
             };
         }
     }

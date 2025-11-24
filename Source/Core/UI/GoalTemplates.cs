@@ -81,14 +81,14 @@ namespace LandingZone.Core.UI
         {
             return category switch
             {
-                GoalCategory.ClimateComfort => "Climate Comfort",
-                GoalCategory.ResourceWealth => "Resource Wealth",
-                GoalCategory.Defensibility => "Defensibility",
-                GoalCategory.FoodProduction => "Food Production",
-                GoalCategory.PowerGeneration => "Power Generation",
-                GoalCategory.TradeAccess => "Trade Access",
-                GoalCategory.ChallengeRarity => "Challenge/Rarity",
-                GoalCategory.SpecificFeature => "Specific Feature",
+                GoalCategory.ClimateComfort => "LandingZone_GoalClimateComfort".Translate(),
+                GoalCategory.ResourceWealth => "LandingZone_GoalResourceWealth".Translate(),
+                GoalCategory.Defensibility => "LandingZone_GoalDefensibility".Translate(),
+                GoalCategory.FoodProduction => "LandingZone_GoalFoodProduction".Translate(),
+                GoalCategory.PowerGeneration => "LandingZone_GoalPowerGeneration".Translate(),
+                GoalCategory.TradeAccess => "LandingZone_GoalTradeAccess".Translate(),
+                GoalCategory.ChallengeRarity => "LandingZone_GoalChallengeRarity".Translate(),
+                GoalCategory.SpecificFeature => "LandingZone_GoalSpecificFeature".Translate(),
                 _ => category.ToString()
             };
         }
@@ -97,14 +97,14 @@ namespace LandingZone.Core.UI
         {
             return category switch
             {
-                GoalCategory.ClimateComfort => "Find a pleasant, moderate climate with comfortable temperatures year-round",
-                GoalCategory.ResourceWealth => "Maximize available resources: minerals, plants, animals, and materials",
-                GoalCategory.Defensibility => "Prioritize defensive terrain: mountains, caves, cliffs, and natural barriers",
-                GoalCategory.FoodProduction => "Optimize for food security through farming, hunting, or fishing",
-                GoalCategory.PowerGeneration => "Access to renewable energy: geothermal, wind, solar, or hydroelectric",
-                GoalCategory.TradeAccess => "Coastal or road access for trading and visitor traffic",
-                GoalCategory.ChallengeRarity => "Find ultra-rare map features for challenging or unique gameplay",
-                GoalCategory.SpecificFeature => "Search for specific map features, biomes, or conditions",
+                GoalCategory.ClimateComfort => "LandingZone_GoalClimateComfortDesc".Translate(),
+                GoalCategory.ResourceWealth => "LandingZone_GoalResourceWealthDesc".Translate(),
+                GoalCategory.Defensibility => "LandingZone_GoalDefensibilityDesc".Translate(),
+                GoalCategory.FoodProduction => "LandingZone_GoalFoodProductionDesc".Translate(),
+                GoalCategory.PowerGeneration => "LandingZone_GoalPowerGenerationDesc".Translate(),
+                GoalCategory.TradeAccess => "LandingZone_GoalTradeAccessDesc".Translate(),
+                GoalCategory.ChallengeRarity => "LandingZone_GoalChallengeRarityDesc".Translate(),
+                GoalCategory.SpecificFeature => "LandingZone_GoalSpecificFeatureDesc".Translate(),
                 _ => ""
             };
         }
@@ -114,8 +114,8 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "Temperature: 10-25°C",
-                    "Comfortable year-round temperatures (no extreme heat or cold)",
+                    "LandingZone_FilterTemp10to25".Translate(),
+                    "LandingZone_FilterTemp10to25Desc".Translate(),
                     FilterImportance.Critical,
                     f => {
                         f.AverageTemperatureRange = new FloatRange(10f, 25f);
@@ -123,8 +123,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "Rainfall: 600-1400mm",
-                    "Moderate rainfall (not too dry, not swampy)",
+                    "LandingZone_FilterRainfall600to1400".Translate(),
+                    "LandingZone_FilterRainfall600to1400Desc".Translate(),
                     FilterImportance.Critical,
                     f => {
                         f.RainfallRange = new FloatRange(600f, 1400f);
@@ -132,8 +132,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "Growing Days: 30-60 days",
-                    "Long growing season for year-round crops",
+                    "LandingZone_FilterGrowingDays30to60".Translate(),
+                    "LandingZone_FilterGrowingDays30to60Desc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.GrowingDaysRange = new FloatRange(30f, 60f);
@@ -148,8 +148,8 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "High Forageability",
-                    "Abundant wild plants for foraging and medicine",
+                    "LandingZone_FilterHighForage".Translate(),
+                    "LandingZone_FilterHighForageDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.ForageabilityRange = new FloatRange(0.7f, 1.0f);
@@ -157,8 +157,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "High Animal Density",
-                    "Plenty of wildlife for hunting and taming",
+                    "LandingZone_FilterHighAnimalDensity".Translate(),
+                    "LandingZone_FilterHighAnimalDensityDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.AnimalDensityRange = new FloatRange(3.0f, 6.5f);
@@ -166,8 +166,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "High Plant Density",
-                    "Dense vegetation for wood and materials",
+                    "LandingZone_FilterHighPlantDensity".Translate(),
+                    "LandingZone_FilterHighPlantDensityDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.PlantDensityRange = new FloatRange(0.7f, 1.0f);
@@ -182,8 +182,8 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "Mountainous Terrain",
-                    "Natural barriers and defensible positions",
+                    "LandingZone_FilterMountainous".Translate(),
+                    "LandingZone_FilterMountainousDesc".Translate(),
                     FilterImportance.Critical,
                     f => {
                         f.AllowedHilliness.Clear();
@@ -191,8 +191,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "Cave Systems",
-                    "Underground defensibility and storage",
+                    "LandingZone_FilterCaveSystems".Translate(),
+                    "LandingZone_FilterCaveSystemsDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);
@@ -209,8 +209,8 @@ namespace LandingZone.Core.UI
             {
                 case FoodProductionType.Farming:
                     recommendations.Add(new FilterRecommendation(
-                        "Growing Days: 50-60 days",
-                        "Year-round farming capability",
+                        "LandingZone_FilterGrowingDays50to60".Translate(),
+                        "LandingZone_FilterGrowingDays50to60Desc".Translate(),
                         FilterImportance.Critical,
                         f => {
                             f.GrowingDaysRange = new FloatRange(50f, 60f);
@@ -218,8 +218,8 @@ namespace LandingZone.Core.UI
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Rainfall: 1200-2500mm",
-                        "Consistent moisture for crops",
+                        "LandingZone_FilterRainfall1200to2500".Translate(),
+                        "LandingZone_FilterRainfall1200to2500Desc".Translate(),
                         FilterImportance.Critical,
                         f => {
                             f.RainfallRange = new FloatRange(1200f, 2500f);
@@ -227,8 +227,8 @@ namespace LandingZone.Core.UI
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Fertile Soil",
-                        "Faster crop growth",
+                        "LandingZone_FilterFertileSoil".Translate(),
+                        "LandingZone_FilterFertileSoilDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.MapFeatures.SetImportance("Fertile", FilterImportance.Preferred);
@@ -238,8 +238,8 @@ namespace LandingZone.Core.UI
 
                 case FoodProductionType.Hunting:
                     recommendations.Add(new FilterRecommendation(
-                        "High Animal Density",
-                        "Abundant wildlife for hunting",
+                        "LandingZone_FilterHighAnimalDensity".Translate(),
+                        "LandingZone_FilterHighAnimalDensityDesc".Translate(),
                         FilterImportance.Critical,
                         f => {
                             f.AnimalDensityRange = new FloatRange(3.0f, 6.5f);
@@ -247,8 +247,8 @@ namespace LandingZone.Core.UI
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Increased Animal Life",
-                        "More hunting opportunities",
+                        "LandingZone_FilterIncreasedAnimalLife".Translate(),
+                        "LandingZone_FilterIncreasedAnimalLifeDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
@@ -258,24 +258,24 @@ namespace LandingZone.Core.UI
 
                 case FoodProductionType.Fishing:
                     recommendations.Add(new FilterRecommendation(
-                        "Coastal Access",
-                        "Ocean fishing opportunities",
+                        "LandingZone_FilterCoastalAccess".Translate(),
+                        "LandingZone_FilterCoastalAccessDesc".Translate(),
                         FilterImportance.Critical,
                         f => {
                             f.CoastalImportance = FilterImportance.Critical;
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Rivers",
-                        "Freshwater fishing + irrigation",
+                        "LandingZone_FilterRivers".Translate(),
+                        "LandingZone_FilterRiversDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.Rivers.SetImportance("River", FilterImportance.Preferred);
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "High Fish Population",
-                        "Better fishing yields",
+                        "LandingZone_FilterHighFishPopulation".Translate(),
+                        "LandingZone_FilterHighFishPopulationDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.FishPopulationRange = new FloatRange(300f, 900f);
@@ -286,8 +286,8 @@ namespace LandingZone.Core.UI
 
                 case FoodProductionType.Mixed:
                     recommendations.Add(new FilterRecommendation(
-                        "Growing Days: 30-60 days",
-                        "Decent growing season",
+                        "LandingZone_FilterGrowingDays30to60".Translate(),
+                        "LandingZone_FilterGrowingDays30to60Desc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.GrowingDaysRange = new FloatRange(30f, 60f);
@@ -295,8 +295,8 @@ namespace LandingZone.Core.UI
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Moderate Animal Density",
-                        "Hunting opportunities",
+                        "LandingZone_FilterModerateAnimalDensity".Translate(),
+                        "LandingZone_FilterModerateAnimalDensityDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.AnimalDensityRange = new FloatRange(2.0f, 6.5f);
@@ -304,8 +304,8 @@ namespace LandingZone.Core.UI
                         }
                     ));
                     recommendations.Add(new FilterRecommendation(
-                        "Water Access",
-                        "Coastal OR river for fishing",
+                        "LandingZone_FilterWaterAccess".Translate(),
+                        "LandingZone_FilterWaterAccessDesc".Translate(),
                         FilterImportance.Preferred,
                         f => {
                             f.WaterAccessImportance = FilterImportance.Preferred;
@@ -322,32 +322,32 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "Steam Geysers",
-                    "Free geothermal power and heat",
+                    "LandingZone_FilterSteamGeysers".Translate(),
+                    "LandingZone_FilterSteamGeysersDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Preferred);
                     }
                 ),
                 new FilterRecommendation(
-                    "Windy Climate",
-                    "Wind turbine bonus",
+                    "LandingZone_FilterWindyClimate".Translate(),
+                    "LandingZone_FilterWindyClimateDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.MapFeatures.SetImportance("WindyMutator", FilterImportance.Preferred);
                     }
                 ),
                 new FilterRecommendation(
-                    "Sunny Climate",
-                    "Solar panel efficiency bonus",
+                    "LandingZone_FilterSunnyClimate".Translate(),
+                    "LandingZone_FilterSunnyClimateDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.MapFeatures.SetImportance("SunnyMutator", FilterImportance.Preferred);
                     }
                 ),
                 new FilterRecommendation(
-                    "Rivers",
-                    "Hydroelectric potential",
+                    "LandingZone_FilterRiversHydro".Translate(),
+                    "LandingZone_FilterRiversHydroDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.Rivers.SetImportance("River", FilterImportance.Preferred);
@@ -361,8 +361,8 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "Coastal OR Roads",
-                    "Trade caravans and ships can reach you",
+                    "LandingZone_FilterCoastalOrRoads".Translate(),
+                    "LandingZone_FilterCoastalOrRoadsDesc".Translate(),
                     FilterImportance.Critical,
                     f => {
                         // Water access covers both coastal and rivers
@@ -372,8 +372,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "Moderate Climate",
-                    "Easier travel for caravans",
+                    "LandingZone_FilterModerateClimate".Translate(),
+                    "LandingZone_FilterModerateClimateDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         f.AverageTemperatureRange = new FloatRange(5f, 35f);
@@ -388,8 +388,8 @@ namespace LandingZone.Core.UI
             return new List<FilterRecommendation>
             {
                 new FilterRecommendation(
-                    "Ultra-Rare Features",
-                    "Unique map features for challenging gameplay",
+                    "LandingZone_FilterUltraRareFeatures".Translate(),
+                    "LandingZone_FilterUltraRareFeaturesDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         // Examples of rare features
@@ -399,8 +399,8 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterRecommendation(
-                    "Extreme Climate",
-                    "Challenging temperature conditions",
+                    "LandingZone_FilterExtremeClimate".Translate(),
+                    "LandingZone_FilterExtremeClimateDesc".Translate(),
                     FilterImportance.Preferred,
                     f => {
                         // Either very hot or very cold

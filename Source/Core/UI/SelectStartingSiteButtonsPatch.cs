@@ -191,8 +191,23 @@ namespace LandingZone.Core.UI
             var searchButtonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, searchButtonWidth, rect.height);
 
             // Search button (green when active, shows current mode context)
-            var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
-            string modeLabel = currentMode == UIMode.Simple ? "Simple" : "Advanced";
+            // Priority: ActivePreset > GuidedBuilder > Simple/Advanced mode
+            string modeLabel;
+            var activePreset = LandingZoneContext.State?.Preferences?.ActivePreset;
+            if (activePreset != null)
+            {
+                modeLabel = activePreset.Name; // e.g., "Elysian", "Desert Oasis"
+            }
+            else
+            {
+                var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
+                modeLabel = currentMode switch
+                {
+                    UIMode.GuidedBuilder => "Guided",
+                    UIMode.Advanced => "Advanced",
+                    _ => "Simple"
+                };
+            }
             string searchLabel = $"Search Landing Zones ({modeLabel})";
 
             var prevColor = GUI.color;
@@ -205,26 +220,26 @@ namespace LandingZone.Core.UI
                 }
             }
             GUI.color = prevColor;
-            TooltipHandler.TipRegion(searchButtonRect, $"Search for best landing sites using {modeLabel} mode filters");
+            TooltipHandler.TipRegion(searchButtonRect, "LandingZone_SearchTooltip".Translate(modeLabel));
 
             // Filters button (opens preferences/filters window)
-            if (Widgets.ButtonText(filtersRect, "Filters"))
+            if (Widgets.ButtonText(filtersRect, "LandingZone_FiltersButton".Translate()))
             {
                 TogglePreferencesWindow();
             }
-            TooltipHandler.TipRegion(filtersRect, "Configure search filters and preferences");
+            TooltipHandler.TipRegion(filtersRect, "LandingZone_FiltersTooltip".Translate());
 
             // Dev button (Dev Mode only)
             if (Prefs.DevMode)
             {
                 var devPrevColor = GUI.color;
                 GUI.color = new Color(1f, 0.7f, 0.7f); // Pinkish to indicate dev-only
-                if (Widgets.ButtonText(devRect, "Dev"))
+                if (Widgets.ButtonText(devRect, "LandingZone_DevButton".Translate()))
                 {
                     Find.WindowStack.Add(new DevToolsWindow());
                 }
                 GUI.color = devPrevColor;
-                TooltipHandler.TipRegion(devRect, "Developer tools: logging, cache dump, performance test");
+                TooltipHandler.TipRegion(devRect, "LandingZone_DevTooltip".Translate());
             }
 
             // Top (XX) button - opens results window
@@ -358,7 +373,7 @@ namespace LandingZone.Core.UI
             GUI.color = new Color(0.7f, 0.15f, 0.15f);
             Text.Font = GameFont.Tiny;
 
-            if (Widgets.ButtonText(rect, "Stop", drawBackground: true, doMouseoverSound: true, active: true))
+            if (Widgets.ButtonText(rect, "LandingZone_StopButton".Translate(), drawBackground: true, doMouseoverSound: true, active: true))
             {
                 LandingZoneContext.CancelEvaluation();
                 SoundDefOf.Click.PlayOneShotOnCamera();
@@ -367,7 +382,7 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
             Text.Font = prevFont;
 
-            TooltipHandler.TipRegion(rect, "Cancel the current search");
+            TooltipHandler.TipRegion(rect, "LandingZone_CancelSearchTooltip".Translate());
         }
 
         private static void DrawBookmarkIcon(Rect rect)

@@ -80,7 +80,7 @@ namespace LandingZone.Core.UI
 
             // Header
             Text.Font = GameFont.Medium;
-            listing.Label($"Edit Bookmark - Tile {_tileId}");
+            listing.Label("LandingZone_EditBookmark".Translate(_tileId));
             Text.Font = GameFont.Small;
             listing.GapLine();
 
@@ -89,29 +89,29 @@ namespace LandingZone.Core.UI
             if (bookmark != null)
             {
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                listing.Label($"Location: {bookmark.GetCoordinatesText()}");
+                listing.Label("LandingZone_BookmarkLocation".Translate(bookmark.GetCoordinatesText()));
                 GUI.color = Color.white;
                 listing.Gap(10f);
             }
 
             // Title field
-            listing.Label("Title:");
+            listing.Label("LandingZone_TitleLabel".Translate());
             _title = listing.TextEntry(_title);
             listing.Gap(10f);
 
             // Notes field (multiline)
-            listing.Label("Notes (optional):");
+            listing.Label("LandingZone_NotesLabel".Translate());
             Rect notesRect = listing.GetRect(120f);
             _notes = GUI.TextArea(notesRect, _notes ?? string.Empty);
             listing.Gap(10f);
 
             // Show title on globe toggle
             Rect toggleRect = listing.GetRect(30f);
-            Widgets.CheckboxLabeled(toggleRect, "Show title on world map", ref _showTitleOnGlobe);
+            Widgets.CheckboxLabeled(toggleRect, "LandingZone_ShowTitleOnWorldMap".Translate(), ref _showTitleOnGlobe);
             listing.Gap(10f);
 
             // Color picker
-            listing.Label("Marker Color:");
+            listing.Label("LandingZone_MarkerColor".Translate());
             listing.Gap(5f);
             DrawColorPicker(listing.GetRect(ColorSwatchSize * 2 + 20f));
             listing.Gap(10f);
@@ -176,7 +176,7 @@ namespace LandingZone.Core.UI
 
             // Save button
             Rect saveRect = new Rect(rect.x, rect.y, buttonWidth, rect.height);
-            if (Widgets.ButtonText(saveRect, "Save"))
+            if (Widgets.ButtonText(saveRect, "LandingZone_Save".Translate()))
             {
                 SaveChanges(manager);
                 Close();
@@ -184,7 +184,7 @@ namespace LandingZone.Core.UI
 
             // Cancel button
             Rect cancelRect = new Rect(rect.x + buttonWidth + 10f, rect.y, buttonWidth, rect.height);
-            if (Widgets.ButtonText(cancelRect, "Cancel"))
+            if (Widgets.ButtonText(cancelRect, "LandingZone_Cancel".Translate()))
             {
                 _cancelled = true;
                 Close();
@@ -203,7 +203,7 @@ namespace LandingZone.Core.UI
 
             if (success)
             {
-                Messages.Message($"Bookmark updated for tile {_tileId}", MessageTypeDefOf.SilentInput, false);
+                Messages.Message("LandingZone_BookmarkUpdated".Translate(_tileId), MessageTypeDefOf.SilentInput, false);
             }
             else
             {

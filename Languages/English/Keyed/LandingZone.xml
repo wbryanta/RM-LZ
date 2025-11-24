@@ -3,4 +3,597 @@
   <LandingZone_ShowBestSites>Show Best Sites</LandingZone_ShowBestSites>
   <LandingZone_HideBestSites>Hide Best Sites</LandingZone_HideBestSites>
   <LandingZone_BestSitesToggleTooltip>Highlight the highest-scoring landing tiles based on your current filters.</LandingZone_BestSitesToggleTooltip>
+  <LandingZone_QuickSetup>Quick Setup</LandingZone_QuickSetup>
+  <LandingZone_MyPresets>My Presets:</LandingZone_MyPresets>
+  <LandingZone_CommunityPresets>Community Presets:</LandingZone_CommunityPresets>
+  <LandingZone_CommunityPresetsPlaceholder>Share your perfect landing site presets!\n\nExport your custom presets using the button below, then share your token on the Steam Workshop or RimWorld forums.\n\nCommunity-curated presets coming soon!</LandingZone_CommunityPresetsPlaceholder>
+  <LandingZone_SaveCustomPreset>Save Custom Preset</LandingZone_SaveCustomPreset>
+  <LandingZone_SavePresetFromAdvanced>Save Preset</LandingZone_SavePresetFromAdvanced>
+  <LandingZone_QuickTweaks>Quick Tweaks</LandingZone_QuickTweaks>
+  <LandingZone_ResultLimit>Result Limit: {0}</LandingZone_ResultLimit>
+  <LandingZone_ResultCountLabel>{0} results</LandingZone_ResultCountLabel>
+  <LandingZone_TemperatureCenter>Temperature Center: {0}{1}</LandingZone_TemperatureCenter>
+  <LandingZone_BiomeLock>Biome Lock: {0}</LandingZone_BiomeLock>
+  <LandingZone_Any>Any</LandingZone_Any>
+  <LandingZone_AnyBiome>Any Biome</LandingZone_AnyBiome>
+  <LandingZone_ModifiedFromPreset>Modified from '{0}' preset</LandingZone_ModifiedFromPreset>
+  <LandingZone_Remix>Remix</LandingZone_Remix>
+  <LandingZone_Revert>Revert</LandingZone_Revert>
+  <LandingZone_RevertTooltip>Reset this preset to its original state</LandingZone_RevertTooltip>
+  <LandingZone_LoadedPresetForEditing>Loaded '{0}' into Advanced mode for editing</LandingZone_LoadedPresetForEditing>
+  <LandingZone_LoadPresetTooltip>Load this preset into Advanced mode for customization</LandingZone_LoadPresetTooltip>
+  <LandingZone_AppliedPreset>Applied preset: {0}</LandingZone_AppliedPreset>
+  <LandingZone_PresetFilters>Filters: {0}</LandingZone_PresetFilters>
+  <LandingZone_TargetRarity>Target Rarity: {0}</LandingZone_TargetRarity>
+  <LandingZone_PresetTooltipAction>Click to apply this preset.\nRemix: Load into Advanced mode for editing.</LandingZone_PresetTooltipAction>
+  <LandingZone_SavePresetTitle>Save Preset</LandingZone_SavePresetTitle>
+  <LandingZone_PresetNameLabel>Preset Name (max 10 characters):</LandingZone_PresetNameLabel>
+  <LandingZone_Save>Save</LandingZone_Save>
+  <LandingZone_Cancel>Cancel</LandingZone_Cancel>
+  <LandingZone_PresetNameRequired>Please enter a preset name</LandingZone_PresetNameRequired>
+  <LandingZone_PresetSaved>Saved preset: {0}</LandingZone_PresetSaved>
+  <LandingZone_PresetNameExists>Preset name '{0}' already exists. Please choose a different name.</LandingZone_PresetNameExists>
+  <LandingZone_EditBookmark>Edit Bookmark - Tile {0}</LandingZone_EditBookmark>
+  <LandingZone_BookmarkLocation>Location: {0}</LandingZone_BookmarkLocation>
+  <LandingZone_TitleLabel>Title:</LandingZone_TitleLabel>
+  <LandingZone_NotesLabel>Notes (optional):</LandingZone_NotesLabel>
+  <LandingZone_ShowTitleOnWorldMap>Show title on world map</LandingZone_ShowTitleOnWorldMap>
+  <LandingZone_MarkerColor>Marker Color:</LandingZone_MarkerColor>
+  <LandingZone_BookmarkUpdated>Bookmark updated for tile {0}</LandingZone_BookmarkUpdated>
+  <LandingZone_PresetHub>Preset Hub</LandingZone_PresetHub>
+  <LandingZone_GuidedBuilder>Guided Builder</LandingZone_GuidedBuilder>
+  <LandingZone_Advanced>Advanced</LandingZone_Advanced>
+  <LandingZone_ModeHint>Preset Hub: Quick starts | Guided Builder: Goal-based wizard | Advanced: Full control</LandingZone_ModeHint>
+  <LandingZone_PriorityFinder>Priority-Based Site Finder</LandingZone_PriorityFinder>
+  <LandingZone_PriorityInstructions>Select 1-4 goals in priority order. Priority 1 = Critical filters, Priority 2-4 = Preferred filters.</LandingZone_PriorityInstructions>
+  <LandingZone_PriorityRequired>Priority {0} (Required)</LandingZone_PriorityRequired>
+  <LandingZone_PriorityOptional>Priority {0} (Optional)</LandingZone_PriorityOptional>
+  <LandingZone_SelectGoal>Select a goal...</LandingZone_SelectGoal>
+  <LandingZone_None>None</LandingZone_None>
+  <LandingZone_SelectPriorityPrompt>Select at least Priority 1 to see recommendations.</LandingZone_SelectPriorityPrompt>
+  <LandingZone_SelectedPriorities>Selected Priorities:</LandingZone_SelectedPriorities>
+  <LandingZone_PriorityImportance>{0}. {1} ({2})</LandingZone_PriorityImportance>
+  <LandingZone_ImportanceCritical>Critical</LandingZone_ImportanceCritical>
+  <LandingZone_ImportancePreferred>Preferred</LandingZone_ImportancePreferred>
+  <LandingZone_ApplyAndSearchNow>Apply &amp; Search Now</LandingZone_ApplyAndSearchNow>
+  <LandingZone_ApplyAndOpenAdvanced>Apply &amp; Open in Advanced</LandingZone_ApplyAndOpenAdvanced>
+  <LandingZone_AppliedToAdvanced>Applied priority-based filters to Advanced mode</LandingZone_AppliedToAdvanced>
+  <LandingZone_SaveAsCustomPreset>Save as Custom Preset</LandingZone_SaveAsCustomPreset>
+  <LandingZone_ClearAllPriorities>Clear All Priorities</LandingZone_ClearAllPriorities>
+  <LandingZone_ChangesSavedAutomatically>Changes are saved automatically</LandingZone_ChangesSavedAutomatically>
+  <LandingZone_ResetToDefaults>Reset to defaults</LandingZone_ResetToDefaults>
+  <LandingZone_FiltersReset>Filters reset to defaults</LandingZone_FiltersReset>
+  <LandingZone_CopyToAdvanced>Copy to Advanced mode</LandingZone_CopyToAdvanced>
+  <LandingZone_CopiedToAdvanced>Simple mode settings copied to Advanced mode</LandingZone_CopiedToAdvanced>
+  <LandingZone_CopyToSimple>Copy to Simple mode</LandingZone_CopyToSimple>
+  <LandingZone_CopiedToSimple>Advanced mode settings copied to Simple mode</LandingZone_CopiedToSimple>
+  <LandingZone_Step1>Step 1: Choose Your Goal</LandingZone_Step1>
+  <LandingZone_Step2>Step 2: Refine Your Goal</LandingZone_Step2>
+  <LandingZone_Step3>Step 3: Review Filters</LandingZone_Step3>
+  <LandingZone_GuidedBuilderTitle>Guided Builder</LandingZone_GuidedBuilderTitle>
+  <LandingZone_PriorityQuestion>What's your priority for this colony?</LandingZone_PriorityQuestion>
+  <LandingZone_BackToPreferences>← Back to Preferences</LandingZone_BackToPreferences>
+  <LandingZone_LoadingAdvanced>Opening Advanced mode for custom feature selection...</LandingZone_LoadingAdvanced>
+  <LandingZone_FoodQuestion>What type of food production?</LandingZone_FoodQuestion>
+  <LandingZone_Farming>Farming</LandingZone_Farming>
+  <LandingZone_FarmingDesc>Long growing season, fertile soil, consistent rainfall</LandingZone_FarmingDesc>
+  <LandingZone_Hunting>Hunting</LandingZone_Hunting>
+  <LandingZone_HuntingDesc>Abundant wildlife, high animal density</LandingZone_HuntingDesc>
+  <LandingZone_Fishing>Fishing</LandingZone_Fishing>
+  <LandingZone_FishingDesc>Coastal + rivers, high fish population</LandingZone_FishingDesc>
+  <LandingZone_Mixed>Mixed</LandingZone_Mixed>
+  <LandingZone_MixedDesc>Balance of farming, hunting, and fishing</LandingZone_MixedDesc>
+  <LandingZone_BackArrow>← Back</LandingZone_BackArrow>
+  <LandingZone_ContinueArrow>Continue →</LandingZone_ContinueArrow>
+  <LandingZone_RecommendedFilters>Recommended Filters ({0}):</LandingZone_RecommendedFilters>
+  <LandingZone_TweakInAdvanced>Tweak in Advanced</LandingZone_TweakInAdvanced>
+  <LandingZone_GoalLoadedForEditing>Loaded '{0}' filters into Advanced mode for editing</LandingZone_GoalLoadedForEditing>
+  <LandingZone_SearchNow>Search Now</LandingZone_SearchNow>
+  <LandingZone_CriticalBadge>🔴 Critical</LandingZone_CriticalBadge>
+  <LandingZone_PreferredBadge>🔵 Preferred</LandingZone_PreferredBadge>
+  <LandingZone_FilterRequired>Required</LandingZone_FilterRequired>
+  <LandingZone_FilterPreferred>Preferred</LandingZone_FilterPreferred>
+  <LandingZone_FilterIgnored>Ignored</LandingZone_FilterIgnored>
+  <LandingZone_FilterUnknown>?</LandingZone_FilterUnknown>
+  <LandingZone_FilterDlcRequired>DLC Required</LandingZone_FilterDlcRequired>
+  <LandingZone_SearchPlaceholder>Search...</LandingZone_SearchPlaceholder>
+  <LandingZone_All>All</LandingZone_All>
+  <LandingZone_NoneLabel>None</LandingZone_NoneLabel>
+  <LandingZone_Reset>Reset</LandingZone_Reset>
+  <LandingZone_NoItems>No items available</LandingZone_NoItems>
+  <LandingZone_AllCritical>All Critical</LandingZone_AllCritical>
+  <LandingZone_AllPreferred>All Preferred</LandingZone_AllPreferred>
+  <LandingZone_AllIgnored>All Ignored</LandingZone_AllIgnored>
+  <LandingZone_ConflictError>ERROR</LandingZone_ConflictError>
+  <LandingZone_ConflictWarning>WARNING</LandingZone_ConflictWarning>
+  <LandingZone_ConflictInfo>INFO</LandingZone_ConflictInfo>
+  <LandingZone_SearchFiltersPlaceholder>Search filters...</LandingZone_SearchFiltersPlaceholder>
+
+  <!-- Bookmark Manager -->
+  <LandingZone_BookmarksTitle>Bookmarks ({0}/20)</LandingZone_BookmarksTitle>
+  <LandingZone_NoActiveGame>No active game - bookmarks unavailable</LandingZone_NoActiveGame>
+  <LandingZone_ClearAll>Clear All</LandingZone_ClearAll>
+  <LandingZone_NoBookmarksYet>No bookmarks yet.\n\nClick the star icon in the action bar to add bookmarks,\nor use the 'BM' button in the Results window.</LandingZone_NoBookmarksYet>
+  <LandingZone_Edit>Edit</LandingZone_Edit>
+  <LandingZone_JumpTo>Jump To</LandingZone_JumpTo>
+  <LandingZone_Delete>Delete</LandingZone_Delete>
+  <LandingZone_DeletePreset>Delete Preset</LandingZone_DeletePreset>
+  <LandingZone_DeletePresetConfirm>Are you sure you want to delete '{0}'?</LandingZone_DeletePresetConfirm>
+  <LandingZone_DontAskAgain>Don't ask again</LandingZone_DontAskAgain>
+  <LandingZone_EditPreset>Edit</LandingZone_EditPreset>
+  <LandingZone_EditPresetTitle>Edit Preset</LandingZone_EditPresetTitle>
+  <LandingZone_PresetNameLabel>Preset Name:</LandingZone_PresetNameLabel>
+  <LandingZone_PresetDescriptionLabel>Description:</LandingZone_PresetDescriptionLabel>
+  <LandingZone_PresetDeleted>Deleted preset: {0}</LandingZone_PresetDeleted>
+  <LandingZone_Notes>Notes:</LandingZone_Notes>
+
+  <!-- Main UI Buttons -->
+  <LandingZone_FiltersButton>Filters</LandingZone_FiltersButton>
+  <LandingZone_FiltersTooltip>Configure search filters and preferences</LandingZone_FiltersTooltip>
+  <LandingZone_DevButton>Dev</LandingZone_DevButton>
+  <LandingZone_DevTooltip>Developer tools: logging, cache dump, performance test</LandingZone_DevTooltip>
+  <LandingZone_StopButton>Stop</LandingZone_StopButton>
+  <LandingZone_CancelSearchTooltip>Cancel the current search</LandingZone_CancelSearchTooltip>
+  <LandingZone_SearchTooltip>Search for best landing sites using {0} mode filters</LandingZone_SearchTooltip>
+  <LandingZone_DLCNotInstalled>{0} DLC not installed</LandingZone_DLCNotInstalled>
+  <LandingZone_TabClimate>Climate</LandingZone_TabClimate>
+  <LandingZone_TabGeography>Geography</LandingZone_TabGeography>
+  <LandingZone_TabResources>Resources</LandingZone_TabResources>
+  <LandingZone_TabFeatures>Features</LandingZone_TabFeatures>
+  <LandingZone_TabResults>Results</LandingZone_TabResults>
+  <LandingZone_TabClimateTooltip>Temperature, rainfall, growing days, pollution</LandingZone_TabClimateTooltip>
+  <LandingZone_TabGeographyTooltip>Hilliness, coastal access, movement difficulty, swampiness</LandingZone_TabGeographyTooltip>
+  <LandingZone_TabResourcesTooltip>Stones, forageability, plant/animal density, fish, grazing</LandingZone_TabResourcesTooltip>
+  <LandingZone_TabFeaturesTooltip>Map features (mutators), rivers, roads, biomes</LandingZone_TabFeaturesTooltip>
+  <LandingZone_TabResultsTooltip>Result count, strictness, fallback tiers</LandingZone_TabResultsTooltip>
+  <LandingZone_LiveCoveragePreview>LIVE PREVIEW</LandingZone_LiveCoveragePreview>
+  <LandingZone_BaselineTiles>Baseline (all settleable tiles):</LandingZone_BaselineTiles>
+  <LandingZone_AfterApplyingFilters>After applying filters:</LandingZone_AfterApplyingFilters>
+  <LandingZone_VeryRestrictiveWarning>⚠ Very restrictive! May return 0 results.</LandingZone_VeryRestrictiveWarning>
+  <LandingZone_HighlyRestrictiveWarning>⚠ Highly restrictive - results may be limited.</LandingZone_HighlyRestrictiveWarning>
+  <LandingZone_EstimateUnavailable>(Tile count estimate unavailable for these filter types)</LandingZone_EstimateUnavailable>
+  <LandingZone_CriticalFiltersLabel>Critical Filters ({0}):</LandingZone_CriticalFiltersLabel>
+  <LandingZone_PreferredFiltersLabel>Preferred Filters ({0}):</LandingZone_PreferredFiltersLabel>
+  <LandingZone_WarningsLabel>⚠ Warnings ({0}):</LandingZone_WarningsLabel>
+  <LandingZone_TipAdjustFilters>Tip: Adjust filters in left panel to refine your search</LandingZone_TipAdjustFilters>
+  <LandingZone_FallbackTiers>Fallback Tiers</LandingZone_FallbackTiers>
+  <LandingZone_RelaxStrictness>Consider relaxing strictness:</LandingZone_RelaxStrictness>
+  <LandingZone_CurrentStrictness>Current: {0}</LandingZone_CurrentStrictness>
+  <LandingZone_AppliedFallback>Applied fallback tier: {0} (strictness {1})</LandingZone_AppliedFallback>
+  <LandingZone_FallbackTooltip>{0}\nClick to set strictness to {1}</LandingZone_FallbackTooltip>
+
+  <!-- Results Window -->
+  <LandingZone_ResultsTitle>Landing Zone Results ({0})</LandingZone_ResultsTitle>
+  <LandingZone_HideHighlights>Hide highlights</LandingZone_HideHighlights>
+  <LandingZone_ShowHighlights>Show highlights</LandingZone_ShowHighlights>
+  <LandingZone_HighlightsTooltip>Toggle colored markers on the world map showing top-scoring tiles from your search results</LandingZone_HighlightsTooltip>
+  <LandingZone_SearchingProgress>Searching... {0}% complete</LandingZone_SearchingProgress>
+  <LandingZone_SearchComplete>{0} matches in {1} ms</LandingZone_SearchComplete>
+  <LandingZone_NoSearchData>No active match data. Run a search to populate this list.</LandingZone_NoSearchData>
+  <LandingZone_SortLabel>Sort:</LandingZone_SortLabel>
+  <LandingZone_SortByScore>Score</LandingZone_SortByScore>
+  <LandingZone_SortByGrowingDays>Growing Days</LandingZone_SortByGrowingDays>
+  <LandingZone_SortByTemperature>Temperature</LandingZone_SortByTemperature>
+  <LandingZone_SortByBiomeName>Biome Name</LandingZone_SortByBiomeName>
+  <LandingZone_ShowLabel>Show:</LandingZone_ShowLabel>
+  <LandingZone_ShowAll>All</LandingZone_ShowAll>
+  <LandingZone_Show90Plus>90%+</LandingZone_Show90Plus>
+  <LandingZone_Show75Plus>75%+</LandingZone_Show75Plus>
+  <LandingZone_BookmarkAll>Bookmark All</LandingZone_BookmarkAll>
+  <LandingZone_DebugDump>[DEBUG] Dump</LandingZone_DebugDump>
+  <LandingZone_SearchingEllipsis>Searching... {0}%</LandingZone_SearchingEllipsis>
+  <LandingZone_WaitingForSearch>Once LandingZone finishes a search the ranked sites will appear here.</LandingZone_WaitingForSearch>
+  <LandingZone_SummaryTop>Top: {0}%</LandingZone_SummaryTop>
+  <LandingZone_SummaryAverage>Avg: {0}%</LandingZone_SummaryAverage>
+  <LandingZone_SummaryExcellent>Excellent: {0}</LandingZone_SummaryExcellent>
+  <LandingZone_SummaryGood>Good: {0}</LandingZone_SummaryGood>
+  <LandingZone_SummaryAcceptable>Acceptable: {0}</LandingZone_SummaryAcceptable>
+  <LandingZone_SummaryPoor>Poor: {0}</LandingZone_SummaryPoor>
+  <LandingZone_ForageExcellent>excellent</LandingZone_ForageExcellent>
+  <LandingZone_ForageGood>good</LandingZone_ForageGood>
+  <LandingZone_ForagePoor>poor</LandingZone_ForagePoor>
+  <LandingZone_ForageMinimal>minimal</LandingZone_ForageMinimal>
+  <LandingZone_NoFilterData>No filter data available</LandingZone_NoFilterData>
+  <LandingZone_GrowingDaysLabel>{0}/{1}d grow</LandingZone_GrowingDaysLabel>
+  <LandingZone_TemperatureFahrenheit>{0}°F ({1}°F to {2}°F)</LandingZone_TemperatureFahrenheit>
+  <LandingZone_TemperatureCelsius>{0}°C ({1}°C to {2}°C)</LandingZone_TemperatureCelsius>
+  <LandingZone_RainfallLabel>{0}mm rain</LandingZone_RainfallLabel>
+  <LandingZone_ForageLabel>forage: {0}% ({1})</LandingZone_ForageLabel>
+  <LandingZone_ForageNone>none</LandingZone_ForageNone>
+  <LandingZone_MismatchTemp>Temp: {0} (wanted {1})</LandingZone_MismatchTemp>
+  <LandingZone_MismatchRain>Rain: {0}mm (wanted {1}-{2}mm)</LandingZone_MismatchRain>
+  <LandingZone_MismatchGrow>Grow: {0}d (wanted {1}-{2}d)</LandingZone_MismatchGrow>
+  <LandingZone_MismatchForage>Forage: {0}% (wanted {1}-{2}%)</LandingZone_MismatchForage>
+  <LandingZone_CoastalNoRequired>Coastal: no (required)</LandingZone_CoastalNoRequired>
+  <LandingZone_TierPerfectPlus>Perfect+</LandingZone_TierPerfectPlus>
+  <LandingZone_TierPerfect>Perfect</LandingZone_TierPerfect>
+  <LandingZone_TierPerfectMinus>Perfect-</LandingZone_TierPerfectMinus>
+  <LandingZone_TierNearPerfect>Near Perfect</LandingZone_TierNearPerfect>
+  <LandingZone_TierGood>Good</LandingZone_TierGood>
+  <LandingZone_TierFair>Fair</LandingZone_TierFair>
+  <LandingZone_UnknownBiome>Unknown biome</LandingZone_UnknownBiome>
+  <LandingZone_RankLabel>#{0} • Tile {1}</LandingZone_RankLabel>
+  <LandingZone_BookmarkedIcon>★</LandingZone_BookmarkedIcon>
+  <LandingZone_NotBookmarkedIcon>☆</LandingZone_NotBookmarkedIcon>
+  <LandingZone_Focus>Focus</LandingZone_Focus>
+  <LandingZone_ScoreLabel>Score: {0} ({1})</LandingZone_ScoreLabel>
+  <LandingZone_NoSnapshotData>No snapshot data</LandingZone_NoSnapshotData>
+  <LandingZone_TempFormat>{0}</LandingZone_TempFormat>
+  <LandingZone_BookmarkNotAvailable>Bookmark manager not available</LandingZone_BookmarkNotAvailable>
+  <LandingZone_RemovedBookmarks>Removed {0} bookmark(s)</LandingZone_RemovedBookmarks>
+  <LandingZone_BookmarkedResults>Bookmarked {0} result(s)</LandingZone_BookmarkedResults>
+  <LandingZone_AlreadyBookmarked>{0} tile(s) already bookmarked or capacity reached</LandingZone_AlreadyBookmarked>
+  <LandingZone_RankBookmarkLabel>Rank {0}</LandingZone_RankBookmarkLabel>
+  <LandingZone_MapFeatures>Map Features</LandingZone_MapFeatures>
+  <LandingZone_River>River</LandingZone_River>
+  <LandingZone_Road>Road</LandingZone_Road>
+  <LandingZone_Stones>Stones</LandingZone_Stones>
+  <LandingZone_Temperature>Temperature</LandingZone_Temperature>
+  <LandingZone_MinTemperature>Min Temperature</LandingZone_MinTemperature>
+  <LandingZone_MaxTemperature>Max Temperature</LandingZone_MaxTemperature>
+  <LandingZone_Rainfall>Rainfall</LandingZone_Rainfall>
+  <LandingZone_GrowingSeason>Growing Season</LandingZone_GrowingSeason>
+  <LandingZone_Pollution>Pollution</LandingZone_Pollution>
+  <LandingZone_ForageableFood>Forageable Food</LandingZone_ForageableFood>
+  <LandingZone_MovementCost>Movement Cost</LandingZone_MovementCost>
+  <LandingZone_CoastalOcean>Coastal (Ocean)</LandingZone_CoastalOcean>
+  <LandingZone_CoastalLake>Coastal (Lake)</LandingZone_CoastalLake>
+  <LandingZone_Caves>Caves</LandingZone_Caves>
+  <LandingZone_Grazing>Grazing</LandingZone_Grazing>
+  <LandingZone_StoneCount>Stone Count</LandingZone_StoneCount>
+  <LandingZone_WorldFeature>World Feature</LandingZone_WorldFeature>
+  <LandingZone_Landmark>Landmark</LandingZone_Landmark>
+  <LandingZone_AdjacentBiomes>Adjacent Biomes</LandingZone_AdjacentBiomes>
+  <LandingZone_Elevation>Elevation</LandingZone_Elevation>
+  <LandingZone_MatchedSection>✓ Matched</LandingZone_MatchedSection>
+  <LandingZone_MissedSection>✗ Missed</LandingZone_MissedSection>
+  <LandingZone_ModifiersSection>⚡ Modifiers</LandingZone_ModifiersSection>
+  <LandingZone_ModifiersSectionWithBonus>⚡ Modifiers (+{0})</LandingZone_ModifiersSectionWithBonus>
+  <LandingZone_ModifiersSectionWithPenalty>⚡ Modifiers ({0})</LandingZone_ModifiersSectionWithPenalty>
+  <LandingZone_CriticalMissTag>[CRITICAL]</LandingZone_CriticalMissTag>
+  <LandingZone_NearMissTag>[near miss]</LandingZone_NearMissTag>
+  <LandingZone_DebugDumpHeader>LANDING ZONE [DEBUG] MATCH DATA DUMP</LandingZone_DebugDumpHeader>
+  <LandingZone_DebugTotalMatches>Total matches: {0} (filtered from {1})</LandingZone_DebugTotalMatches>
+  <LandingZone_DebugMinScoreFilter>Min score filter: {0}</LandingZone_DebugMinScoreFilter>
+  <LandingZone_DebugSortMode>Sort mode: {0}</LandingZone_DebugSortMode>
+  <LandingZone_DebugPresetMode>Preset: {0} | Mode: {1}</LandingZone_DebugPresetMode>
+  <LandingZone_DebugMutatorOverrides>Mutator overrides: Using ActivePreset ({0} overrides)</LandingZone_DebugMutatorOverrides>
+  <LandingZone_DebugLoggingTier>Logging tier: {0} (dumping {1} matches)</LandingZone_DebugLoggingTier>
+  <LandingZone_DebugAllCaps>ALL</LandingZone_DebugAllCaps>
+  <LandingZone_DebugTop3>top-3</LandingZone_DebugTop3>
+  <LandingZone_DebugRankTile>--- RANK #{0} | Tile {1} ---</LandingZone_DebugRankTile>
+  <LandingZone_DebugScore>Score: {0}</LandingZone_DebugScore>
+  <LandingZone_DebugBiome>Biome: {0}</LandingZone_DebugBiome>
+  <LandingZone_DebugPerfectMatch>Perfect Match: {0}</LandingZone_DebugPerfectMatch>
+  <LandingZone_DebugPerfectPlus>Perfect+: {0}</LandingZone_DebugPerfectPlus>
+  <LandingZone_DebugCriticalScore>Critical Score: {0}</LandingZone_DebugCriticalScore>
+  <LandingZone_DebugPreferredScore>Preferred Score: {0}</LandingZone_DebugPreferredScore>
+  <LandingZone_DebugMutatorScore>Mutator Score: {0}</LandingZone_DebugMutatorScore>
+  <LandingZone_DebugPenalty>Penalty: {0}</LandingZone_DebugPenalty>
+  <LandingZone_DebugCriticalMisses>Critical Misses: {0}</LandingZone_DebugCriticalMisses>
+  <LandingZone_DebugMatchedFilters>✓ MATCHED ({0}):</LandingZone_DebugMatchedFilters>
+  <LandingZone_DebugCriticalTag>[CRITICAL]</LandingZone_DebugCriticalTag>
+  <LandingZone_DebugPreferredTag>[PREFERRED]</LandingZone_DebugPreferredTag>
+  <LandingZone_DebugRangeTag>[RANGE]</LandingZone_DebugRangeTag>
+  <LandingZone_DebugBooleanTag>[BOOLEAN]</LandingZone_DebugBooleanTag>
+  <LandingZone_DebugMembership>Membership: {0}, Penalty: {1}</LandingZone_DebugMembership>
+  <LandingZone_DebugMissedFilters>✗ MISSED ({0}):</LandingZone_DebugMissedFilters>
+
+  <!-- Conflict Detector -->
+  <LandingZone_ConflictRiverAnd>Impossible: {0} river types with AND (tiles have max 1 river)</LandingZone_ConflictRiverAnd>
+  <LandingZone_ConflictRiverSuggestion>Switch to OR operator or keep only 1 Critical river type</LandingZone_ConflictRiverSuggestion>
+  <LandingZone_ConflictStoneAnd>Impossible requirement: {0} stones with AND operator</LandingZone_ConflictStoneAnd>
+  <LandingZone_ConflictStoneSuggestion>Switch to OR operator (tiles only have 1 ore type)</LandingZone_ConflictStoneSuggestion>
+  <LandingZone_ConflictGrowingTemp>Contradictory: High growing days require warm temperatures</LandingZone_ConflictGrowingTemp>
+  <LandingZone_ConflictGrowingTempSuggestion>Increase minimum temperature or decrease growing days requirement</LandingZone_ConflictGrowingTempSuggestion>
+  <LandingZone_ConflictHighRainfall>High rainfall requirement limits biome options</LandingZone_ConflictHighRainfall>
+  <LandingZone_ConflictHighRainfallSuggestion>Desert and arid biomes will be excluded</LandingZone_ConflictHighRainfallSuggestion>
+  <LandingZone_ConflictVeryRestrictive>Very restrictive config: Only ~{0} tiles estimated ({1} critical filters)</LandingZone_ConflictVeryRestrictive>
+  <LandingZone_ConflictVeryRestrictiveSuggestion>Relax some Critical→Preferred, use Fallback Tiers, or widen ranges</LandingZone_ConflictVeryRestrictiveSuggestion>
+  <LandingZone_ConflictRestrictive>Restrictive config: Only ~{0} tiles estimated ({1} critical filters)</LandingZone_ConflictRestrictive>
+  <LandingZone_ConflictRestrictiveSuggestion>Consider relaxing some Critical filters to Preferred if search yields few results</LandingZone_ConflictRestrictiveSuggestion>
+  <LandingZone_ConflictManyCriticals>{0} Critical filters may be too restrictive</LandingZone_ConflictManyCriticals>
+  <LandingZone_ConflictManyCriticalsSuggestion>Consider changing some Critical filters to Preferred for more results</LandingZone_ConflictManyCriticalsSuggestion>
+  <LandingZone_ConflictUltraRareAnd>Ultra-rare AND: {0} ultra-rare features (each &lt;0.1% of tiles)</LandingZone_ConflictUltraRareAnd>
+  <LandingZone_ConflictUltraRareAndSuggestion>Switch to OR operator or relax some to Preferred importance</LandingZone_ConflictUltraRareAndSuggestion>
+  <LandingZone_ConflictManyFeaturesAnd>{0} Critical features with AND may produce very few results</LandingZone_ConflictManyFeaturesAnd>
+  <LandingZone_ConflictManyFeaturesAndSuggestion>Switch to OR operator or reduce Critical feature count</LandingZone_ConflictManyFeaturesAndSuggestion>
+  <LandingZone_OperatorAny>Match: ANY of the selected {0}</LandingZone_OperatorAny>
+  <LandingZone_OperatorAll>Match: ALL of the selected {0}</LandingZone_OperatorAll>
+  <LandingZone_OperatorOrTooltip>OR operator: Tiles need AT LEAST ONE of the {0} selected {1}.\n\nMore flexible - typically produces more results.</LandingZone_OperatorOrTooltip>
+  <LandingZone_OperatorAndTooltip>AND operator: Tiles need ALL {0} selected {1}.\n\nVery restrictive - may produce few or zero results.</LandingZone_OperatorAndTooltip>
+
+  <!-- Goal Templates -->
+  <LandingZone_GoalClimateComfort>Climate Comfort</LandingZone_GoalClimateComfort>
+  <LandingZone_GoalResourceWealth>Resource Wealth</LandingZone_GoalResourceWealth>
+  <LandingZone_GoalDefensibility>Defensibility</LandingZone_GoalDefensibility>
+  <LandingZone_GoalFoodProduction>Food Production</LandingZone_GoalFoodProduction>
+  <LandingZone_GoalPowerGeneration>Power Generation</LandingZone_GoalPowerGeneration>
+  <LandingZone_GoalTradeAccess>Trade Access</LandingZone_GoalTradeAccess>
+  <LandingZone_GoalChallengeRarity>Challenge/Rarity</LandingZone_GoalChallengeRarity>
+  <LandingZone_GoalSpecificFeature>Specific Feature</LandingZone_GoalSpecificFeature>
+  <LandingZone_GoalClimateComfortDesc>Find a pleasant, moderate climate with comfortable temperatures year-round</LandingZone_GoalClimateComfortDesc>
+  <LandingZone_GoalResourceWealthDesc>Maximize available resources: minerals, plants, animals, and materials</LandingZone_GoalResourceWealthDesc>
+  <LandingZone_GoalDefensibilityDesc>Prioritize defensive terrain: mountains, caves, cliffs, and natural barriers</LandingZone_GoalDefensibilityDesc>
+  <LandingZone_GoalFoodProductionDesc>Optimize for food security through farming, hunting, or fishing</LandingZone_GoalFoodProductionDesc>
+  <LandingZone_GoalPowerGenerationDesc>Access to renewable energy: geothermal, wind, solar, or hydroelectric</LandingZone_GoalPowerGenerationDesc>
+  <LandingZone_GoalTradeAccessDesc>Coastal or road access for trading and visitor traffic</LandingZone_GoalTradeAccessDesc>
+  <LandingZone_GoalChallengeRarityDesc>Find ultra-rare map features for challenging or unique gameplay</LandingZone_GoalChallengeRarityDesc>
+  <LandingZone_GoalSpecificFeatureDesc>Search for specific map features, biomes, or conditions</LandingZone_GoalSpecificFeatureDesc>
+  <LandingZone_FilterTemp10to25>Temperature: 10-25°C</LandingZone_FilterTemp10to25>
+  <LandingZone_FilterTemp10to25Desc>Comfortable year-round temperatures (no extreme heat or cold)</LandingZone_FilterTemp10to25Desc>
+  <LandingZone_FilterRainfall600to1400>Rainfall: 600-1400mm</LandingZone_FilterRainfall600to1400>
+  <LandingZone_FilterRainfall600to1400Desc>Moderate rainfall (not too dry, not swampy)</LandingZone_FilterRainfall600to1400Desc>
+  <LandingZone_FilterGrowingDays30to60>Growing Days: 30-60 days</LandingZone_FilterGrowingDays30to60>
+  <LandingZone_FilterGrowingDays30to60Desc>Long growing season for year-round crops</LandingZone_FilterGrowingDays30to60Desc>
+  <LandingZone_FilterHighForage>High Forageability</LandingZone_FilterHighForage>
+  <LandingZone_FilterHighForageDesc>Abundant wild plants for foraging and medicine</LandingZone_FilterHighForageDesc>
+  <LandingZone_FilterHighAnimalDensity>High Animal Density</LandingZone_FilterHighAnimalDensity>
+  <LandingZone_FilterHighAnimalDensityDesc>Plenty of wildlife for hunting and taming</LandingZone_FilterHighAnimalDensityDesc>
+  <LandingZone_FilterHighPlantDensity>High Plant Density</LandingZone_FilterHighPlantDensity>
+  <LandingZone_FilterHighPlantDensityDesc>Dense vegetation for wood and materials</LandingZone_FilterHighPlantDensityDesc>
+  <LandingZone_FilterMountainous>Mountainous Terrain</LandingZone_FilterMountainous>
+  <LandingZone_FilterMountainousDesc>Natural barriers and defensible positions</LandingZone_FilterMountainousDesc>
+  <LandingZone_FilterCaveSystems>Cave Systems</LandingZone_FilterCaveSystems>
+  <LandingZone_FilterCaveSystemsDesc>Underground defensibility and storage</LandingZone_FilterCaveSystemsDesc>
+  <LandingZone_FilterGrowingDays50to60>Growing Days: 50-60 days</LandingZone_FilterGrowingDays50to60>
+  <LandingZone_FilterGrowingDays50to60Desc>Year-round farming capability</LandingZone_FilterGrowingDays50to60Desc>
+  <LandingZone_FilterRainfall1200to2500>Rainfall: 1200-2500mm</LandingZone_FilterRainfall1200to2500>
+  <LandingZone_FilterRainfall1200to2500Desc>Consistent moisture for crops</LandingZone_FilterRainfall1200to2500Desc>
+  <LandingZone_FilterFertileSoil>Fertile Soil</LandingZone_FilterFertileSoil>
+  <LandingZone_FilterFertileSoilDesc>Faster crop growth</LandingZone_FilterFertileSoilDesc>
+  <LandingZone_FilterIncreasedAnimalLife>Increased Animal Life</LandingZone_FilterIncreasedAnimalLife>
+  <LandingZone_FilterIncreasedAnimalLifeDesc>More hunting opportunities</LandingZone_FilterIncreasedAnimalLifeDesc>
+  <LandingZone_FilterCoastalAccess>Coastal Access</LandingZone_FilterCoastalAccess>
+  <LandingZone_FilterCoastalAccessDesc>Ocean fishing opportunities</LandingZone_FilterCoastalAccessDesc>
+  <LandingZone_FilterRivers>Rivers</LandingZone_FilterRivers>
+  <LandingZone_FilterRiversDesc>Freshwater fishing + irrigation</LandingZone_FilterRiversDesc>
+  <LandingZone_FilterHighFishPopulation>High Fish Population</LandingZone_FilterHighFishPopulation>
+  <LandingZone_FilterHighFishPopulationDesc>Better fishing yields</LandingZone_FilterHighFishPopulationDesc>
+  <LandingZone_FilterModerateAnimalDensity>Moderate Animal Density</LandingZone_FilterModerateAnimalDensity>
+  <LandingZone_FilterModerateAnimalDensityDesc>Hunting opportunities</LandingZone_FilterModerateAnimalDensityDesc>
+  <LandingZone_FilterWaterAccess>Water Access</LandingZone_FilterWaterAccess>
+  <LandingZone_FilterWaterAccessDesc>Coastal OR river for fishing</LandingZone_FilterWaterAccessDesc>
+  <LandingZone_FilterSteamGeysers>Steam Geysers</LandingZone_FilterSteamGeysers>
+  <LandingZone_FilterSteamGeysersDesc>Free geothermal power and heat</LandingZone_FilterSteamGeysersDesc>
+  <LandingZone_FilterWindyClimate>Windy Climate</LandingZone_FilterWindyClimate>
+  <LandingZone_FilterWindyClimateDesc>Wind turbine bonus</LandingZone_FilterWindyClimateDesc>
+  <LandingZone_FilterSunnyClimate>Sunny Climate</LandingZone_FilterSunnyClimate>
+  <LandingZone_FilterSunnyClimateDesc>Solar panel efficiency bonus</LandingZone_FilterSunnyClimateDesc>
+  <LandingZone_FilterRiversHydro>Rivers</LandingZone_FilterRiversHydro>
+  <LandingZone_FilterRiversHydroDesc>Hydroelectric potential</LandingZone_FilterRiversHydroDesc>
+  <LandingZone_FilterCoastalOrRoads>Coastal OR Roads</LandingZone_FilterCoastalOrRoads>
+  <LandingZone_FilterCoastalOrRoadsDesc>Trade caravans and ships can reach you</LandingZone_FilterCoastalOrRoadsDesc>
+
+  <!-- Dev Tools -->
+  <LandingZone_DevTools_WindowTitle>Developer Tools</LandingZone_DevTools_WindowTitle>
+  <LandingZone_DevTools_DevModeOnly>Dev Mode only - hidden in release builds</LandingZone_DevTools_DevModeOnly>
+  <LandingZone_DevTools_LoggingLevel>Logging Level: {0}</LandingZone_DevTools_LoggingLevel>
+  <LandingZone_DevTools_SelectLevel>Select level:</LandingZone_DevTools_SelectLevel>
+  <LandingZone_DevTools_LoggingLevelSet>Logging level set to {0}</LandingZone_DevTools_LoggingLevelSet>
+  <LandingZone_DevTools_DumpWorldCache>Dump FULL World Cache</LandingZone_DevTools_DumpWorldCache>
+  <LandingZone_DevTools_DumpStarted>[LandingZone] Dumping FULL world cache (this may take a while)...</LandingZone_DevTools_DumpStarted>
+  <LandingZone_DevTools_DumpCompleted>[LandingZone] Full world cache dump started. Check {0} for LandingZone_FullCache_[timestamp].txt</LandingZone_DevTools_DumpCompleted>
+  <LandingZone_DevTools_DumpDescription>Dumps all ~295k tiles with full property reflection.</LandingZone_DevTools_DumpDescription>
+  <LandingZone_DevTools_DumpOutputPath>Output: Config/LandingZone_FullCache_[timestamp].txt</LandingZone_DevTools_DumpOutputPath>
+  <LandingZone_DevTools_RunPerformanceTest>Run Performance Test</LandingZone_DevTools_RunPerformanceTest>
+  <LandingZone_DevTools_PerfTestStarted>[LandingZone] Running performance test...</LandingZone_DevTools_PerfTestStarted>
+  <LandingZone_DevTools_PerfTestCompleted>[LandingZone] Performance test complete - check Player.log</LandingZone_DevTools_PerfTestCompleted>
+  <LandingZone_DevTools_PerfTestDescription>Benchmarks filter performance on current world.</LandingZone_DevTools_PerfTestDescription>
+  <LandingZone_DevTools_PerfTestResults>Results written to Player.log.</LandingZone_DevTools_PerfTestResults>
+  <LandingZone_DevTools_VerboseTip>Tip: Set logging to Verbose for detailed match score breakdowns in Player.log.</LandingZone_DevTools_VerboseTip>
+  <LandingZone_DevTools_WorldDataDump>LandingZone FULL WORLD CACHE DUMP - {0}</LandingZone_DevTools_WorldDataDump>
+  <LandingZone_DevTools_WorldInfo>World: {0}</LandingZone_DevTools_WorldInfo>
+  <LandingZone_DevTools_Seed>Seed: {0}</LandingZone_DevTools_Seed>
+  <LandingZone_DevTools_TotalTiles>Total Tiles: {0}</LandingZone_DevTools_TotalTiles>
+  <LandingZone_DevTools_WorldObjectInspection>WORLD OBJECT INSPECTION (ALL fields/properties)</LandingZone_DevTools_WorldObjectInspection>
+  <LandingZone_DevTools_WorldFields>--- WORLD FIELDS ({0} total) ---</LandingZone_DevTools_WorldFields>
+  <LandingZone_DevTools_WorldProperties>--- WORLD PROPERTIES ({0} total) ---</LandingZone_DevTools_WorldProperties>
+  <LandingZone_DevTools_TileData>TILE DATA</LandingZone_DevTools_TileData>
+  <LandingZone_DevTools_DictEntries>Dictionary with {0} entries</LandingZone_DevTools_DictEntries>
+  <LandingZone_DevTools_CollectionItems>Collection with {0} items</LandingZone_DevTools_CollectionItems>
+  <LandingZone_DevTools_FirstFive>(first 5)</LandingZone_DevTools_FirstFive>
+  <LandingZone_DevTools_AndMore>... and {0} more</LandingZone_DevTools_AndMore>
+  <LandingZone_DevTools_ErrorInspecting>Error inspecting World object: {0}</LandingZone_DevTools_ErrorInspecting>
+  <LandingZone_DevTools_WorldNullError>[LandingZone] WorldDataDumper: World or grid is null</LandingZone_DevTools_WorldNullError>
+  <LandingZone_DevTools_DumpToFile>[LandingZone] Full world cache dumped to: {0}</LandingZone_DevTools_DumpToFile>
+  <LandingZone_DevTools_DumpSuccess>LandingZone: Full cache dumped to {0}</LandingZone_DevTools_DumpSuccess>
+  <LandingZone_DevTools_TilePropertyInspectorTitle>[LandingZone] ===== Inspecting Tile {0} =====</LandingZone_DevTools_TilePropertyInspectorTitle>
+  <LandingZone_DevTools_TilePropertyInspectorEnd>[LandingZone] ===== End Tile Inspection =====</LandingZone_DevTools_TilePropertyInspectorEnd>
+  <LandingZone_DevTools_NoSettleableTile>[LandingZone] TilePropertyInspector: No settleable tile found</LandingZone_DevTools_NoSettleableTile>
+  <LandingZone_DevTools_LandmarkFound>[LandingZone] *** Found landmark-related property: {0}</LandingZone_DevTools_LandmarkFound>
+  <LandingZone_DevTools_FeatureFound>[LandingZone] *** Found feature-related property: {0}</LandingZone_DevTools_FeatureFound>
+  <LandingZone_DevTools_PerfTest>{name}</LandingZone_DevTools_PerfTest>
+  <LandingZone_DevTools_PerfTestTiles>PerformanceTest: {0}</LandingZone_DevTools_PerfTestTiles>
+  <LandingZone_DevTools_PerfTestResult>  - {0} tiles in {1}ms ({2}ms/tile)</LandingZone_DevTools_PerfTestResult>
+  <LandingZone_DevTools_PerfTestEstimate>  - Estimated full world (295k): {0}ms = {1}s</LandingZone_DevTools_PerfTestEstimate>
+  <LandingZone_DevTools_PerfTestExpensive>PerformanceTest: {0} is EXPENSIVE - needs optimization!</LandingZone_DevTools_PerfTestExpensive>
+  <LandingZone_DevTools_PerfTestModerate>PerformanceTest: {0} is moderate - consider optimizing</LandingZone_DevTools_PerfTestModerate>
+  <LandingZone_DevTools_PerfTestCheap>PerformanceTest: {0} is cheap - no optimization needed</LandingZone_DevTools_PerfTestCheap>
+  <LandingZone_DevTools_PerfTestNoWorld>[LandingZone] FilterPerformanceTest: No world loaded</LandingZone_DevTools_PerfTestNoWorld>
+  <LandingZone_DevTools_PerfTestComplete>[LandingZone] Performance Test: Complete. Check results above.</LandingZone_DevTools_PerfTestComplete>
+  <LandingZone_DevTools_PerfTestTesting>[LandingZone] Performance Test: Testing {0} settleable tiles</LandingZone_DevTools_PerfTestTesting>
+
+  <!-- ========================================
+       Preset Library (12 Curated Presets)
+       ======================================== -->
+
+  <!-- === Elysian Preset === -->
+  <LandingZone_Preset_elysian_Name>Elysian</LandingZone_Preset_elysian_Name>
+  <LandingZone_Preset_elysian_Description>The easiest RimWorld experience - perfect climate, ideal biome, abundant resources, stacked +10 quality mutators. God-tier colonist paradise.</LandingZone_Preset_elysian_Description>
+  <LandingZone_Preset_elysian_FilterSummary>Perfect Climate | +10 Mutators | Best Resources</LandingZone_Preset_elysian_FilterSummary>
+
+  <!-- === Exotic Preset === -->
+  <LandingZone_Preset_exotic_Name>Exotic</LandingZone_Preset_exotic_Name>
+  <LandingZone_Preset_exotic_Description>Chase the rarest features in RimWorld - ArcheanTrees anchor (24 tiles globally), with bonus scoring for stacking additional rare mutators.</LandingZone_Preset_exotic_Description>
+  <LandingZone_Preset_exotic_FilterSummary>ArcheanTrees | Stack Rare Features</LandingZone_Preset_exotic_FilterSummary>
+  <LandingZone_Preset_exotic_FallbackTier2>Ultra-Rares (any)</LandingZone_Preset_exotic_FallbackTier2>
+
+  <!-- === SubZero Preset === -->
+  <LandingZone_Preset_subzero_Name>SubZero</LandingZone_Preset_subzero_Name>
+  <LandingZone_Preset_subzero_Description>Extreme cold survival challenge - frozen tundra, ice sheets, barely any growing season. For masochists only.</LandingZone_Preset_subzero_Description>
+  <LandingZone_Preset_subzero_FilterSummary>Frozen | Tundra/Boreal | Ice Features</LandingZone_Preset_subzero_FilterSummary>
+
+  <!-- === Scorched Preset === -->
+  <LandingZone_Preset_scorched_Name>Scorched</LandingZone_Preset_scorched_Name>
+  <LandingZone_Preset_scorched_Description>Volcanic nightmare - extreme heat, lava flows, toxic atmosphere. Embrace the fire!</LandingZone_Preset_scorched_Description>
+  <LandingZone_Preset_scorched_FilterSummary>Lava | Extreme Heat | Toxic | Volcanic</LandingZone_Preset_scorched_FilterSummary>
+  <LandingZone_Preset_scorched_FallbackTier2>Lava features (relaxed temp)</LandingZone_Preset_scorched_FallbackTier2>
+  <LandingZone_Preset_scorched_FallbackTier3>Extreme heat desert (no lava)</LandingZone_Preset_scorched_FallbackTier3>
+
+  <!-- === Desert Oasis Preset === -->
+  <LandingZone_Preset_desert_oasis_Name>Desert Oasis</LandingZone_Preset_desert_oasis_Name>
+  <LandingZone_Preset_desert_oasis_Description>Water in the wasteland - desert tiles with life-sustaining rivers. Coastal access is a bonus!</LandingZone_Preset_desert_oasis_Description>
+  <LandingZone_Preset_desert_oasis_FilterSummary>Desert | Rivers | Hot</LandingZone_Preset_desert_oasis_FilterSummary>
+
+  <!-- === Defense Preset === -->
+  <LandingZone_Preset_defense_Name>Defense</LandingZone_Preset_defense_Name>
+  <LandingZone_Preset_defense_Description>Natural defensibility - mountains, caves, chokepoints, stone abundance. Build an impenetrable fortress.</LandingZone_Preset_defense_Description>
+  <LandingZone_Preset_defense_FilterSummary>Mountainous | Caves | Granite+Slate | Chokepoints</LandingZone_Preset_defense_FilterSummary>
+
+  <!-- === Agrarian Preset === -->
+  <LandingZone_Preset_agrarian_Name>Agrarian</LandingZone_Preset_agrarian_Name>
+  <LandingZone_Preset_agrarian_Description>Maximum agricultural potential - fertile soil, perfect climate, water abundance, year-round growing. Feed the world.</LandingZone_Preset_agrarian_Description>
+  <LandingZone_Preset_agrarian_FilterSummary>50-60 Grow Days | Fertile | High Rain | Flat</LandingZone_Preset_agrarian_FilterSummary>
+
+  <!-- === Power Preset === -->
+  <LandingZone_Preset_power_Name>Power</LandingZone_Preset_power_Name>
+  <LandingZone_Preset_power_Description>Maximum power generation - geothermal, hydro, wind, solar. Energy independence through diversified infrastructure.</LandingZone_Preset_power_Description>
+  <LandingZone_Preset_power_FilterSummary>Geothermal | Rivers | Wind | Solar</LandingZone_Preset_power_FilterSummary>
+
+  <!-- === Bayou Preset === -->
+  <LandingZone_Preset_bayou_Name>Bayou</LandingZone_Preset_bayou_Name>
+  <LandingZone_Preset_bayou_Description>Hot, wet, diseased marshlands - swamps, mud, difficult terrain, overgrown vegetation. Swamp horror survival.</LandingZone_Preset_bayou_Description>
+  <LandingZone_Preset_bayou_FilterSummary>Swampy | Hot+Wet | Muddy | Overgrown</LandingZone_Preset_bayou_FilterSummary>
+
+  <!-- === Savannah Preset === -->
+  <LandingZone_Preset_savannah_Name>Savannah</LandingZone_Preset_savannah_Name>
+  <LandingZone_Preset_savannah_Description>Warm grasslands with abundant wildlife, wind, open terrain - perfect for hunting, herding, and wind power.</LandingZone_Preset_savannah_Description>
+  <LandingZone_Preset_savannah_FilterSummary>Wildlife | Warm | Grasslands | Grazing</LandingZone_Preset_savannah_FilterSummary>
+
+  <!-- === Aquatic Preset === -->
+  <LandingZone_Preset_aquatic_Name>Aquatic</LandingZone_Preset_aquatic_Name>
+  <LandingZone_Preset_aquatic_Description>Maximum water access - coastal tiles with rivers, lakes, headwaters. Fish, trade, and naval supremacy.</LandingZone_Preset_aquatic_Description>
+  <LandingZone_Preset_aquatic_FilterSummary>Coastal | Rivers | Lakes | Fish</LandingZone_Preset_aquatic_FilterSummary>
+
+  <!-- === Homestead Preset === -->
+  <LandingZone_Preset_homestead_Name>Homestead</LandingZone_Preset_homestead_Name>
+  <LandingZone_Preset_homestead_Description>Move-in ready! Find abandoned settlements and ancient structures with existing buildings to salvage.</LandingZone_Preset_homestead_Description>
+  <LandingZone_Preset_homestead_FilterSummary>Ruins | Abandoned Colonies | Ancient Sites</LandingZone_Preset_homestead_FilterSummary>
+
+  <!-- Preset Library Log Messages -->
+  <LandingZone_PresetLibraryInitialized>[LandingZone] PresetLibrary initialized with {0} curated presets</LandingZone_PresetLibraryInitialized>
+  <LandingZone_PresetAlreadyExists>[LandingZone] User preset '{0}' already exists</LandingZone_PresetAlreadyExists>
+  <LandingZone_PresetSavedWithOverrides>[LandingZone] Saved user preset '{0}' with {1} quality overrides</LandingZone_PresetSavedWithOverrides>
+  <LandingZone_PresetSavedLog>[LandingZone] Saved user preset: {0}</LandingZone_PresetSavedLog>
+  <LandingZone_PresetDeleted>[LandingZone] Deleted user preset: {0}</LandingZone_PresetDeleted>
+  <LandingZone_UserCreatedPresetDesc>User-created preset from Simple mode</LandingZone_UserCreatedPresetDesc>
+
+  <!-- Preset Import/Export (Token System) -->
+  <LandingZone_ImportPresetToken>Import from Token</LandingZone_ImportPresetToken>
+  <LandingZone_ExportPresetToken>Export to Token</LandingZone_ExportPresetToken>
+  <LandingZone_ImportTokenInstructions>Paste a preset token below to import a shared preset. Tokens are compact, shareable strings that encode all filter settings.</LandingZone_ImportTokenInstructions>
+  <LandingZone_PasteTokenHere>Paste token here:</LandingZone_PasteTokenHere>
+  <LandingZone_DecodeToken>Decode Token</LandingZone_DecodeToken>
+  <LandingZone_TokenDecodedSuccess>✓ Token decoded successfully!</LandingZone_TokenDecodedSuccess>
+  <LandingZone_PresetNameOptional>Preset name (optional - leave blank to keep original):</LandingZone_PresetNameOptional>
+  <LandingZone_ImportPreset>Import Preset</LandingZone_ImportPreset>
+  <LandingZone_PresetImported>Imported preset: {0}</LandingZone_PresetImported>
+  <LandingZone_PresetImportFailed>Failed to import preset</LandingZone_PresetImportFailed>
+  <LandingZone_TokenCopied>Token copied to clipboard: {0}</LandingZone_TokenCopied>
+  <LandingZone_TokenExportFailed>Failed to export token</LandingZone_TokenExportFailed>
+  <LandingZone_TokenExportedTitle>Preset token for '{0}'</LandingZone_TokenExportedTitle>
+  <LandingZone_TokenExportedInstructions>Share this token with other players or keep it for backup. It has also been copied to your clipboard.</LandingZone_TokenExportedInstructions>
+  <LandingZone_TokenValueLabel>Preset token:</LandingZone_TokenValueLabel>
+  <LandingZone_CopyToken>Copy Token</LandingZone_CopyToken>
+
+  <!-- ========================================
+       Advanced Filter Controls
+       ======================================== -->
+
+  <!-- Climate & Weather Group -->
+  <LandingZone_Filter_ClimateWeatherGroup>Climate &amp; Weather</LandingZone_Filter_ClimateWeatherGroup>
+  <LandingZone_Filter_TemperatureAverage>Temperature (Average)</LandingZone_Filter_TemperatureAverage>
+  <LandingZone_Filter_TemperatureMinimum>Temperature (Minimum)</LandingZone_Filter_TemperatureMinimum>
+  <LandingZone_Filter_TemperatureMaximum>Temperature (Maximum)</LandingZone_Filter_TemperatureMaximum>
+  <LandingZone_Filter_Rainfall>Rainfall</LandingZone_Filter_Rainfall>
+  <LandingZone_Filter_GrowingDays>Growing Days</LandingZone_Filter_GrowingDays>
+  <LandingZone_Filter_Pollution>Pollution</LandingZone_Filter_Pollution>
+  <LandingZone_Filter_WeatherPatterns>Weather Patterns:</LandingZone_Filter_WeatherPatterns>
+  <LandingZone_Filter_DLCRequired>Requires {0} DLC (not installed)</LandingZone_Filter_DLCRequired>
+
+  <!-- Terrain & Access Group -->
+  <LandingZone_Filter_TerrainAccessGroup>Terrain &amp; Access</LandingZone_Filter_TerrainAccessGroup>
+  <LandingZone_Filter_HillinessFiltering>Hilliness (filtering - {0} of 4 allowed):</LandingZone_Filter_HillinessFiltering>
+  <LandingZone_Filter_HillinessAllAllowed>Hilliness (all types allowed - no restriction):</LandingZone_Filter_HillinessAllAllowed>
+  <LandingZone_Filter_CoastalOcean>Coastal (Ocean)</LandingZone_Filter_CoastalOcean>
+  <LandingZone_Filter_CoastalLake>Coastal (Lake)</LandingZone_Filter_CoastalLake>
+  <LandingZone_Filter_Elevation>Elevation</LandingZone_Filter_Elevation>
+  <LandingZone_Filter_MovementDifficulty>Movement Difficulty</LandingZone_Filter_MovementDifficulty>
+  <LandingZone_Filter_Swampiness>Swampiness</LandingZone_Filter_Swampiness>
+  <LandingZone_Filter_GeographicFeatures>Geographic Features (terrain, water, mountains):</LandingZone_Filter_GeographicFeatures>
+
+  <!-- Resources Group -->
+  <LandingZone_Filter_ResourcesGroup>Resources</LandingZone_Filter_ResourcesGroup>
+  <LandingZone_Filter_Forageability>Forageability</LandingZone_Filter_Forageability>
+  <LandingZone_Filter_PlantDensity>Plant Density</LandingZone_Filter_PlantDensity>
+  <LandingZone_Filter_AnimalDensity>Animal Density</LandingZone_Filter_AnimalDensity>
+  <LandingZone_Filter_FishPopulation>Fish Population</LandingZone_Filter_FishPopulation>
+  <LandingZone_Filter_Grazeable>Grazeable (animals can graze outdoors)</LandingZone_Filter_Grazeable>
+  <LandingZone_Filter_Flora>Flora (plants, trees, foraging):</LandingZone_Filter_Flora>
+  <LandingZone_Filter_Fauna>Fauna (animals, hunting, wildlife):</LandingZone_Filter_Fauna>
+  <LandingZone_Filter_DepositsMinerals>Deposits &amp; Minerals (ore, rocks, mining):</LandingZone_Filter_DepositsMinerals>
+
+  <!-- Connections Group -->
+  <LandingZone_Filter_ConnectionsGroup>Connections</LandingZone_Filter_ConnectionsGroup>
+  <LandingZone_Filter_Rivers>Rivers:</LandingZone_Filter_Rivers>
+  <LandingZone_Filter_Roads>Roads:</LandingZone_Filter_Roads>
+
+  <!-- Ancient Sites Group -->
+  <LandingZone_Filter_AncientSitesGroup>Ancient Sites</LandingZone_Filter_AncientSitesGroup>
+  <LandingZone_Filter_AncientDangerSites>Ancient Danger Sites (mechanoids, loot, risk):</LandingZone_Filter_AncientDangerSites>
+
+  <!-- ========================================
+       UIHelpers - Importance & Severity Labels
+       ======================================== -->
+
+  <!-- Importance Explanations (for tooltips) -->
+  <LandingZone_ImportanceExplanation_Critical>\n\n[CRITICAL] Hard requirement - tiles MUST match this filter.\nUsed in Apply phase to eliminate non-matching tiles.</LandingZone_ImportanceExplanation_Critical>
+  <LandingZone_ImportanceExplanation_Preferred>\n\n[PREFERRED] Soft preference - tiles are scored higher if they match.\nUsed in Score phase to rank surviving tiles.</LandingZone_ImportanceExplanation_Preferred>
+  <LandingZone_ImportanceExplanation_Ignored>\n\n[IGNORED] Filter is disabled and won't affect results.</LandingZone_ImportanceExplanation_Ignored>
+
+  <!-- Importance State Labels (for buttons) -->
+  <LandingZone_ImportanceState_Required>Required</LandingZone_ImportanceState_Required>
+  <LandingZone_ImportanceState_Preferred>Preferred</LandingZone_ImportanceState_Preferred>
+  <LandingZone_ImportanceState_Ignored>Ignored</LandingZone_ImportanceState_Ignored>
+  <LandingZone_ImportanceState_Unknown>?</LandingZone_ImportanceState_Unknown>
+
+  <!-- Conflict Severity Labels -->
+  <LandingZone_ConflictSeverity_Error>ERROR</LandingZone_ConflictSeverity_Error>
+  <LandingZone_ConflictSeverity_Warning>WARNING</LandingZone_ConflictSeverity_Warning>
+  <LandingZone_ConflictSeverity_Info>INFO</LandingZone_ConflictSeverity_Info>
+
+  <!-- ========================================
+       Results Window - Match Data & Debug
+       ======================================== -->
+
+  <LandingZone_MatchDataDumped>Match data dumped to Player.log ({0} results)</LandingZone_MatchDataDumped>
+  <LandingZone_MoreMatchesTruncated>... and {0} more matches (truncated; enable verbose to log all)</LandingZone_MoreMatchesTruncated>
+
+  <!-- ========================================
+       Fallback Tier Manager UI
+       ======================================== -->
+
+  <LandingZone_FallbackTierManager_NoWorld>Fallback tier manager available when world is loaded</LandingZone_FallbackTierManager_NoWorld>
+  <LandingZone_FallbackTierManager_NoCriticals>Set filters to Critical importance to see fallback tiers</LandingZone_FallbackTierManager_NoCriticals>
+  <LandingZone_FallbackTierManager_Title>Fallback Tier Manager ({0} critical filters)</LandingZone_FallbackTierManager_Title>
+  <LandingZone_FallbackTierManager_Instructions>If current strictness is too restrictive, use these preset fallback tiers:</LandingZone_FallbackTierManager_Instructions>
+  <LandingZone_FallbackTierManager_CurrentLabel>CURRENT:</LandingZone_FallbackTierManager_CurrentLabel>
+  <LandingZone_FallbackTierManager_ClickToApply>Click to apply fallback tier:</LandingZone_FallbackTierManager_ClickToApply>
+  <LandingZone_FallbackTierManager_Strictness>Strictness: {0}</LandingZone_FallbackTierManager_Strictness>
+  <LandingZone_FallbackTierManager_Applied>Applied fallback tier: {0} (strictness {1})</LandingZone_FallbackTierManager_Applied>
+  <LandingZone_FallbackTierManager_Tooltip>{0}\nClick to set strictness to {1}</LandingZone_FallbackTierManager_Tooltip>
+  <LandingZone_FallbackTierManager_NoAlternatives>No alternative tiers available (adjust strictness manually if needed)</LandingZone_FallbackTierManager_NoAlternatives>
+  <LandingZone_FallbackTierManager_Error>Error loading fallback tiers: {0}</LandingZone_FallbackTierManager_Error>
+
 </LanguageData>

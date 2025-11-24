@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Verse;
 
 namespace LandingZone.Data
 {
@@ -29,7 +30,7 @@ namespace LandingZone.Data
     /// </summary>
     /// <typeparam name="T">The type of items (typically string for defNames).</typeparam>
     [Serializable]
-    public class IndividualImportanceContainer<T> where T : notnull
+    public class IndividualImportanceContainer<T> : IExposable where T : notnull
     {
         /// <summary>
         /// Maps each item to its importance level.
@@ -245,6 +246,27 @@ namespace LandingZone.Data
             if (preferredCount > 0) parts.Add($"{preferredCount} Preferred");
 
             return string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// Serialization support for RimWorld save/load system.
+        /// </summary>
+        public void ExposeData()
+        {
+            // Use local variables since Scribe requires ref to variables, not properties
+            var itemImportance = ItemImportance;
+            var op = Operator;
+
+            // Serialize dictionary and operator
+            Scribe_Collections.Look(ref itemImportance, "itemImportance", LookMode.Value, LookMode.Value);
+            Scribe_Values.Look(ref op, "operator", ImportanceOperator.AND);
+
+            // Write back to properties after loading
+            if (Scribe.mode == LoadSaveMode.LoadingVars || Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                ItemImportance = itemImportance ?? new Dictionary<T, FilterImportance>();
+                Operator = op;
+            }
         }
     }
 }

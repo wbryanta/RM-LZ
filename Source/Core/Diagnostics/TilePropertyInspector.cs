@@ -19,7 +19,7 @@ namespace LandingZone.Core.Diagnostics
             var world = Find.World;
             if (world?.grid == null)
             {
-                Log.Warning("[LandingZone] TilePropertyInspector: World or grid is null");
+                Log.Warning("LandingZone_DevTools_WorldNullError".Translate());
                 return;
             }
 
@@ -38,12 +38,12 @@ namespace LandingZone.Core.Diagnostics
 
             if (tileId == -1)
             {
-                Log.Warning("[LandingZone] TilePropertyInspector: No settleable tile found");
+                Log.Warning("LandingZone_DevTools_NoSettleableTile".Translate());
                 return;
             }
 
             var targetTile = world.grid[tileId];
-            Log.Message($"[LandingZone] ===== Inspecting Tile {tileId} =====");
+            Log.Message("LandingZone_DevTools_TilePropertyInspectorTitle".Translate(tileId));
 
             // Inspect all properties using reflection
             var tileType = targetTile.GetType();
@@ -82,17 +82,17 @@ namespace LandingZone.Core.Diagnostics
             var landmarkProp = properties.FirstOrDefault(p => p.Name.ToLower().Contains("landmark"));
             if (landmarkProp != null)
             {
-                Log.Message($"[LandingZone] *** Found landmark-related property: {landmarkProp.Name}");
+                Log.Message("LandingZone_DevTools_LandmarkFound".Translate(landmarkProp.Name));
             }
 
             // Check for MapFeatures specifically
             var mapFeatureProp = properties.FirstOrDefault(p => p.Name.ToLower().Contains("feature") || p.Name.ToLower().Contains("mapfeature"));
             if (mapFeatureProp != null)
             {
-                Log.Message($"[LandingZone] *** Found feature-related property: {mapFeatureProp.Name}");
+                Log.Message("LandingZone_DevTools_FeatureFound".Translate(mapFeatureProp.Name));
             }
 
-            Log.Message($"[LandingZone] ===== End Tile Inspection =====");
+            Log.Message("LandingZone_DevTools_TilePropertyInspectorEnd".Translate());
         }
     }
 }

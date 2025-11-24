@@ -10,11 +10,12 @@ namespace LandingZone.Core.Filtering.Filters
     /// <summary>
     /// Filters tiles by whether animals can graze now.
     /// Uses tri-state logic: On (must support grazing), Off (ignored), Partial (preferred).
+    /// Uses RimWorld's VirtualPlantsUtility - extremely cheap (0.0003ms/tile).
     /// </summary>
     public sealed class GrazeFilter : ISiteFilter
     {
         public string Id => "graze";
-        public FilterHeaviness Heaviness => FilterHeaviness.Heavy;
+        public FilterHeaviness Heaviness => FilterHeaviness.Light;  // Changed from Heavy - VirtualPlantsUtility is cached
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
@@ -58,9 +59,9 @@ namespace LandingZone.Core.Filtering.Filters
 
         public float Membership(int tileId, FilterContext context)
         {
-            var extended = context.TileCache.GetOrCompute(tileId);
-            // Binary membership: 1.0 if can graze, 0.0 if not
-            return MembershipFunctions.Binary(extended.CanGrazeNow);
+            // Direct check - VirtualPlantsUtility is extremely fast (0.0003ms/tile)
+            bool canGraze = TileCanGrazeNow(tileId);
+            return MembershipFunctions.Binary(canGraze);
         }
     }
 }

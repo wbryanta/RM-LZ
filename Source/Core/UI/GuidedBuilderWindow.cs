@@ -68,10 +68,10 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Medium;
             string stepText = _currentStep switch
             {
-                WizardStep.GoalSelection => "Step 1: Choose Your Goal",
-                WizardStep.Refinement => "Step 2: Refine Your Goal",
-                WizardStep.Preview => "Step 3: Review Filters",
-                _ => "Guided Builder"
+                WizardStep.GoalSelection => "LandingZone_Step1".Translate(),
+                WizardStep.Refinement => "LandingZone_Step2".Translate(),
+                WizardStep.Preview => "LandingZone_Step3".Translate(),
+                _ => "LandingZone_GuidedBuilderTitle".Translate()
             };
             listing.Label(stepText);
             Text.Font = GameFont.Small;
@@ -80,7 +80,7 @@ namespace LandingZone.Core.UI
 
         private void DrawGoalSelection(Listing_Standard listing)
         {
-            listing.Label("What's your priority for this colony?");
+            listing.Label("LandingZone_PriorityQuestion".Translate());
             listing.Gap(12f);
 
             // 2-column grid of goal cards
@@ -124,7 +124,7 @@ namespace LandingZone.Core.UI
 
             // Back button
             listing.Gap(20f);
-            if (listing.ButtonText("← Back to Preferences"))
+            if (listing.ButtonText("LandingZone_BackToPreferences".Translate()))
             {
                 Close();
             }
@@ -173,7 +173,7 @@ namespace LandingZone.Core.UI
                 else if (goal == GoalCategory.SpecificFeature)
                 {
                     // Specific feature just opens Advanced mode
-                    Messages.Message("Opening Advanced mode for custom feature selection...", MessageTypeDefOf.NeutralEvent, false);
+                    Messages.Message("LandingZone_LoadingAdvanced".Translate(), MessageTypeDefOf.NeutralEvent, false);
                     Close();
                     var prefs = LandingZoneContext.State?.Preferences;
                     if (prefs != null)
@@ -197,15 +197,15 @@ namespace LandingZone.Core.UI
         {
             if (_selectedGoal == GoalCategory.FoodProduction)
             {
-                listing.Label("What type of food production?");
+                listing.Label("LandingZone_FoodQuestion".Translate());
                 listing.Gap(12f);
 
                 var foodTypes = new[]
                 {
-                    (FoodProductionType.Farming, "Farming", "Long growing season, fertile soil, consistent rainfall"),
-                    (FoodProductionType.Hunting, "Hunting", "Abundant wildlife, high animal density"),
-                    (FoodProductionType.Fishing, "Fishing", "Coastal + rivers, high fish population"),
-                    (FoodProductionType.Mixed, "Mixed", "Balance of farming, hunting, and fishing")
+                    (FoodProductionType.Farming, "LandingZone_Farming".Translate(), "LandingZone_FarmingDesc".Translate()),
+                    (FoodProductionType.Hunting, "LandingZone_Hunting".Translate(), "LandingZone_HuntingDesc".Translate()),
+                    (FoodProductionType.Fishing, "LandingZone_Fishing".Translate(), "LandingZone_FishingDesc".Translate()),
+                    (FoodProductionType.Mixed, "LandingZone_Mixed".Translate(), "LandingZone_MixedDesc".Translate())
                 };
 
                 foreach (var (type, label, description) in foodTypes)
@@ -237,14 +237,14 @@ namespace LandingZone.Core.UI
                 listing.Gap(20f);
 
                 // Navigation buttons
-                if (listing.ButtonText("← Back"))
+                if (listing.ButtonText("LandingZone_BackArrow".Translate()))
                 {
                     _currentStep = WizardStep.GoalSelection;
                 }
 
                 listing.Gap(8f);
 
-                if (listing.ButtonText("Continue →"))
+                if (listing.ButtonText("LandingZone_ContinueArrow".Translate()))
                 {
                     _recommendations = GetRecommendationsForGoal(GoalCategory.FoodProduction, _selectedFoodType);
                     _currentStep = WizardStep.Preview;
@@ -255,7 +255,7 @@ namespace LandingZone.Core.UI
         private void DrawPreview(Listing_Standard listing, Rect inRect)
         {
             var goalLabel = _selectedGoal.HasValue ? GetGoalLabel(_selectedGoal.Value) : "Unknown";
-            listing.Label($"Recommended Filters ({goalLabel}):");
+            listing.Label("LandingZone_RecommendedFilters".Translate(goalLabel));
             listing.Gap(8f);
 
             // Scrollable filter preview
@@ -282,7 +282,7 @@ namespace LandingZone.Core.UI
             float buttonWidth = (buttonRect.width - 8f) / 2f;
 
             // Tweak in Advanced button
-            if (Widgets.ButtonText(new Rect(buttonRect.x, buttonRect.y, buttonWidth, buttonRect.height), "Tweak in Advanced"))
+            if (Widgets.ButtonText(new Rect(buttonRect.x, buttonRect.y, buttonWidth, buttonRect.height), "LandingZone_TweakInAdvanced".Translate()))
             {
                 ApplyRecommendations(LandingZoneContext.State?.Preferences?.AdvancedFilters);
                 var prefs = LandingZoneContext.State?.Preferences;
@@ -290,12 +290,12 @@ namespace LandingZone.Core.UI
                 {
                     prefs.Options.PreferencesUIMode = UIMode.Advanced;
                 }
-                Messages.Message($"Loaded '{goalLabel}' filters into Advanced mode for editing", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("LandingZone_GoalLoadedForEditing".Translate(goalLabel), MessageTypeDefOf.NeutralEvent, false);
                 Close();
             }
 
             // Search Now button
-            if (Widgets.ButtonText(new Rect(buttonRect.x + buttonWidth + 8f, buttonRect.y, buttonWidth, buttonRect.height), "Search Now"))
+            if (Widgets.ButtonText(new Rect(buttonRect.x + buttonWidth + 8f, buttonRect.y, buttonWidth, buttonRect.height), "LandingZone_SearchNow".Translate()))
             {
                 ApplyRecommendations(LandingZoneContext.State?.Preferences?.GetActiveFilters());
                 LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
@@ -304,7 +304,7 @@ namespace LandingZone.Core.UI
 
             listing.Gap(8f);
 
-            if (listing.ButtonText("← Back"))
+            if (listing.ButtonText("LandingZone_BackArrow".Translate()))
             {
                 if (_selectedGoal == GoalCategory.FoodProduction)
                     _currentStep = WizardStep.Refinement;
@@ -325,7 +325,7 @@ namespace LandingZone.Core.UI
             var contentRect = rect.ContractedBy(8f);
 
             // Importance badge
-            string badge = rec.Importance == FilterImportance.Critical ? "🔴 Critical" : "🔵 Preferred";
+            string badge = rec.Importance == FilterImportance.Critical ? "LandingZone_CriticalBadge".Translate() : "LandingZone_PreferredBadge".Translate();
             var badgeRect = new Rect(contentRect.x, contentRect.y, 100f, 18f);
             Text.Font = GameFont.Tiny;
             Widgets.Label(badgeRect, badge);

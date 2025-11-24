@@ -11,11 +11,13 @@ namespace LandingZone.Core.Filtering
     /// <summary>
     /// Caches precomputed bitsets for heavy predicates to avoid repeated expensive evaluations.
     /// Heavy predicates are evaluated ONCE upfront (incrementally to avoid UI freeze), then bitsets are reused for all candidate checks.
+    /// Cache keys include predicate parameters to detect when filters change.
     /// </summary>
     public sealed class PrecomputedBitsetCache
     {
         private readonly Dictionary<string, BitArray> _cache = new Dictionary<string, BitArray>();
         private readonly Dictionary<string, IncrementalPrecomputation> _inProgress = new Dictionary<string, IncrementalPrecomputation>();
+        private readonly Dictionary<string, int> _predicateParamHashes = new Dictionary<string, int>(); // Track param hashes for invalidation
 
         /// <summary>
         /// Represents an in-progress incremental precomputation of a heavy predicate.
@@ -92,15 +94,101 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
+        /// Computes a hash of predicate parameters to detect changes.
+        /// </summary>
+        private int ComputePredicateParamHash(IFilterPredicate predicate, FilterContext context)
+        {
+            // Use filter settings to compute hash based on predicate's specific parameters
+            var filters = context.Filters;
+            unchecked
+            {
+                int hash = 17;
+
+                // Hash based on predicate ID-specific parameters
+                // Only Heavy filters need param hashing (Light filters don't use PrecomputedBitsetCache)
+                switch (predicate.Id)
+                {
+                    case "growing_days":
+                        hash = hash * 31 + filters.GrowingDaysRange.GetHashCode();
+                        hash = hash * 31 + filters.GrowingDaysImportance.GetHashCode();
+                        break;
+                    case "minimum_temperature":
+                        hash = hash * 31 + filters.MinimumTemperatureRange.GetHashCode();
+                        hash = hash * 31 + filters.MinimumTemperatureImportance.GetHashCode();
+                        break;
+                    case "maximum_temperature":
+                        hash = hash * 31 + filters.MaximumTemperatureRange.GetHashCode();
+                        hash = hash * 31 + filters.MaximumTemperatureImportance.GetHashCode();
+                        break;
+                    // Note: pollution, forageability, swampiness, animal_density, fish_population,
+                    // plant_density, elevation are all Light filters and don't use this cache
+                    default:
+                        // For unknown predicates, use predicate ID as hash
+                        hash = hash * 31 + predicate.Id.GetHashCode();
+                        break;
+                }
+
+                return hash;
+            }
+        }
+
+        /// <summary>
         /// Starts incremental precomputation for a predicate if not already cached/in-progress.
+        /// Checks parameter hash to detect if cached bitset is stale.
         /// </summary>
         public void StartPrecomputation(IFilterPredicate predicate, FilterContext context, int tileCount)
         {
-            if (_cache.ContainsKey(predicate.Id) || _inProgress.ContainsKey(predicate.Id))
-                return;
+            int currentParamHash = ComputePredicateParamHash(predicate, context);
 
-            Log.Message($"[LandingZone] Starting incremental precomputation: {predicate.Id}");
+            // Check if we have a cached bitset with matching parameters
+            if (_cache.ContainsKey(predicate.Id))
+            {
+                if (_predicateParamHashes.TryGetValue(predicate.Id, out int cachedHash))
+                {
+                    if (cachedHash == currentParamHash)
+                    {
+                        // Cache hit! Reusing precomputed bitset
+                        if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                            Log.Message($"[LandingZone] [CACHE HIT] {predicate.Id}: hash {currentParamHash} matches cached");
+                        return;
+                    }
+                    else
+                    {
+                        // Parameters changed, invalidate cache
+                        if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                            Log.Message($"[LandingZone] [CACHE MISS] {predicate.Id}: hash changed from {cachedHash} to {currentParamHash}, recomputing");
+                        _cache.Remove(predicate.Id);
+                        _predicateParamHashes.Remove(predicate.Id);
+                    }
+                }
+                else
+                {
+                    // Cache exists but no hash (shouldn't happen, but handle it)
+                    if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                        Log.Message($"[LandingZone] [CACHE MISS] {predicate.Id}: cache exists but no param hash, recomputing");
+                    _cache.Remove(predicate.Id);
+                }
+            }
+            else if (_predicateParamHashes.ContainsKey(predicate.Id))
+            {
+                // Hash exists but no cache (shouldn't happen, clean up)
+                if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                    Log.Message($"[LandingZone] [CACHE MISS] {predicate.Id}: orphaned param hash, clearing");
+                _predicateParamHashes.Remove(predicate.Id);
+            }
+
+            // Already in progress with same params?
+            if (_inProgress.ContainsKey(predicate.Id))
+            {
+                if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                    Log.Message($"[LandingZone] {predicate.Id}: precomputation already in progress, skipping");
+                return;
+            }
+
+            if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                Log.Message($"[LandingZone] Starting incremental precomputation: {predicate.Id} (hash: {currentParamHash})");
             _inProgress[predicate.Id] = new IncrementalPrecomputation(predicate, context, tileCount);
+            _predicateParamHashes[predicate.Id] = currentParamHash; // Store hash for future validation
         }
 
         /// <summary>

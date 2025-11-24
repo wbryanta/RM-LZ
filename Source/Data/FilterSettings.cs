@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -10,7 +11,7 @@ namespace LandingZone.Data
     /// Player controlled filter configuration (biomes, temperature, rainfall, etc.).
     /// Clean slate design for v0.1.0-beta - all legacy code removed.
     /// </summary>
-    public sealed class FilterSettings
+    public sealed class FilterSettings : IExposable
     {
         public FilterSettings()
         {
@@ -92,7 +93,8 @@ namespace LandingZone.Data
         public IndividualImportanceContainer<string> Roads { get; set; } = new IndividualImportanceContainer<string>();
 
         // Stones (individual importance per stone type)
-        public IndividualImportanceContainer<string> Stones { get; set; } = new IndividualImportanceContainer<string>();
+        // Default to OR operator since tiles typically have 1-2 mineral types; AND makes no sense for multiple critical stones
+        public IndividualImportanceContainer<string> Stones { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
 
         // Stockpiles (individual importance per stockpile type: Weapons, Medicine, Components, etc.)
         public IndividualImportanceContainer<string> Stockpiles { get; set; } = new IndividualImportanceContainer<string>();
@@ -240,6 +242,61 @@ namespace LandingZone.Data
         }
 
         /// <summary>
+        /// Clears all filters to Ignored (no filtering active).
+        /// Unlike Reset(), this sets everything to Ignored rather than comfortable defaults.
+        /// </summary>
+        public void ClearAll()
+        {
+            // Climate & Environment - set all importance to Ignored
+            AverageTemperatureImportance = FilterImportance.Ignored;
+            MinimumTemperatureImportance = FilterImportance.Ignored;
+            MaximumTemperatureImportance = FilterImportance.Ignored;
+            RainfallImportance = FilterImportance.Ignored;
+            GrowingDaysImportance = FilterImportance.Ignored;
+            PollutionImportance = FilterImportance.Ignored;
+            ForageImportance = FilterImportance.Ignored;
+            ForageableFoodImportance = FilterImportance.Ignored;
+            ElevationImportance = FilterImportance.Ignored;
+            SwampinessImportance = FilterImportance.Ignored;
+            GrazeImportance = FilterImportance.Ignored;
+            AnimalDensityImportance = FilterImportance.Ignored;
+            FishPopulationImportance = FilterImportance.Ignored;
+            PlantDensityImportance = FilterImportance.Ignored;
+
+            // Terrain & Geography
+            MovementDifficultyImportance = FilterImportance.Ignored;
+            CoastalImportance = FilterImportance.Ignored;
+            CoastalLakeImportance = FilterImportance.Ignored;
+            WaterAccessImportance = FilterImportance.Ignored;
+
+            // Clear all individual importance containers
+            Rivers.Reset();
+            Roads.Reset();
+            Stones.Reset();
+            Stockpiles.Reset();
+            MapFeatures.Reset();
+            AdjacentBiomes.Reset();
+
+            // Reset hilliness to allow all types (no filtering)
+            AllowedHilliness.Clear();
+            AllowedHilliness.Add(Hilliness.Flat);
+            AllowedHilliness.Add(Hilliness.SmallHills);
+            AllowedHilliness.Add(Hilliness.LargeHills);
+            AllowedHilliness.Add(Hilliness.Mountainous);
+
+            // World & Features
+            LockedBiome = null;
+            RequiredFeatureDefName = null;
+            FeatureImportance = FilterImportance.Ignored;
+            LandmarkImportance = FilterImportance.Ignored;
+            UseStoneCount = false;
+
+            // Keep results settings and strictness at defaults
+            MaxResults = DefaultMaxResults;
+            CriticalStrictness = 0.0f;
+        }
+
+        /// <summary>
         /// Copies all filter settings from another FilterSettings instance.
         /// Uses reflection to copy all public properties.
         /// </summary>
@@ -255,8 +312,301 @@ namespace LandingZone.Data
                 if (prop.CanWrite && prop.CanRead)
                 {
                     var value = prop.GetValue(source);
+
+                    // Deep copy for IndividualImportanceContainer properties
+                    if (value != null && prop.PropertyType.IsGenericType &&
+                        prop.PropertyType.GetGenericTypeDefinition() == typeof(IndividualImportanceContainer<>))
+                    {
+                        var cloneMethod = prop.PropertyType.GetMethod("Clone");
+                        if (cloneMethod != null)
+                        {
+                            value = cloneMethod.Invoke(value, null);
+                        }
+                    }
+
                     prop.SetValue(this, value);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Serialization support for RimWorld save/load system.
+        /// Serializes ALL 56 properties for complete save/load support.
+        /// </summary>
+        public void ExposeData()
+        {
+            // === CLIMATE & ENVIRONMENT FILTERS (27 properties) ===
+
+            // Temperature filters (6 properties)
+            var avgTempRange = AverageTemperatureRange;
+            var minTempRange = MinimumTemperatureRange;
+            var maxTempRange = MaximumTemperatureRange;
+            var avgTempImp = AverageTemperatureImportance;
+            var minTempImp = MinimumTemperatureImportance;
+            var maxTempImp = MaximumTemperatureImportance;
+
+            Scribe_Values.Look(ref avgTempRange, "averageTemperatureRange", new FloatRange(10f, 32f));
+            Scribe_Values.Look(ref minTempRange, "minimumTemperatureRange", new FloatRange(-20f, 10f));
+            Scribe_Values.Look(ref maxTempRange, "maximumTemperatureRange", new FloatRange(25f, 50f));
+            Scribe_Values.Look(ref avgTempImp, "averageTemperatureImportance", FilterImportance.Preferred);
+            Scribe_Values.Look(ref minTempImp, "minimumTemperatureImportance", FilterImportance.Ignored);
+            Scribe_Values.Look(ref maxTempImp, "maximumTemperatureImportance", FilterImportance.Ignored);
+
+            // Rainfall (2 properties)
+            var rainfallRange = RainfallRange;
+            var rainfallImp = RainfallImportance;
+
+            Scribe_Values.Look(ref rainfallRange, "rainfallRange", new FloatRange(1000f, 2200f));
+            Scribe_Values.Look(ref rainfallImp, "rainfallImportance", FilterImportance.Preferred);
+
+            // Growing days (2 properties)
+            var growingDaysRange = GrowingDaysRange;
+            var growingDaysImp = GrowingDaysImportance;
+
+            Scribe_Values.Look(ref growingDaysRange, "growingDaysRange", new FloatRange(40f, 60f));
+            Scribe_Values.Look(ref growingDaysImp, "growingDaysImportance", FilterImportance.Preferred);
+
+            // Pollution (2 properties)
+            var pollutionRange = PollutionRange;
+            var pollutionImp = PollutionImportance;
+
+            Scribe_Values.Look(ref pollutionRange, "pollutionRange", new FloatRange(0f, 0.25f));
+            Scribe_Values.Look(ref pollutionImp, "pollutionImportance", FilterImportance.Preferred);
+
+            // Forageability (2 properties)
+            var forageRange = ForageabilityRange;
+            var forageImp = ForageImportance;
+
+            Scribe_Values.Look(ref forageRange, "forageabilityRange", new FloatRange(0.5f, 1f));
+            Scribe_Values.Look(ref forageImp, "forageImportance", FilterImportance.Preferred);
+
+            // Forageable food (2 properties)
+            var forageFood = ForageableFoodDefName;
+            var forageFoodImp = ForageableFoodImportance;
+
+            Scribe_Values.Look(ref forageFood, "forageableFoodDefName", null);
+            Scribe_Values.Look(ref forageFoodImp, "forageableFoodImportance", FilterImportance.Ignored);
+
+            // Elevation (2 properties)
+            var elevationRange = ElevationRange;
+            var elevationImp = ElevationImportance;
+
+            Scribe_Values.Look(ref elevationRange, "elevationRange", new FloatRange(0f, 5000f));
+            Scribe_Values.Look(ref elevationImp, "elevationImportance", FilterImportance.Ignored);
+
+            // Swampiness (2 properties)
+            var swampinessRange = SwampinessRange;
+            var swampinessImp = SwampinessImportance;
+
+            Scribe_Values.Look(ref swampinessRange, "swampinessRange", new FloatRange(0f, 1f));
+            Scribe_Values.Look(ref swampinessImp, "swampinessImportance", FilterImportance.Ignored);
+
+            // Graze (1 property)
+            var grazeImp = GrazeImportance;
+            Scribe_Values.Look(ref grazeImp, "grazeImportance", FilterImportance.Ignored);
+
+            // Animal density (2 properties)
+            var animalDensityRange = AnimalDensityRange;
+            var animalDensityImp = AnimalDensityImportance;
+
+            Scribe_Values.Look(ref animalDensityRange, "animalDensityRange", new FloatRange(0f, 6.5f));
+            Scribe_Values.Look(ref animalDensityImp, "animalDensityImportance", FilterImportance.Ignored);
+
+            // Fish population (2 properties)
+            var fishPopRange = FishPopulationRange;
+            var fishPopImp = FishPopulationImportance;
+
+            Scribe_Values.Look(ref fishPopRange, "fishPopulationRange", new FloatRange(0f, 900f));
+            Scribe_Values.Look(ref fishPopImp, "fishPopulationImportance", FilterImportance.Ignored);
+
+            // Plant density (2 properties)
+            var plantDensityRange = PlantDensityRange;
+            var plantDensityImp = PlantDensityImportance;
+
+            Scribe_Values.Look(ref plantDensityRange, "plantDensityRange", new FloatRange(0f, 1.3f));
+            Scribe_Values.Look(ref plantDensityImp, "plantDensityImportance", FilterImportance.Ignored);
+
+            // === TERRAIN & GEOGRAPHY FILTERS (14 properties) ===
+
+            // Movement difficulty (2 properties)
+            var movementRange = MovementDifficultyRange;
+            var movementImp = MovementDifficultyImportance;
+
+            Scribe_Values.Look(ref movementRange, "movementDifficultyRange", new FloatRange(0f, 2f));
+            Scribe_Values.Look(ref movementImp, "movementDifficultyImportance", FilterImportance.Preferred);
+
+            // Coastal (1 property)
+            var coastalImp = CoastalImportance;
+            Scribe_Values.Look(ref coastalImp, "coastalImportance", FilterImportance.Ignored);
+
+            // Coastal lake (1 property)
+            var coastalLakeImp = CoastalLakeImportance;
+            Scribe_Values.Look(ref coastalLakeImp, "coastalLakeImportance", FilterImportance.Ignored);
+
+            // Water access (1 property)
+            var waterAccessImp = WaterAccessImportance;
+            Scribe_Values.Look(ref waterAccessImp, "waterAccessImportance", FilterImportance.Ignored);
+
+            // Rivers (1 property - IndividualImportanceContainer)
+            var rivers = Rivers;
+            Scribe_Deep.Look(ref rivers, "rivers");
+
+            // Roads (1 property - IndividualImportanceContainer)
+            var roads = Roads;
+            Scribe_Deep.Look(ref roads, "roads");
+
+            // Stones (1 property - IndividualImportanceContainer)
+            var stones = Stones;
+            Scribe_Deep.Look(ref stones, "stones");
+
+            // Stockpiles (1 property - IndividualImportanceContainer)
+            var stockpiles = Stockpiles;
+            Scribe_Deep.Look(ref stockpiles, "stockpiles");
+
+            // Stone count (2 properties)
+            var stoneCountRange = StoneCountRange;
+            var useStoneCount = UseStoneCount;
+
+            Scribe_Values.Look(ref stoneCountRange, "stoneCountRange", new FloatRange(2f, 3f));
+            Scribe_Values.Look(ref useStoneCount, "useStoneCount", false);
+
+            // Hilliness (1 property - HashSet<Hilliness>, needs special handling)
+            List<Hilliness>? hillinessListForSave = null;
+            if (Scribe.mode == LoadSaveMode.Saving)
+            {
+                hillinessListForSave = AllowedHilliness.ToList();
+            }
+
+            Scribe_Collections.Look(ref hillinessListForSave, "allowedHilliness", LookMode.Value);
+
+            // === WORLD & FEATURES FILTERS (8 properties) ===
+
+            // Locked biome (1 property - Def reference)
+            var lockedBiome = LockedBiome;
+            Scribe_Defs.Look(ref lockedBiome, "lockedBiome");
+
+            // Map features (1 property - IndividualImportanceContainer)
+            var mapFeatures = MapFeatures;
+            Scribe_Deep.Look(ref mapFeatures, "mapFeatures");
+
+            // Adjacent biomes (1 property - IndividualImportanceContainer)
+            var adjacentBiomes = AdjacentBiomes;
+            Scribe_Deep.Look(ref adjacentBiomes, "adjacentBiomes");
+
+            // Required feature (2 properties)
+            var requiredFeature = RequiredFeatureDefName;
+            var featureImp = FeatureImportance;
+
+            Scribe_Values.Look(ref requiredFeature, "requiredFeatureDefName", null);
+            Scribe_Values.Look(ref featureImp, "featureImportance", FilterImportance.Ignored);
+
+            // Landmark (1 property)
+            var landmarkImp = LandmarkImportance;
+            Scribe_Values.Look(ref landmarkImp, "landmarkImportance", FilterImportance.Ignored);
+
+            // === RESULTS CONTROL (1 property) ===
+
+            // MaxResults (backing field _maxResults)
+            int maxResults = _maxResults;
+            Scribe_Values.Look(ref maxResults, "maxResults", DefaultMaxResults);
+
+            // === ADVANCED MATCHING (1 property) ===
+
+            // CriticalStrictness (backing field _criticalStrictness)
+            float criticalStrictness = _criticalStrictness;
+            Scribe_Values.Look(ref criticalStrictness, "criticalStrictness", 0.0f);
+
+            // === WRITE BACK TO PROPERTIES AFTER LOADING ===
+
+            if (Scribe.mode == LoadSaveMode.LoadingVars || Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                // Climate & Environment (27 properties)
+                AverageTemperatureRange = avgTempRange;
+                MinimumTemperatureRange = minTempRange;
+                MaximumTemperatureRange = maxTempRange;
+                AverageTemperatureImportance = avgTempImp;
+                MinimumTemperatureImportance = minTempImp;
+                MaximumTemperatureImportance = maxTempImp;
+
+                RainfallRange = rainfallRange;
+                RainfallImportance = rainfallImp;
+
+                GrowingDaysRange = growingDaysRange;
+                GrowingDaysImportance = growingDaysImp;
+
+                PollutionRange = pollutionRange;
+                PollutionImportance = pollutionImp;
+
+                ForageabilityRange = forageRange;
+                ForageImportance = forageImp;
+
+                ForageableFoodDefName = forageFood;  // Can be null
+                ForageableFoodImportance = forageFoodImp;
+
+                ElevationRange = elevationRange;
+                ElevationImportance = elevationImp;
+
+                SwampinessRange = swampinessRange;
+                SwampinessImportance = swampinessImp;
+
+                GrazeImportance = grazeImp;
+
+                AnimalDensityRange = animalDensityRange;
+                AnimalDensityImportance = animalDensityImp;
+
+                FishPopulationRange = fishPopRange;
+                FishPopulationImportance = fishPopImp;
+
+                PlantDensityRange = plantDensityRange;
+                PlantDensityImportance = plantDensityImp;
+
+                // Terrain & Geography (14 properties)
+                MovementDifficultyRange = movementRange;
+                MovementDifficultyImportance = movementImp;
+
+                CoastalImportance = coastalImp;
+                CoastalLakeImportance = coastalLakeImp;
+                WaterAccessImportance = waterAccessImp;
+
+                Rivers = rivers ?? new IndividualImportanceContainer<string>();
+                Roads = roads ?? new IndividualImportanceContainer<string>();
+                Stones = stones ?? new IndividualImportanceContainer<string>();
+                Stockpiles = stockpiles ?? new IndividualImportanceContainer<string>();
+
+                StoneCountRange = stoneCountRange;
+                UseStoneCount = useStoneCount;
+
+                // Hilliness - restore from list
+                AllowedHilliness.Clear();
+                if (hillinessListForSave != null && hillinessListForSave.Count > 0)
+                {
+                    foreach (var h in hillinessListForSave)
+                        AllowedHilliness.Add(h);
+                }
+                else
+                {
+                    // Default values from Reset()
+                    AllowedHilliness.Add(Hilliness.SmallHills);
+                    AllowedHilliness.Add(Hilliness.LargeHills);
+                    AllowedHilliness.Add(Hilliness.Mountainous);
+                }
+
+                // World & Features (8 properties)
+                LockedBiome = lockedBiome;  // Can be null
+
+                MapFeatures = mapFeatures ?? new IndividualImportanceContainer<string>();
+                AdjacentBiomes = adjacentBiomes ?? new IndividualImportanceContainer<string>();
+
+                RequiredFeatureDefName = requiredFeature;  // Can be null
+                FeatureImportance = featureImp;
+
+                LandmarkImportance = landmarkImp;
+
+                // Results Control (1 property) - use property setter for clamping
+                _maxResults = Mathf.Clamp(maxResults, MinMaxResults, MaxResultsLimit);
+
+                // Advanced Matching (1 property) - use property setter for clamping
+                _criticalStrictness = Mathf.Clamp01(criticalStrictness);
             }
         }
     }

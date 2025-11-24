@@ -103,7 +103,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.8f, 1f, 0.8f); // Light green tint for active
             }
 
-            if (Widgets.ButtonText(presetHubRect, "Preset Hub"))
+            if (Widgets.ButtonText(presetHubRect, "LandingZone_PresetHub".Translate()))
             {
                 if (!isPresetHub)
                 {
@@ -120,7 +120,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.8f, 1f, 0.8f);
             }
 
-            if (Widgets.ButtonText(guidedBuilderRect, "Guided Builder"))
+            if (Widgets.ButtonText(guidedBuilderRect, "LandingZone_GuidedBuilder".Translate()))
             {
                 if (!isGuidedBuilder)
                 {
@@ -137,7 +137,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.8f, 1f, 0.8f);
             }
 
-            if (Widgets.ButtonText(advancedRect, "Advanced"))
+            if (Widgets.ButtonText(advancedRect, "LandingZone_Advanced".Translate()))
             {
                 if (!isAdvanced)
                 {
@@ -159,7 +159,7 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             Text.Anchor = TextAnchor.MiddleCenter;
-            Widgets.Label(rect, "Preset Hub: Quick starts | Guided Builder: Goal-based wizard | Advanced: Full control");
+            Widgets.Label(rect, "LandingZone_ModeHint".Translate());
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
@@ -190,14 +190,14 @@ namespace LandingZone.Core.UI
 
             // Header
             Text.Font = GameFont.Medium;
-            listing.Label("Priority-Based Site Finder");
+            listing.Label("LandingZone_PriorityFinder".Translate());
             Text.Font = GameFont.Small;
             listing.GapLine();
             listing.Gap(8f);
 
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
-            listing.Label("Select 1-4 goals in priority order. Priority 1 = Critical filters, Priority 2-4 = Preferred filters.");
+            listing.Label("LandingZone_PriorityInstructions".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
             listing.Gap(12f);
@@ -235,8 +235,8 @@ namespace LandingZone.Core.UI
         private void DrawPrioritySlot(Listing_Standard listing, int slotNumber, ref PriorityGoal currentGoal, bool required)
         {
             string slotLabel = required
-                ? $"Priority {slotNumber} (Required)"
-                : $"Priority {slotNumber} (Optional)";
+                ? "LandingZone_PriorityRequired".Translate(slotNumber)
+                : "LandingZone_PriorityOptional".Translate(slotNumber);
 
             Text.Font = GameFont.Small;
             GUI.color = required ? new Color(1f, 0.9f, 0.7f) : Color.white;
@@ -246,7 +246,7 @@ namespace LandingZone.Core.UI
 
             // Dropdown button
             string buttonLabel = currentGoal == PriorityGoal.None
-                ? "Select a goal..."
+                ? "LandingZone_SelectGoal".Translate()
                 : GuidedBuilderGoals.GetGoalName(currentGoal);
 
             if (listing.ButtonText(buttonLabel))
@@ -256,7 +256,7 @@ namespace LandingZone.Core.UI
                 // "None" option for optional slots
                 if (!required)
                 {
-                    options.Add(new FloatMenuOption("None", () => {
+                    options.Add(new FloatMenuOption("LandingZone_None".Translate(), () => {
                         if (slotNumber == 1) _priority1 = PriorityGoal.None;
                         else if (slotNumber == 2) _priority2 = PriorityGoal.None;
                         else if (slotNumber == 3) _priority3 = PriorityGoal.None;
@@ -321,20 +321,20 @@ namespace LandingZone.Core.UI
             {
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                listing.Label("Select at least Priority 1 to see recommendations.");
+                listing.Label("LandingZone_SelectPriorityPrompt".Translate());
                 GUI.color = Color.white;
                 return;
             }
 
             Text.Font = GameFont.Small;
-            listing.Label("Selected Priorities:");
+            listing.Label("LandingZone_SelectedPriorities".Translate());
             Text.Font = GameFont.Tiny;
 
             foreach (var (slot, goal) in selectedGoals)
             {
-                string importance = slot == 1 ? "Critical" : "Preferred";
+                string importance = slot == 1 ? "LandingZone_ImportanceCritical".Translate() : "LandingZone_ImportancePreferred".Translate();
                 GUI.color = slot == 1 ? new Color(1f, 0.7f, 0.7f) : new Color(0.7f, 0.7f, 1f);
-                listing.Label($"  {slot}. {GuidedBuilderGoals.GetGoalName(goal)} ({importance})");
+                listing.Label("LandingZone_PriorityImportance".Translate(slot, GuidedBuilderGoals.GetGoalName(goal), importance));
             }
 
             GUI.color = Color.white;
@@ -347,7 +347,7 @@ namespace LandingZone.Core.UI
 
             // Search Now button
             GUI.enabled = hasValidSelection;
-            if (listing.ButtonText("Apply & Search Now"))
+            if (listing.ButtonText("LandingZone_ApplyAndSearchNow".Translate()))
             {
                 ApplyGuidedBuilderFilters(preferences);
                 LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
@@ -358,11 +358,11 @@ namespace LandingZone.Core.UI
 
             // Open in Advanced button
             GUI.enabled = hasValidSelection;
-            if (listing.ButtonText("Apply & Open in Advanced"))
+            if (listing.ButtonText("LandingZone_ApplyAndOpenAdvanced".Translate()))
             {
                 ApplyGuidedBuilderFilters(preferences);
                 preferences.Options.PreferencesUIMode = UIMode.Advanced;
-                Messages.Message("Applied priority-based filters to Advanced mode", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("LandingZone_AppliedToAdvanced".Translate(), MessageTypeDefOf.NeutralEvent, false);
             }
             GUI.enabled = true;
 
@@ -370,7 +370,7 @@ namespace LandingZone.Core.UI
 
             // Save as Preset button
             GUI.enabled = hasValidSelection;
-            if (listing.ButtonText("Save as Custom Preset"))
+            if (listing.ButtonText("LandingZone_SaveAsCustomPreset".Translate()))
             {
                 var tempFilters = new FilterSettings();
                 ApplyGuidedBuilderFilters(preferences, tempFilters);
@@ -381,7 +381,7 @@ namespace LandingZone.Core.UI
             listing.Gap(12f);
 
             // Reset button
-            if (listing.ButtonText("Clear All Priorities"))
+            if (listing.ButtonText("LandingZone_ClearAllPriorities".Translate()))
             {
                 _priority1 = PriorityGoal.None;
                 _priority2 = PriorityGoal.None;
@@ -435,15 +435,15 @@ namespace LandingZone.Core.UI
             // Control buttons
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            listing.Label("Changes are saved automatically");
+            listing.Label("LandingZone_ChangesSavedAutomatically".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
             listing.Gap(4f);
 
-            if (listing.ButtonText("Reset to defaults"))
+            if (listing.ButtonText("LandingZone_ResetToDefaults".Translate()))
             {
                 preferences.ResetActiveFilters();
-                Messages.Message("Filters reset to defaults", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("LandingZone_FiltersReset".Translate(), MessageTypeDefOf.NeutralEvent, false);
             }
 
             listing.Gap(8f);
@@ -452,18 +452,18 @@ namespace LandingZone.Core.UI
             var currentUIMode = preferences.Options.PreferencesUIMode;
             if (currentUIMode == UIMode.Simple)
             {
-                if (listing.ButtonText("Copy to Advanced mode"))
+                if (listing.ButtonText("LandingZone_CopyToAdvanced".Translate()))
                 {
                     preferences.CopySimpleToAdvanced();
-                    Messages.Message("Simple mode settings copied to Advanced mode", MessageTypeDefOf.NeutralEvent, false);
+                    Messages.Message("LandingZone_CopiedToAdvanced".Translate(), MessageTypeDefOf.NeutralEvent, false);
                 }
             }
             else
             {
-                if (listing.ButtonText("Copy to Simple mode"))
+                if (listing.ButtonText("LandingZone_CopyToSimple".Translate()))
                 {
                     preferences.CopyAdvancedToSimple();
-                    Messages.Message("Advanced mode settings copied to Simple mode", MessageTypeDefOf.NeutralEvent, false);
+                    Messages.Message("LandingZone_CopiedToSimple".Translate(), MessageTypeDefOf.NeutralEvent, false);
                 }
             }
 

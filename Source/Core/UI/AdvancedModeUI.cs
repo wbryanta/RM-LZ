@@ -27,6 +27,7 @@ namespace LandingZone.Core.UI
         private static HashSet<string> _collapsedGroups = new HashSet<string>();
         private static Vector2 _scrollPosition = Vector2.zero;
         private static Vector2 _rightPanelScrollPosition = Vector2.zero;
+        private static float _cachedLivePreviewContentHeight = 1200f; // Cache measured content height
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
         private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
 
@@ -46,6 +47,143 @@ namespace LandingZone.Core.UI
         /// Gets the currently detected conflicts for use by filter controls.
         /// </summary>
         internal static List<FilterConflict> GetActiveConflicts() => _activeConflicts;
+
+        // Shared selectivity estimator for lightweight, always-available estimates
+        private static readonly Filtering.FilterSelectivityEstimator _selectivityEstimator = new Filtering.FilterSelectivityEstimator();
+
+        /// <summary>
+        /// Computes lightweight selectivity estimates for active critical filters.
+        /// Uses FilterSelectivityEstimator for cheap, always-available estimates without requiring a prior search.
+        /// Returns FilterSelectivity structs for compatibility with MatchLikelihoodEstimator.
+        /// </summary>
+        private static List<Filtering.FilterSelectivity> ComputeLightweightSelectivities(FilterSettings filters)
+        {
+            var estimates = new List<Filtering.FilterSelectivity>();
+
+            // Ensure estimator is initialized
+            _selectivityEstimator.Initialize();
+
+            // Temperature (Average)
+            if (filters.AverageTemperatureImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateTemperatureRange(filters.AverageTemperatureRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("avg_temp", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Temperature (Minimum)
+            if (filters.MinimumTemperatureImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateTemperatureRange(filters.MinimumTemperatureRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("min_temp", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Temperature (Maximum)
+            if (filters.MaximumTemperatureImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateTemperatureRange(filters.MaximumTemperatureRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("max_temp", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Rainfall
+            if (filters.RainfallImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateRainfallRange(filters.RainfallRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("rainfall", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Growing Days
+            if (filters.GrowingDaysImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateGrowingDaysRange(filters.GrowingDaysRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("growing_days", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Hilliness - included when filtering (count < 4), implicitly Critical
+            if (filters.AllowedHilliness.Count < 4)
+            {
+                var est = _selectivityEstimator.EstimateHilliness(filters.AllowedHilliness);
+                estimates.Add(new Filtering.FilterSelectivity("hilliness", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Coastal
+            if (filters.CoastalImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateCoastal(FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("coastal", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Water Access
+            if (filters.WaterAccessImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateWaterAccess(FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("water_access", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Pollution
+            if (filters.PollutionImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimatePollutionRange(filters.PollutionRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("pollution", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Forageability
+            if (filters.ForageImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateForageabilityRange(filters.ForageabilityRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("forageability", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Swampiness
+            if (filters.SwampinessImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateSwampinessRange(filters.SwampinessRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("swampiness", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Animal Density
+            if (filters.AnimalDensityImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateAnimalDensityRange(filters.AnimalDensityRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("animal_density", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Fish Population
+            if (filters.FishPopulationImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateFishPopulationRange(filters.FishPopulationRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("fish_population", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Plant Density
+            if (filters.PlantDensityImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimatePlantDensityRange(filters.PlantDensityRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("plant_density", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Elevation
+            if (filters.ElevationImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateElevationRange(filters.ElevationRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("elevation", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Movement Difficulty
+            if (filters.MovementDifficultyImportance == FilterImportance.Critical)
+            {
+                var est = _selectivityEstimator.EstimateMovementDifficultyRange(filters.MovementDifficultyRange, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("movement_difficulty", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            // Map Features (aggregate all critical features)
+            if (filters.MapFeatures.GetCriticalItems().Any())
+            {
+                var est = _selectivityEstimator.EstimateMapFeatures(filters.MapFeatures, FilterImportance.Critical);
+                estimates.Add(new Filtering.FilterSelectivity("map_features", FilterImportance.Critical, est.MatchCount, est.TotalTiles, false));
+            }
+
+            return estimates;
+        }
 
         /// <summary>
         /// Renders the Advanced mode UI (tabs + search + grouped filters + live preview panel).
@@ -106,7 +244,7 @@ namespace LandingZone.Core.UI
 
         private static void DrawSearchBox(Rect rect)
         {
-            _searchText = UIHelpers.DrawSearchBox(new Listing_Standard { ColumnWidth = rect.width }, _searchText, "Search filters...");
+            _searchText = UIHelpers.DrawSearchBox(new Listing_Standard { ColumnWidth = rect.width }, _searchText, "LandingZone_SearchFiltersPlaceholder");
         }
 
         private static void DrawTabs(Rect rect, FilterSettings filters)
@@ -122,9 +260,9 @@ namespace LandingZone.Core.UI
                 var tab = (AdvancedTab)i;
                 Rect tabRect = new Rect(rect.x + i * tabWidth, rect.y, tabWidth, rect.height);
 
-                // Tab label with active count badge
+                // Tab label with active count badge (except Results tab)
                 string label = GetTabLabel(tab);
-                if (tabCounts.TryGetValue(tab, out int count) && count > 0)
+                if (tab != AdvancedTab.Results && tabCounts.TryGetValue(tab, out int count) && count > 0)
                 {
                     label += $" ({count})";
                 }
@@ -165,11 +303,11 @@ namespace LandingZone.Core.UI
         {
             return tab switch
             {
-                AdvancedTab.Climate => "Climate",
-                AdvancedTab.Geography => "Geography",
-                AdvancedTab.Resources => "Resources",
-                AdvancedTab.Features => "Features",
-                AdvancedTab.Results => "Results",
+                AdvancedTab.Climate => "LandingZone_TabClimate".Translate(),
+                AdvancedTab.Geography => "LandingZone_TabGeography".Translate(),
+                AdvancedTab.Resources => "LandingZone_TabResources".Translate(),
+                AdvancedTab.Features => "LandingZone_TabFeatures".Translate(),
+                AdvancedTab.Results => "LandingZone_TabResults".Translate(),
                 _ => tab.ToString()
             };
         }
@@ -178,11 +316,11 @@ namespace LandingZone.Core.UI
         {
             return tab switch
             {
-                AdvancedTab.Climate => "Temperature, rainfall, growing days, pollution",
-                AdvancedTab.Geography => "Hilliness, coastal access, movement difficulty, swampiness",
-                AdvancedTab.Resources => "Stones, forageability, plant/animal density, fish, grazing",
-                AdvancedTab.Features => "Map features (mutators), rivers, roads, biomes",
-                AdvancedTab.Results => "Result count, strictness, fallback tiers",
+                AdvancedTab.Climate => "LandingZone_TabClimateTooltip".Translate(),
+                AdvancedTab.Geography => "LandingZone_TabGeographyTooltip".Translate(),
+                AdvancedTab.Resources => "LandingZone_TabResourcesTooltip".Translate(),
+                AdvancedTab.Features => "LandingZone_TabFeaturesTooltip".Translate(),
+                AdvancedTab.Results => "LandingZone_TabResultsTooltip".Translate(),
                 _ => ""
             };
         }
@@ -236,17 +374,38 @@ namespace LandingZone.Core.UI
 
             var contentRect = rect.ContractedBy(8f);
 
-            // Create scrollable view for panel content
-            var viewRect = new Rect(0f, 0f, contentRect.width - 16f, 600f); // Subtract scrollbar width
+            // Full-height scrollable area (no footer - buttons moved to top)
+            var scrollableRect = new Rect(contentRect.x, contentRect.y, contentRect.width, contentRect.height);
 
-            Widgets.BeginScrollView(contentRect, ref _rightPanelScrollPosition, viewRect);
+            // Use cached content height, ensuring it's at least as tall as the scrollable area
+            // Content height is measured during drawing and cached for next frame
+            float contentHeight = Mathf.Max(_cachedLivePreviewContentHeight, scrollableRect.height);
+            var viewRect = new Rect(0f, 0f, scrollableRect.width - 16f, contentHeight);
+
+            Widgets.BeginScrollView(scrollableRect, ref _rightPanelScrollPosition, viewRect);
 
             var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
+            // Save Preset button
+            if (listing.ButtonText("LandingZone_SavePresetFromAdvanced".Translate()))
+            {
+                Find.WindowStack.Add(new Dialog_SavePreset(filters, preferences.ActivePreset));
+            }
+            listing.Gap(4f);
+
+            // Reset All button
+            if (listing.ButtonText("Reset All Filters"))
+            {
+                // Clear all filters to Ignored
+                filters.ClearAll();
+                Messages.Message("All filters cleared to Ignored", MessageTypeDefOf.NeutralEvent, false);
+            }
+            listing.Gap(12f);
+
             // Header
             Text.Font = GameFont.Medium;
-            listing.Label("LIVE COVERAGE PREVIEW");
+            listing.Label("LandingZone_LiveCoveragePreview".Translate());
             Text.Font = GameFont.Small;
             listing.GapLine();
             listing.Gap(8f);
@@ -256,6 +415,15 @@ namespace LandingZone.Core.UI
             var criticalFilters = new List<string>();
             var preferredFilters = new List<string>();
 
+            // Grouping labels that don't correspond to actual filter IDs (just UI containers for sub-filters)
+            var groupingLabels = new HashSet<string>
+            {
+                "Resource Modifiers",
+                "Special Sites",
+                "Life & Wildlife Modifiers",
+                "Climate & Weather Modifiers"
+            };
+
             foreach (var group in allGroups)
             {
                 foreach (var filter in group.Filters)
@@ -263,6 +431,10 @@ namespace LandingZone.Core.UI
                     var (isActive, importance) = filter.IsActiveFunc(filters);
                     if (isActive)
                     {
+                        // Skip grouping labels - they're UI containers, not actual filters
+                        if (groupingLabels.Contains(filter.Label))
+                            continue;
+
                         if (importance == FilterImportance.Critical)
                             criticalFilters.Add(filter.Label);
                         else if (importance == FilterImportance.Preferred)
@@ -271,82 +443,71 @@ namespace LandingZone.Core.UI
                 }
             }
 
-            // Live tile count estimates (try selectivity analysis if available)
-            var selectivities = LandingZoneContext.Filters?.GetAllSelectivities(LandingZoneContext.State);
-            if (selectivities != null && selectivities.Any())
+            // Live tile count estimates - always available using lightweight estimator
+            _selectivityEstimator.Initialize();
+            int totalSettleable = _selectivityEstimator.GetSettleableTiles();
+
+            // Show baseline
+            Text.Font = GameFont.Small;
+            GUI.color = new Color(0.8f, 0.8f, 0.8f);
+            listing.Label("LandingZone_BaselineTiles".Translate());
+            Text.Font = GameFont.Medium;
+            GUI.color = Color.white;
+            listing.Label($"{totalSettleable:N0} tiles");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            listing.Gap(8f);
+
+            // Compute lightweight selectivities for active critical filters
+            var criticalSelectivities = ComputeLightweightSelectivities(filters);
+
+            // Show estimate if we have critical filters
+            if (criticalSelectivities.Any())
             {
-                int totalSettleable = selectivities.FirstOrDefault().TotalTiles;
-                var criticalSelectivities = selectivities.Where(s => s.Importance == FilterImportance.Critical).ToList();
+                // Estimate combined selectivity (product of individual ratios)
+                float combinedRatio = 1.0f;
+                foreach (var s in criticalSelectivities)
+                {
+                    combinedRatio *= s.Ratio; // FilterSelectivity has Ratio property
+                }
 
-                // Show baseline
+                int estimatedMatches = (int)(combinedRatio * totalSettleable);
+                float percentage = combinedRatio * 100f;
+
+                // Show estimated matches after applying critical filters
                 Text.Font = GameFont.Small;
-                GUI.color = new Color(0.8f, 0.8f, 0.8f);
-                listing.Label("Baseline (all settleable tiles):");
+                listing.Label("LandingZone_AfterApplyingFilters".Translate());
                 Text.Font = GameFont.Medium;
+
+                // Color code based on how restrictive
+                if (estimatedMatches < 100)
+                    GUI.color = new Color(1f, 0.4f, 0.4f); // Red
+                else if (estimatedMatches < 1000)
+                    GUI.color = new Color(1f, 0.8f, 0.3f); // Yellow
+                else
+                    GUI.color = new Color(0.4f, 1f, 0.4f); // Green
+
+                listing.Label($"~{estimatedMatches:N0} tiles ({percentage:F1}%)");
                 GUI.color = Color.white;
-                listing.Label($"{totalSettleable:N0} tiles");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-                listing.Gap(8f);
 
-                // Show estimate only if we have selectivity data for critical filters
-                if (criticalSelectivities.Any())
+                // Warning for very restrictive filters
+                if (estimatedMatches < 50)
                 {
-                    // Estimate combined selectivity (product of individual ratios)
-                    float combinedRatio = 1.0f;
-                    foreach (var s in criticalSelectivities)
-                    {
-                        combinedRatio *= s.Ratio;
-                    }
-
-                    int estimatedMatches = (int)(combinedRatio * totalSettleable);
-                    float percentage = combinedRatio * 100f;
-
-                    // Show estimated matches after applying critical filters
-                    Text.Font = GameFont.Small;
-                    listing.Label("After applying filters:");
-                    Text.Font = GameFont.Medium;
-
-                    // Color code based on how restrictive
-                    if (estimatedMatches < 100)
-                        GUI.color = new Color(1f, 0.4f, 0.4f); // Red
-                    else if (estimatedMatches < 1000)
-                        GUI.color = new Color(1f, 0.8f, 0.3f); // Yellow
-                    else
-                        GUI.color = new Color(0.4f, 1f, 0.4f); // Green
-
-                    listing.Label($"~{estimatedMatches:N0} tiles ({percentage:F1}%)");
-                    GUI.color = Color.white;
-
-                    // Warning for very restrictive filters
-                    if (estimatedMatches < 50)
-                    {
-                        Text.Font = GameFont.Tiny;
-                        GUI.color = new Color(1f, 0.5f, 0.5f);
-                        listing.Label("⚠ Very restrictive! May return 0 results.");
-                        GUI.color = Color.white;
-                    }
-                    else if (estimatedMatches < 100)
-                    {
-                        Text.Font = GameFont.Tiny;
-                        GUI.color = new Color(1f, 0.8f, 0.3f);
-                        listing.Label("⚠ Highly restrictive - results may be limited.");
-                        GUI.color = Color.white;
-                    }
-
-                    Text.Font = GameFont.Small;
-                    listing.Gap(12f);
-                }
-                else if (criticalFilters.Any())
-                {
-                    // We have critical filters but no selectivity data for them yet
                     Text.Font = GameFont.Tiny;
-                    GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                    listing.Label("(Tile count estimate unavailable for these filter types)");
+                    GUI.color = new Color(1f, 0.5f, 0.5f);
+                    listing.Label("LandingZone_VeryRestrictiveWarning".Translate());
                     GUI.color = Color.white;
-                    Text.Font = GameFont.Small;
-                    listing.Gap(12f);
                 }
+                else if (estimatedMatches < 100)
+                {
+                    Text.Font = GameFont.Tiny;
+                    GUI.color = new Color(1f, 0.8f, 0.3f);
+                    listing.Label("LandingZone_HighlyRestrictiveWarning".Translate());
+                    GUI.color = Color.white;
+                }
+
+                Text.Font = GameFont.Small;
+                listing.Gap(12f);
             }
 
             // Critical Filters
@@ -357,7 +518,7 @@ namespace LandingZone.Core.UI
 
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(1f, 0.7f, 0.7f);
-                listing.Label($"Critical Filters ({criticalFilters.Count}):");
+                listing.Label("LandingZone_CriticalFiltersLabel".Translate(criticalFilters.Count));
                 GUI.color = Color.white;
                 Text.Font = GameFont.Tiny;
                 foreach (var f in criticalFilters.Take(10)) // Limit to first 10
@@ -380,7 +541,7 @@ namespace LandingZone.Core.UI
 
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(0.7f, 0.7f, 1f);
-                listing.Label($"Preferred Filters ({preferredFilters.Count}):");
+                listing.Label("LandingZone_PreferredFiltersLabel".Translate(preferredFilters.Count));
                 GUI.color = Color.white;
                 Text.Font = GameFont.Tiny;
                 foreach (var f in preferredFilters.Take(10)) // Limit to first 10
@@ -396,7 +557,7 @@ namespace LandingZone.Core.UI
             // Fallback Tier Preview (Tier 3)
             if (criticalFilters.Any())
             {
-                DrawFallbackTierPreview(listing, filters);
+                DrawFallbackTierPreview(listing, filters, criticalSelectivities);
             }
 
             // Warnings
@@ -406,7 +567,7 @@ namespace LandingZone.Core.UI
                 listing.Gap(8f);
                 GUI.color = new Color(1f, 0.7f, 0.3f);
                 Text.Font = GameFont.Small;
-                listing.Label($"⚠ Warnings ({_activeConflicts.Count}):");
+                listing.Label("LandingZone_WarningsLabel".Translate(_activeConflicts.Count));
                 GUI.color = Color.white;
                 Text.Font = GameFont.Tiny;
                 foreach (var conflict in _activeConflicts.Take(5))
@@ -419,21 +580,11 @@ namespace LandingZone.Core.UI
                 listing.Gap(8f);
             }
 
-            // Search Now button
-            listing.GapLine();
-            listing.Gap(12f);
-            if (listing.ButtonText("Search Now"))
-            {
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
-            }
-
-            Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.6f, 0.6f, 0.6f);
-            listing.Label("Tip: Adjust filters in left panel to refine your search");
-            GUI.color = Color.white;
-            Text.Font = GameFont.Small;
-
             listing.End();
+
+            // Cache the measured content height for next frame (add padding for footer visibility)
+            _cachedLivePreviewContentHeight = listing.CurHeight + 20f;
+
             Widgets.EndScrollView();
         }
 
@@ -441,23 +592,14 @@ namespace LandingZone.Core.UI
         /// Draws a compact fallback tier preview in the Live Preview sidebar.
         /// Shows current strictness and top 1-2 alternative tiers with click-to-apply.
         /// </summary>
-        private static void DrawFallbackTierPreview(Listing_Standard listing, FilterSettings filters)
+        private static void DrawFallbackTierPreview(Listing_Standard listing, FilterSettings filters, List<Filtering.FilterSelectivity> criticalSelectivities)
         {
-            // Skip if context not ready
-            if (LandingZoneContext.Filters == null || LandingZoneContext.State == null)
+            // No criticals? Skip
+            if (criticalSelectivities == null || criticalSelectivities.Count == 0)
                 return;
 
             try
             {
-                // Get all critical filter selectivities
-                var allSelectivities = LandingZoneContext.Filters.GetAllSelectivities(LandingZoneContext.State);
-                var criticalSelectivities = allSelectivities
-                    .Where(s => s.Importance == FilterImportance.Critical)
-                    .ToList();
-
-                // No criticals? Skip
-                if (criticalSelectivities.Count == 0)
-                    return;
 
                 // Get current strictness estimate
                 var currentLikelihood = filters.CriticalStrictness >= 1.0f
@@ -479,11 +621,11 @@ namespace LandingZone.Core.UI
                 // Header
                 Text.Font = GameFont.Small;
                 GUI.color = new Color(1f, 0.8f, 0.4f);
-                listing.Label("Fallback Tiers");
+                listing.Label("LandingZone_FallbackTiers".Translate());
                 GUI.color = Color.white;
                 Text.Font = GameFont.Tiny;
                 GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                listing.Label("Consider relaxing strictness:");
+                listing.Label("LandingZone_RelaxStrictness".Translate());
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
                 listing.Gap(6f);
@@ -505,7 +647,7 @@ namespace LandingZone.Core.UI
                 GUI.color = new Color(0.8f, 0.8f, 0.8f);
                 Widgets.Label(
                     new Rect(contentRect.x, contentRect.y + 2f, contentRect.width, 24f),
-                    $"Current: {currentLikelihood.GetUserMessage()}"
+                    "LandingZone_CurrentStrictness".Translate(currentLikelihood.GetUserMessage())
                 );
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
@@ -550,13 +692,13 @@ namespace LandingZone.Core.UI
                         {
                             filters.CriticalStrictness = suggestion.Strictness;
                             Messages.Message(
-                                $"Applied fallback tier: {suggestion.Description} (strictness {suggestion.Strictness:P0})",
+                                "LandingZone_AppliedFallback".Translate(suggestion.Description, suggestion.Strictness.ToString("P0")),
                                 MessageTypeDefOf.NeutralEvent,
                                 false
                             );
                         }
 
-                        TooltipHandler.TipRegion(suggestionRect, $"{suggestion.Description}\nClick to set strictness to {suggestion.Strictness:P0}");
+                        TooltipHandler.TipRegion(suggestionRect, "LandingZone_FallbackTooltip".Translate(suggestion.Description, suggestion.Strictness.ToString("P0")));
                         listing.Gap(3f);
                     }
                 }

@@ -37,7 +37,7 @@ namespace LandingZone.Core.UI
             if (manager == null)
             {
                 Text.Font = GameFont.Medium;
-                Widgets.Label(inRect, "No active game - bookmarks unavailable");
+                Widgets.Label(inRect, "LandingZone_NoActiveGame".Translate());
                 Text.Font = GameFont.Small;
                 return;
             }
@@ -54,12 +54,12 @@ namespace LandingZone.Core.UI
         private void DrawHeader(Rect rect, BookmarkManager manager)
         {
             Text.Font = GameFont.Medium;
-            Widgets.Label(new Rect(rect.x, rect.y, 300f, rect.height), $"Bookmarks ({manager.Bookmarks.Count}/20)");
+            Widgets.Label(new Rect(rect.x, rect.y, 300f, rect.height), "LandingZone_BookmarksTitle".Translate(manager.Bookmarks.Count));
             Text.Font = GameFont.Small;
 
             // Clear all button (on the right)
             Rect clearAllRect = new Rect(rect.xMax - ButtonWidth, rect.y + 5f, ButtonWidth, ButtonHeight);
-            if (manager.Bookmarks.Count > 0 && Widgets.ButtonText(clearAllRect, "Clear All"))
+            if (manager.Bookmarks.Count > 0 && Widgets.ButtonText(clearAllRect, "LandingZone_ClearAll".Translate()))
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
                     "Are you sure you want to delete all bookmarks? This cannot be undone.",
@@ -75,7 +75,7 @@ namespace LandingZone.Core.UI
             {
                 Text.Anchor = TextAnchor.MiddleCenter;
                 GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                Widgets.Label(rect, "No bookmarks yet.\n\nClick the star icon in the action bar to add bookmarks,\nor use the 'BM' button in the Results window.");
+                Widgets.Label(rect, "LandingZone_NoBookmarksYet".Translate());
                 GUI.color = Color.white;
                 Text.Anchor = TextAnchor.UpperLeft;
                 return;
@@ -143,7 +143,7 @@ namespace LandingZone.Core.UI
 
             // Edit button
             Rect editRect = new Rect(x, contentRect.y + (contentRect.height - ButtonHeight) / 2f, ButtonWidth, ButtonHeight);
-            if (Widgets.ButtonText(editRect, "Edit"))
+            if (Widgets.ButtonText(editRect, "LandingZone_Edit".Translate()))
             {
                 Find.WindowStack.Add(new BookmarkEditDialog(bookmark.TileId));
             }
@@ -151,7 +151,7 @@ namespace LandingZone.Core.UI
 
             // Jump button
             Rect jumpRect = new Rect(x, contentRect.y + (contentRect.height - ButtonHeight) / 2f, ButtonWidth, ButtonHeight);
-            if (Widgets.ButtonText(jumpRect, "Jump To"))
+            if (Widgets.ButtonText(jumpRect, "LandingZone_JumpTo".Translate()))
             {
                 JumpToBookmark(bookmark);
             }
@@ -159,7 +159,7 @@ namespace LandingZone.Core.UI
 
             // Delete button
             Rect deleteRect = new Rect(x, contentRect.y + (contentRect.height - ButtonHeight) / 2f, ButtonWidth, ButtonHeight);
-            if (Widgets.ButtonText(deleteRect, "Delete"))
+            if (Widgets.ButtonText(deleteRect, "LandingZone_Delete".Translate()))
             {
                 shouldDelete = true;
             }
@@ -220,7 +220,7 @@ namespace LandingZone.Core.UI
                 notesPreview = notesPreview.Replace("\n", " ").Replace("\r", "");
 
                 Rect notesRect = new Rect(rect.x, y, rect.width, 15f);
-                Widgets.Label(notesRect, $"Notes: {notesPreview}");
+                Widgets.Label(notesRect, "LandingZone_Notes".Translate() + " " + notesPreview);
             }
 
             GUI.color = Color.white;

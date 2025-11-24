@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using LandingZone.Data;
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -14,6 +15,15 @@ namespace LandingZone.Core.Filtering
         private readonly List<TileScore> _lastScores = new();
         private readonly TileDataCache _tileCache = new TileDataCache();
         private readonly FilterSelectivityAnalyzer _selectivityAnalyzer = new FilterSelectivityAnalyzer();
+        private readonly FilterSelectivityEstimator _selectivityEstimator = new FilterSelectivityEstimator();
+
+        // Selectivity cache to prevent expensive recomputation on every UI draw
+        private List<FilterSelectivity>? _cachedSelectivities = null;
+        private int _cachedSelectivitiesHash = 0;
+
+        // Shared PrecomputedBitsetCache to reuse heavy predicate bitsets across searches
+        private readonly PrecomputedBitsetCache _sharedHeavyBitsets = new PrecomputedBitsetCache();
+        private string _heavyBitsetsWorldSeed = string.Empty;
 
         private FilterService()
         {
@@ -43,6 +53,15 @@ namespace LandingZone.Core.Filtering
 
             // Climate filters
             _registry.Register(new Filters.RainfallFilter());
+            _registry.Register(new Filters.GrowingDaysFilter());
+            _registry.Register(new Filters.PollutionFilter());
+            _registry.Register(new Filters.ForageabilityFilter());
+            _registry.Register(new Filters.SwampinessFilter());
+
+            // Wildlife & Ecology filters
+            _registry.Register(new Filters.AnimalDensityFilter());
+            _registry.Register(new Filters.FishPopulationFilter());
+            _registry.Register(new Filters.PlantDensityFilter());
 
             // Geography filters
             _registry.Register(new Filters.CoastalFilter());
@@ -51,6 +70,8 @@ namespace LandingZone.Core.Filtering
             _registry.Register(new Filters.RiverFilter());
             _registry.Register(new Filters.RoadFilter());
             _registry.Register(new Filters.ElevationFilter());
+            _registry.Register(new Filters.HillinessFilter());
+            _registry.Register(new Filters.MovementDifficultyFilter());
 
             // Resource filters
             _registry.Register(new Filters.GrazeFilter());
@@ -305,32 +326,114 @@ namespace LandingZone.Core.Filtering
         /// <summary>
         /// Gets selectivity data for all active (non-ignored) filters.
         /// Used by Advanced mode UI for live feedback panel.
+        /// CACHED: Returns cached results if filter settings haven't changed to prevent expensive recomputation.
         /// </summary>
         public List<FilterSelectivity> GetAllSelectivities(GameState state)
         {
+            // Compute hash of current filter settings to detect changes
+            var filters = state.Preferences.GetActiveFilters();
+            int currentHash = ComputeFilterSettingsHash(filters);
+
+            // Return cached results if settings haven't changed
+            if (_cachedSelectivities != null && _cachedSelectivitiesHash == currentHash)
+            {
+                return _cachedSelectivities;
+            }
+
+            // Cache miss - recompute selectivities
             var (cheap, heavy) = _registry.GetAllPredicates(state);
-            var allPredicates = cheap.Concat(heavy).ToList();
             var results = new List<FilterSelectivity>();
 
-            int totalTiles = Find.WorldGrid?.TilesCount ?? 0;
-            if (totalTiles == 0)
+            // Get settleable tile count from existing cached estimator
+            int settleableTiles = _selectivityEstimator.GetSettleableTiles();
+            if (settleableTiles == 0)
                 return results;
 
             var context = new FilterContext(state, _tileCache);
 
-            foreach (var predicate in allPredicates)
+            // Only run selectivity on cheap predicates to avoid multi-second stalls.
+            foreach (var predicate in cheap)
             {
                 if (predicate.Importance != FilterImportance.Ignored)
                 {
-                    results.Add(_selectivityAnalyzer.AnalyzePredicate(predicate, context, totalTiles));
+                    results.Add(_selectivityAnalyzer.AnalyzePredicate(predicate, context, settleableTiles));
                 }
             }
+
+            // Cache results
+            _cachedSelectivities = results;
+            _cachedSelectivitiesHash = currentHash;
 
             return results;
         }
 
+        /// <summary>
+        /// Computes a hash of filter settings to detect changes and invalidate cache.
+        /// </summary>
+        private int ComputeFilterSettingsHash(FilterSettings filters)
+        {
+            unchecked
+            {
+                int hash = 17;
+
+                // Temperature
+                hash = hash * 31 + filters.AverageTemperatureImportance.GetHashCode();
+                hash = hash * 31 + filters.AverageTemperatureRange.GetHashCode();
+                hash = hash * 31 + filters.MinimumTemperatureImportance.GetHashCode();
+                hash = hash * 31 + filters.MinimumTemperatureRange.GetHashCode();
+                hash = hash * 31 + filters.MaximumTemperatureImportance.GetHashCode();
+                hash = hash * 31 + filters.MaximumTemperatureRange.GetHashCode();
+
+                // Climate
+                hash = hash * 31 + filters.RainfallImportance.GetHashCode();
+                hash = hash * 31 + filters.RainfallRange.GetHashCode();
+                hash = hash * 31 + filters.GrowingDaysImportance.GetHashCode();
+                hash = hash * 31 + filters.GrowingDaysRange.GetHashCode();
+                hash = hash * 31 + filters.PollutionImportance.GetHashCode();
+                hash = hash * 31 + filters.PollutionRange.GetHashCode();
+
+                // Geography
+                hash = hash * 31 + filters.CoastalImportance.GetHashCode();
+                hash = hash * 31 + filters.CoastalLakeImportance.GetHashCode();
+                hash = hash * 31 + filters.WaterAccessImportance.GetHashCode();
+                hash = hash * 31 + filters.AllowedHilliness.Count;
+                hash = hash * 31 + filters.ElevationImportance.GetHashCode();
+                hash = hash * 31 + filters.ElevationRange.GetHashCode();
+                hash = hash * 31 + filters.MovementDifficultyImportance.GetHashCode();
+                hash = hash * 31 + filters.MovementDifficultyRange.GetHashCode();
+                hash = hash * 31 + filters.SwampinessImportance.GetHashCode();
+                hash = hash * 31 + filters.SwampinessRange.GetHashCode();
+
+                // Resources
+                hash = hash * 31 + filters.ForageImportance.GetHashCode();
+                hash = hash * 31 + filters.ForageabilityRange.GetHashCode();
+                hash = hash * 31 + filters.PlantDensityImportance.GetHashCode();
+                hash = hash * 31 + filters.PlantDensityRange.GetHashCode();
+                hash = hash * 31 + filters.AnimalDensityImportance.GetHashCode();
+                hash = hash * 31 + filters.AnimalDensityRange.GetHashCode();
+                hash = hash * 31 + filters.FishPopulationImportance.GetHashCode();
+                hash = hash * 31 + filters.FishPopulationRange.GetHashCode();
+                hash = hash * 31 + filters.GrazeImportance.GetHashCode();
+
+                // Features
+                hash = hash * 31 + (filters.LockedBiome?.GetHashCode() ?? 0);
+                hash = hash * 31 + filters.MapFeatures.GetHashCode();
+                hash = hash * 31 + filters.Rivers.GetHashCode();
+                hash = hash * 31 + filters.Roads.GetHashCode();
+                hash = hash * 31 + filters.Stones.GetHashCode();
+                hash = hash * 31 + filters.LandmarkImportance.GetHashCode();
+                hash = hash * 31 + filters.FeatureImportance.GetHashCode();
+
+                return hash;
+            }
+        }
+
         public sealed class FilterEvaluationJob
         {
+            // Performance watchdog: One-time warning per session if search exceeds 20s
+            private static bool _performanceWarningShownThisSession = false;
+            private const long PerformanceWarningThresholdMs = 20000; // 20 seconds
+
             private readonly FilterService _owner;
             private readonly GameState _state;
             private readonly Data.Preset? _preset; // Track active preset for fallback logic
@@ -342,7 +445,7 @@ namespace LandingZone.Core.Filtering
             private float _kappa; // Not readonly - updated when fallback tiers activate
             private readonly float _strictness;
             private readonly FilterContext _context;
-            private readonly PrecomputedBitsetCache _heavyBitsets = new PrecomputedBitsetCache();
+            private readonly PrecomputedBitsetCache _heavyBitsets; // Reference to shared cache from owner
             private readonly int _tileCount;
             private readonly List<TileScore> _best = new();
             private readonly List<TileScore> _results = new();
@@ -393,9 +496,19 @@ namespace LandingZone.Core.Filtering
                 var grid = Find.World?.grid ?? throw new System.InvalidOperationException("World grid unavailable.");
                 _tileCount = grid.TilesCount;
 
-                // Reset cache if world changed
+                // Reset caches if world changed
                 var worldSeed = Find.World?.info?.seedString ?? string.Empty;
                 _owner._tileCache.ResetIfWorldChanged(worldSeed);
+
+                // Use shared PrecomputedBitsetCache and invalidate if world changed
+                _heavyBitsets = _owner._sharedHeavyBitsets;
+                if (_owner._heavyBitsetsWorldSeed != worldSeed)
+                {
+                    if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                        Log.Message($"[LandingZone] World seed changed from '{_owner._heavyBitsetsWorldSeed}' to '{worldSeed}', clearing PrecomputedBitsetCache");
+                    _heavyBitsets.Clear();
+                    _owner._heavyBitsetsWorldSeed = worldSeed;
+                }
 
                 // Standard/Verbose: Log filter configuration (Verbose gets detailed dump, Standard gets summary)
                 LogActiveFilters(filters);
@@ -548,23 +661,68 @@ namespace LandingZone.Core.Filtering
                     }
                 }
 
-                // Start incremental precomputation for all heavy predicates
-                _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
-                if (_heavyPredicateCount > 0)
+                // EARLY ABORT: If zero candidates after cheap filtering + fallbacks, skip heavy precomputation entirely
+                if (_candidates.Count == 0)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] Starting precomputation for {_heavyPredicateCount} heavy predicates...");
-                    foreach (var predicate in _heavyCriticals.Concat(_heavyPreferreds))
-                    {
-                        _heavyBitsets.StartPrecomputation(predicate, _context, _tileCount);
-                    }
-                    _precomputationComplete = false;
-                }
-                else
-                {
-                    _precomputationComplete = true;
+                    LandingZoneLogger.LogStandard($"[LandingZone] ⏭️ EARLY ABORT: Zero candidates after Stage A. Skipping heavy precomputation (would take minutes on 295k tiles).");
+                    _precomputationComplete = true; // Mark as complete to skip incremental processing
+                    _completed = true; // Job is complete (zero results)
+                    return; // Skip to next state check
                 }
 
+                // PERFORMANCE OPTIMIZATION: Skip precomputation of Heavy Preferred filters
+                // Heavy Preferred filters (e.g., Growing Days) are computed on-demand for top N candidates only
+                // This prevents expensive operations on 100k+ candidates (3+ minutes → 3 seconds)
+                // Heavy Critical filters are also skipped since auto-demotion converts them to Preferred
+                _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
+                if (_heavyCriticals.Count > 0)
+                {
+                    // This should never happen due to auto-demotion, but handle it gracefully
+                    LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ {_heavyCriticals.Count} Heavy Critical predicates detected (should be auto-demoted). Skipping precomputation.");
+                }
+
+                if (_heavyPreferreds.Count > 0)
+                {
+                    LandingZoneLogger.LogStandard($"[LandingZone] Deferring {_heavyPreferreds.Count} Heavy Preferred filters to top-N scoring phase (no precomputation)");
+                }
+
+                // Skip all precomputation - Heavy filters compute on-demand during scoring
+                _precomputationComplete = true;
+
+                // Auto-backoff detection: Check for low RAM or large worlds
+                PerformAutoBackoffCheck();
+
                 _stopwatch.Start();
+            }
+
+            /// <summary>
+            /// Checks system resources and world size to provide performance advisories.
+            /// Shows warnings but does NOT auto-throttle - preserves user's chosen settings.
+            /// </summary>
+            private void PerformAutoBackoffCheck()
+            {
+                var settings = LandingZoneMod.Instance?.Settings;
+                if (settings == null) return;
+
+                int systemRamMB = UnityEngine.SystemInfo.systemMemorySize;
+                int worldTileCount = _tileCount;
+                int currentChunkSize = settings.EvaluationChunkSize;
+
+                bool isVeryLowMemory = systemRamMB < 8000; // < 8GB (extreme low end)
+                bool isLargeWorld = worldTileCount > 200000; // > 200k tiles
+
+                // Very low memory warning (advisory only - no auto-apply)
+                if (isVeryLowMemory && LandingZoneSettings.CurrentPerformanceProfile != PerformanceProfile.Safe)
+                {
+                    LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ Low system RAM detected ({systemRamMB}MB). " +
+                                                 $"Consider using Safe profile in mod settings if you experience performance issues.");
+                }
+                // Large world advisory (log only, no UI spam)
+                else if (isLargeWorld && currentChunkSize > 500)
+                {
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Large world ({worldTileCount:N0} tiles) with chunk size {currentChunkSize}. " +
+                                                $"Performance profiles available in mod settings if needed.");
+                }
             }
 
             private static void LogActiveFilters(FilterSettings filters)
@@ -691,6 +849,31 @@ namespace LandingZone.Core.Filtering
                     return true;
 
                 iterations = Mathf.Max(1, iterations);
+
+                // Performance watchdog: Check if search exceeds 10s threshold
+                if (!_performanceWarningShownThisSession && _stopwatch.IsRunning && _stopwatch.ElapsedMilliseconds > PerformanceWarningThresholdMs)
+                {
+                    _performanceWarningShownThisSession = true;
+                    var settings = LandingZoneMod.Instance?.Settings;
+                    if (settings != null)
+                    {
+                        // Pause the stopwatch while showing dialog
+                        _stopwatch.Stop();
+
+                        // Show performance warning dialog
+                        Find.WindowStack.Add(new UI.Dialog_PerformanceWarning(
+                            _stopwatch.ElapsedMilliseconds,
+                            settings.EvaluationChunkSize,
+                            LandingZoneSettings.MaxCandidates
+                        ));
+
+                        // Resume stopwatch after dialog
+                        _stopwatch.Start();
+
+                        LandingZoneLogger.LogWarning($"[LandingZone] Performance watchdog triggered after {_stopwatch.ElapsedMilliseconds}ms. " +
+                                                     $"Current settings: Chunk={settings.EvaluationChunkSize}, MaxCandidates={LandingZoneSettings.MaxCandidates}");
+                    }
+                }
 
                 // PHASE 1: Precomputation of heavy predicates (if not complete)
                 if (!_precomputationComplete)
