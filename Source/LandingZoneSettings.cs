@@ -20,6 +20,14 @@ namespace LandingZone
         public static bool AllowCancelSearch = true;
         public static PerformanceProfile CurrentPerformanceProfile = PerformanceProfile.Default;
 
+        // ===== BETA FEATURES =====
+
+        /// <summary>
+        /// Enable LandingZone UI on the in-game world map (during gameplay).
+        /// DEFAULT: false (opt-in) - This is a beta feature.
+        /// </summary>
+        public static bool EnableInGameWorldMap = false;
+
         /// <summary>
         /// Maximum candidates to process with Heavy filters (Growing Days, etc).
         /// Heavy filters are deferred until top N candidates by cheap filter scoring.
@@ -76,6 +84,7 @@ namespace LandingZone
             Scribe_Values.Look(ref AllowCancelSearch, "allowCancelSearch", true);
             Scribe_Values.Look(ref CurrentPerformanceProfile, "performanceProfile", PerformanceProfile.Default);
             Scribe_Values.Look(ref MaxCandidatesForHeavyFilters, "maxCandidatesForHeavyFilters", 1000);
+            Scribe_Values.Look(ref EnableInGameWorldMap, "enableInGameWorldMap", false);
 
             // User presets (global persistence)
             Scribe_Collections.Look(ref _userPresets, "userPresets", LookMode.Deep);
@@ -168,6 +177,16 @@ namespace LandingZone
             // Section: Performance Settings
             listingStandard.CheckboxLabeled("Auto-run search when world loads", ref AutoRunSearchOnWorldLoad);
             listingStandard.CheckboxLabeled("Allow cancel search (show Stop button)", ref AllowCancelSearch);
+
+            listingStandard.Gap(12f);
+
+            // Section: Beta Features
+            listingStandard.Label("Beta Features:");
+            listingStandard.CheckboxLabeled("Enable in-game world map (Beta)", ref EnableInGameWorldMap);
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            listingStandard.Label("Shows LandingZone controls when viewing the world map during gameplay. Disable if you experience issues.");
+            Text.Font = GameFont.Small;
 
             listingStandard.Gap(8f);
 

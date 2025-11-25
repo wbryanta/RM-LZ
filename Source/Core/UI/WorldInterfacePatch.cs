@@ -1,0 +1,384 @@
+using HarmonyLib;
+using LandingZone.Core;
+using LandingZone.Data;
+using RimWorld;
+using RimWorld.Planet;
+using UnityEngine;
+using Verse;
+using Verse.Sound;
+
+namespace LandingZone.Core.UI
+{
+    /// <summary>
+    /// Patches WorldInterface to add LandingZone UI when the in-game world map is visible.
+    /// This allows players to use LandingZone when planning caravans, forming new settlements, etc.
+    /// </summary>
+    [HarmonyPatch(typeof(WorldInterface), "WorldInterfaceOnGUI")]
+    internal static class WorldInterfacePatch
+    {
+        public static void Postfix()
+        {
+            // Check if in-game world map feature is enabled (default: false / opt-in)
+            if (!LandingZoneSettings.EnableInGameWorldMap)
+                return;
+
+            // Only draw when world map is actually selected (not colony view)
+            if (!WorldRendererUtility.WorldSelected)
+                return;
+
+            // Only draw when in playing state (not main menu or loading)
+            if (Current.ProgramState != ProgramState.Playing)
+                return;
+
+            // Don't draw if we're in the new game site selection (Page_SelectStartingSite handles that)
+            if (Find.WindowStack.IsOpen<Page_SelectStartingSite>())
+                return;
+
+            // Don't draw if ESC menu or other full-screen dialogs are open
+            if (Find.WindowStack.WindowsForcePause)
+                return;
+
+            // Draw LandingZone buttons on the world map
+            LandingZoneWorldMapDrawer.Draw();
+        }
+    }
+
+    /// <summary>
+    /// Draws LandingZone UI buttons on the in-game world map screen.
+    /// Similar to LandingZoneBottomButtonDrawer but adapted for the in-game context.
+    /// </summary>
+    internal static class LandingZoneWorldMapDrawer
+    {
+        private const float Gap = 10f;
+        private static readonly Vector2 ButtonSize = new Vector2(150f, 38f);
+
+        // From RimWorld's GizmoGridDrawer.DrawGizmoGrid() - gizmos occupy bottom ~124px of screen
+        private const float GIZMO_GRID_BOTTOM_OFFSET = 124f;
+        private const float SAFE_VERTICAL_MARGIN = 10f;
+        private const float SAFE_HORIZONTAL_MARGIN = 10f;
+
+        public static void Draw()
+        {
+            // Calculate button panel dimensions
+            const int numButtons = 3; // Filters, Search, Top (XX)
+            const float labelHeight = 18f;
+            const float statusRowHeight = 22f;
+            float width = ButtonSize.x * numButtons + Gap * (numButtons + 1);
+            float height = labelHeight + Gap + ButtonSize.y + Gap + statusRowHeight + Gap;
+
+            // Position ABOVE the gizmo grid to avoid overlap with utility buttons
+            // Gizmos start at screenHeight - 124, so we position above with safe margin
+            float panelBottom = (float)Verse.UI.screenHeight - GIZMO_GRID_BOTTOM_OFFSET - SAFE_VERTICAL_MARGIN;
+            float panelTop = panelBottom - height;
+
+            Rect rect = new Rect(
+                ((float)Verse.UI.screenWidth - width) / 2f,  // Center horizontally
+                panelTop,
+                width,
+                height
+            );
+
+            // Adjust for inspect pane if visible (LEFT side)
+            WorldInspectPane inspectPane = Find.WindowStack.WindowOfType<WorldInspectPane>();
+            if (inspectPane != null)
+            {
+                float paneWidth = InspectPaneUtility.PaneWidthFor(inspectPane) + 4f;
+                if (rect.x < paneWidth)
+                {
+                    rect.x = paneWidth;
+                }
+            }
+
+            // Ensure we don't go off right edge
+            float maxRight = (float)Verse.UI.screenWidth - SAFE_HORIZONTAL_MARGIN;
+            if (rect.xMax > maxRight)
+            {
+                rect.x = maxRight - rect.width;
+            }
+
+            Widgets.DrawWindowBackground(rect);
+            Text.Font = GameFont.Small;
+
+            float cursorX = rect.xMin + Gap;
+            float cursorY = rect.yMin + Gap;
+
+            // Label row
+            var labelRect = new Rect(cursorX, cursorY, width - Gap * 2f, labelHeight);
+            DrawLabel(labelRect);
+            cursorY += labelHeight + Gap;
+
+            // Button row: Filters, Search, Top (XX)
+            DrawFiltersButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
+            cursorX += ButtonSize.x + Gap;
+
+            DrawSearchButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
+            cursorX += ButtonSize.x + Gap;
+
+            DrawTopButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
+
+            // Status row (with bookmark icons)
+            cursorX = rect.xMin + Gap;
+            cursorY += ButtonSize.y + Gap;
+            var statusRow = new Rect(cursorX, cursorY, width - Gap * 2f, 22f);
+            DrawStatusRow(statusRow);
+
+            GenUI.AbsorbClicksInRect(rect);
+        }
+
+        private static void DrawLabel(Rect rect)
+        {
+            var prevFont = Text.Font;
+            var prevAnchor = Text.Anchor;
+            var prevColor = GUI.color;
+
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            GUI.color = new Color(0.8f, 0.8f, 0.8f);
+
+            Widgets.Label(rect, "LandingZone");
+
+            Text.Font = prevFont;
+            Text.Anchor = prevAnchor;
+            GUI.color = prevColor;
+        }
+
+        private static void DrawFiltersButton(Rect rect)
+        {
+            if (Widgets.ButtonText(rect, "LandingZone_FiltersButton".Translate()))
+            {
+                TogglePreferencesWindow();
+            }
+            TooltipHandler.TipRegion(rect, "LandingZone_FiltersTooltip".Translate());
+        }
+
+        private static void DrawSearchButton(Rect rect)
+        {
+            var highlightState = LandingZoneContext.HighlightState;
+            bool isShowing = highlightState?.ShowBestSites ?? false;
+
+            // Get current mode label
+            string modeLabel;
+            var activePreset = LandingZoneContext.State?.Preferences?.ActivePreset;
+            if (activePreset != null)
+            {
+                modeLabel = activePreset.Name;
+            }
+            else
+            {
+                var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
+                modeLabel = currentMode switch
+                {
+                    UIMode.GuidedBuilder => "Guided",
+                    UIMode.Advanced => "Advanced",
+                    _ => "Simple"
+                };
+            }
+
+            string searchLabel = $"Search ({modeLabel})";
+
+            var prevColor = GUI.color;
+            GUI.color = isShowing ? new Color(0.55f, 0.85f, 0.55f) : Color.white;
+
+            if (Widgets.ButtonText(rect, searchLabel))
+            {
+                if (highlightState != null)
+                {
+                    highlightState.ShowBestSites = true;
+                    LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                }
+            }
+
+            GUI.color = prevColor;
+            TooltipHandler.TipRegion(rect, "LandingZone_SearchTooltip".Translate(modeLabel));
+        }
+
+        private static void DrawTopButton(Rect rect)
+        {
+            bool hasResults = LandingZoneContext.HasMatches;
+            int maxResults = LandingZoneContext.State?.Preferences?.GetActiveFilters()?.MaxResults ?? 20;
+            string topLabel = $"Top ({maxResults})";
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            GUI.enabled = hasResults;
+            if (!hasResults)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+
+            if (Widgets.ButtonText(rect, topLabel))
+            {
+                LandingZoneResultsController.Toggle();
+            }
+
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = hasResults
+                ? $"View top {maxResults} matches"
+                : "No matches yet - run a search first";
+            TooltipHandler.TipRegion(rect, tooltip);
+        }
+
+        private static void DrawStatusRow(Rect rect)
+        {
+            const float iconSize = 20f;
+            const float iconGap = 4f;
+
+            // Right side: icon buttons
+            float iconsWidth = iconSize * 2 + iconGap;
+            var iconsRect = new Rect(rect.xMax - iconsWidth, rect.y, iconsWidth, rect.height);
+            var bookmarkMgrIconRect = new Rect(iconsRect.xMax - iconSize, rect.y, iconSize, iconSize);
+            var bookmarkIconRect = new Rect(bookmarkMgrIconRect.x - iconSize - iconGap, rect.y, iconSize, iconSize);
+
+            // Left side: status text
+            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - 8f, rect.height);
+
+            // Draw status text
+            var prevFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+            var prevColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.85f);
+
+            string status;
+
+            if (LandingZoneContext.IsEvaluating)
+            {
+                string phaseDesc = LandingZoneContext.CurrentPhaseDescription;
+                if (!string.IsNullOrEmpty(phaseDesc))
+                {
+                    status = $"{(LandingZoneContext.EvaluationProgress * 100f):F0}% - {phaseDesc}";
+                }
+                else
+                {
+                    status = $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%";
+                }
+            }
+            else if (LandingZoneContext.LastEvaluationCount > 0)
+            {
+                status = $"{LandingZoneContext.LastEvaluationCount} matches | {LandingZoneContext.LastEvaluationMs:F0} ms";
+            }
+            else
+            {
+                status = "No matches yet - click Search to find settlements";
+            }
+
+            Widgets.Label(statusRect, status);
+            GUI.color = prevColor;
+            Text.Font = prevFont;
+
+            // Draw bookmark toggle icon
+            DrawBookmarkIcon(bookmarkIconRect);
+
+            // Draw bookmark manager icon
+            DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+        }
+
+        private static void DrawBookmarkIcon(Rect rect)
+        {
+            int selectedTile = Find.WorldInterface.SelectedTile;
+            bool hasTileSelected = selectedTile >= 0 && selectedTile < Find.WorldGrid.TilesCount;
+
+            var manager = BookmarkManager.Get();
+            bool isBookmarked = hasTileSelected && manager != null && manager.IsBookmarked(selectedTile);
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            GUI.enabled = hasTileSelected && manager != null;
+
+            // Icon: ★ (filled star) when bookmarked (green), ☆ (empty star) when not (white)
+            if (isBookmarked)
+            {
+                GUI.color = new Color(0.4f, 1f, 0.4f); // Bright green
+            }
+            else if (!GUI.enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Dimmed
+            }
+            else
+            {
+                GUI.color = Color.white;
+            }
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            string icon = isBookmarked ? "★" : "☆";
+
+            if (Widgets.ButtonText(rect, icon, drawBackground: false))
+            {
+                if (manager != null && hasTileSelected)
+                {
+                    manager.ToggleBookmark(selectedTile);
+                    SoundDefOf.Click.PlayOneShotOnCamera();
+                }
+            }
+
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = hasTileSelected
+                ? (isBookmarked ? "Remove bookmark from this tile" : "Bookmark this tile for later reference")
+                : "Select a tile to bookmark it";
+            TooltipHandler.TipRegion(rect, tooltip);
+        }
+
+        private static void DrawBookmarkManagerIcon(Rect rect)
+        {
+            var manager = BookmarkManager.Get();
+            int bookmarkCount = manager?.Bookmarks?.Count ?? 0;
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            // Always enable button, but tooltip shows different message
+            GUI.enabled = true;
+
+            // Dim icon when no bookmarks
+            if (bookmarkCount == 0)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+            else
+            {
+                GUI.color = Color.white;
+            }
+
+            Text.Font = GameFont.Medium;
+            Text.Anchor = TextAnchor.MiddleCenter;
+
+            // Use ≡ (triple bar) icon for manager
+            if (Widgets.ButtonText(rect, "≡", drawBackground: false))
+            {
+                Find.WindowStack.Add(new BookmarkManagerWindow());
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }
+
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
+
+            string tooltip = bookmarkCount > 0
+                ? $"View and manage {bookmarkCount} bookmarked tiles"
+                : "Open bookmark manager (no bookmarks yet)";
+            TooltipHandler.TipRegion(rect, tooltip);
+        }
+
+        private static void TogglePreferencesWindow()
+        {
+            var existing = Find.WindowStack.WindowOfType<LandingZonePreferencesWindow>();
+            if (existing != null)
+            {
+                existing.Close();
+            }
+            else
+            {
+                Find.WindowStack.Add(new LandingZonePreferencesWindow());
+            }
+        }
+    }
+}
