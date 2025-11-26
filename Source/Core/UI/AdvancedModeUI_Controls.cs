@@ -16,6 +16,16 @@ namespace LandingZone.Core.UI
     /// </summary>
     public static partial class AdvancedModeUI
     {
+        // Scroll positions for embedded lists
+        private static Vector2 _stonesScrollPosition = Vector2.zero;
+        private static Vector2 _mineablesScrollPosition = Vector2.zero;
+
+        // Vanilla common stone defNames (appear first in list)
+        private static readonly HashSet<string> VanillaStones = new HashSet<string>
+        {
+            "Granite", "Limestone", "Marble", "Sandstone", "Slate"
+        };
+
         // ============================================================================
         // HELPER METHODS - Common filter control patterns
         // ============================================================================
@@ -391,7 +401,13 @@ namespace LandingZone.Core.UI
                     "Resource Modifiers",
                     (listing, filters) =>
                     {
-                        listing.Label("Resource Modifiers (fertility, minerals, power):");
+                        listing.Label("Resource Modifiers (tile-wide bonuses):");
+                        Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        listing.Label("MineralRich = more ore veins on tile; Fertile = better soil quality");
+                        GUI.color = Color.white;
+                        Text.Font = GameFont.Small;
+                        listing.Gap(2f);
 
                         var resourceMutators = GetResourceMutators();
                         foreach (var mutator in resourceMutators)
@@ -481,13 +497,64 @@ namespace LandingZone.Core.UI
                             listing.Gap(4f);
                         }
 
-                        // Individual natural stone list (Granite, Limestone, Marble, etc.)
-                        foreach (var stoneType in naturalStones)
+                        // Stone list with scroll view (fixed height to prevent overflow)
+                        const float itemHeight = 30f;
+                        const float dividerHeight = 15f;
+                        const float scrollViewMaxHeight = 200f;
+
+                        // Separate vanilla and modded for height calculation
+                        var vanillaList = naturalStones.Where(s => VanillaStones.Contains(s)).ToList();
+                        var moddedList = naturalStones.Where(s => !VanillaStones.Contains(s)).ToList();
+                        bool hasDivider = vanillaList.Any() && moddedList.Any();
+
+                        float contentHeight = naturalStones.Count * itemHeight + (hasDivider ? dividerHeight : 0f);
+                        float scrollHeight = Mathf.Min(contentHeight, scrollViewMaxHeight);
+
+                        // Show count hint if list is scrollable
+                        if (contentHeight > scrollViewMaxHeight)
+                        {
+                            Text.Font = GameFont.Tiny;
+                            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                            listing.Label($"({naturalStones.Count} stone types - scroll to see all)");
+                            GUI.color = Color.white;
+                            Text.Font = GameFont.Small;
+                        }
+
+                        var scrollRect = listing.GetRect(scrollHeight);
+                        var viewRect = new Rect(0f, 0f, scrollRect.width - 16f, contentHeight);
+
+                        Widgets.BeginScrollView(scrollRect, ref _stonesScrollPosition, viewRect);
+                        var innerListing = new Listing_Standard();
+                        innerListing.Begin(viewRect);
+
+                        // Draw vanilla stones first
+                        foreach (var stoneType in vanillaList)
                         {
                             var importance = filters.Stones.GetImportance(stoneType);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), stoneType, ref importance);
+                            UIHelpers.DrawImportanceSelector(innerListing.GetRect(itemHeight), stoneType, ref importance);
                             filters.Stones.SetImportance(stoneType, importance);
                         }
+
+                        // Draw modded stones (with subtle divider if both exist)
+                        if (hasDivider)
+                        {
+                            var dividerRect = innerListing.GetRect(dividerHeight);
+                            Text.Font = GameFont.Tiny;
+                            GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                            Widgets.Label(dividerRect, "─── Modded Stones ───");
+                            GUI.color = Color.white;
+                            Text.Font = GameFont.Small;
+                        }
+
+                        foreach (var stoneType in moddedList)
+                        {
+                            var importance = filters.Stones.GetImportance(stoneType);
+                            UIHelpers.DrawImportanceSelector(innerListing.GetRect(itemHeight), stoneType, ref importance);
+                            filters.Stones.SetImportance(stoneType, importance);
+                        }
+
+                        innerListing.End();
+                        Widgets.EndScrollView();
 
                         listing.Gap(5f);
                         bool useStoneCount = filters.UseStoneCount;
@@ -518,10 +585,12 @@ namespace LandingZone.Core.UI
                     "Mineable Resources",
                     (listing, filters) =>
                     {
-                        listing.Label("Mineable Resources (rare ores):");
+                        listing.Label("Mineable Ores (specific ore deposits):");
                         Text.Font = GameFont.Tiny;
+                        GUI.color = new Color(0.7f, 0.7f, 0.7f);
+                        listing.Label("Distinct from 'MineralRich' mutator - these are specific ore types.");
                         GUI.color = new Color(1f, 0.8f, 0.4f);
-                        listing.Label("Note: Tiles have only ONE mineable resource type (Gold OR Silver OR Uranium, etc.)");
+                        listing.Label("Note: Tiles have only ONE mineable ore type (Gold OR Silver OR Uranium, etc.)");
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                         listing.Gap(4f);
@@ -936,7 +1005,6 @@ namespace LandingZone.Core.UI
                              def.building.isNaturalRock &&
                              !def.defName.StartsWith("Mineable"))  // Exclude mineables
                 .Select(def => def.defName)
-                .OrderBy(name => name)
                 .ToList();
 
             // Fallback: if no rocks found, return common known types
@@ -945,7 +1013,11 @@ namespace LandingZone.Core.UI
                 stoneTypes = new List<string> { "Granite", "Limestone", "Marble", "Sandstone", "Slate" };
             }
 
-            return stoneTypes;
+            // Sort: Vanilla stones first (alphabetically), then modded stones (alphabetically)
+            return stoneTypes
+                .OrderBy(name => VanillaStones.Contains(name) ? 0 : 1)
+                .ThenBy(name => name)
+                .ToList();
         }
 
         private static List<string> GetMineableResources()
@@ -1045,20 +1117,29 @@ namespace LandingZone.Core.UI
                 // Water features
                 "River", "RiverDelta", "RiverConfluence", "RiverIsland", "Headwater",
                 "Lake", "LakeWithIsland", "LakeWithIslands", "Lakeshore", "Pond", "CaveLakes", "ToxicLake",
+                "LavaLake",  // Volcanic lake
 
                 // Coastal/maritime
                 "Coast", "Peninsula", "Bay", "Cove", "Harbor", "Fjord",
                 "Archipelago", "CoastalAtoll", "CoastalIsland", "Iceberg",
 
+                // Geological Landforms mod (GL_*)
+                "GL_Atoll", "GL_DesertPlateau", "GL_Glacier", "GL_Gorge", "GL_IceOasis", "GL_Island",
+                "GL_RiverConfluence", "GL_RiverDelta", "GL_RiverIsland", "GL_SecludedValley", "GL_Sinkhole", "GL_Skerry",
+
                 // Mountain/elevation
                 "Mountain", "Valley", "Basin", "Plateau", "Hollow",
-                "Caves", "Cavern", "LavaCaves", "Cliffs", "Chasm", "Crevasse",
+                "Caves", "Cavern", "LavaCaves", "IceCaves", "Cliffs", "Chasm", "Crevasse",
 
                 // Desert/arid
-                "Oasis", "Dunes",
+                "Oasis", "Dunes", "IceDunes",
 
                 // Volcanic/lava
                 "LavaFlow", "LavaCrater", "HotSprings",
+
+                // Alpha Biomes mod (AB_*) - geography features
+                "AB_GeothermalHotspots", "AB_HealingSprings", "AB_MagmaticQuagmire", "AB_PetalStorms",
+                "AB_PropaneLakes", "AB_QuiveringSurface", "AB_TarLakes",
 
                 // Terrain types
                 "DryGround", "DryLake", "Muddy", "Sandy", "Marshy", "Wetland",
@@ -1079,7 +1160,11 @@ namespace LandingZone.Core.UI
                 "WildTropicalPlants",
                 "PlantGrove",
                 "AnimalHabitat",
-                "ObsidianDeposits"  // Volcanic glass - valuable construction material
+                "ObsidianDeposits",  // Volcanic glass - valuable construction material
+
+                // Alpha Biomes mod (AB_*) - resource modifiers
+                "AB_OversaturatedSoil",  // Enhanced fertility
+                "AB_PollinationFrenzy"   // Plant growth boost
             };
         }
 
@@ -1088,6 +1173,10 @@ namespace LandingZone.Core.UI
             // Alphabetically sorted for easy scanning
             return new List<string>
             {
+                // Alpha Biomes mod (AB_*) - special sites
+                "AB_DerelictResort",
+
+                // Vanilla/Core special sites
                 "AbandonedColonyOutlander",
                 "AbandonedColonyTribal",
                 "AncientChemfuelRefinery",
@@ -1108,6 +1197,21 @@ namespace LandingZone.Core.UI
                 "Stockpile",
                 "TerraformingScar"
             };
+        }
+
+        /// <summary>
+        /// Diagnostics helper: returns the curated mutator set used by the Advanced UI.
+        /// This matches the buckets shown to users (weather, life, geography, resources, special).
+        /// </summary>
+        public static IEnumerable<string> GetCuratedMutatorsForDiagnostics()
+        {
+            var all = new HashSet<string>();
+            all.UnionWith(GetWeatherMutators());
+            all.UnionWith(GetLifeModifierMutators());
+            all.UnionWith(GetGeographyMutators());
+            all.UnionWith(GetResourceMutators());
+            all.UnionWith(GetSpecialSiteMutators());
+            return all;
         }
 
         // ============================================================================

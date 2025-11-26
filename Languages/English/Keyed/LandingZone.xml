@@ -122,7 +122,7 @@
   <LandingZone_DontAskAgain>Don't ask again</LandingZone_DontAskAgain>
   <LandingZone_EditPreset>Edit</LandingZone_EditPreset>
   <LandingZone_EditPresetTitle>Edit Preset</LandingZone_EditPresetTitle>
-  <LandingZone_PresetNameLabel>Preset Name:</LandingZone_PresetNameLabel>
+  <!-- duplicate removed -->
   <LandingZone_PresetDescriptionLabel>Description:</LandingZone_PresetDescriptionLabel>
   <LandingZone_PresetDeleted>Deleted preset: {0}</LandingZone_PresetDeleted>
   <LandingZone_Notes>Notes:</LandingZone_Notes>
@@ -486,7 +486,7 @@
   <LandingZone_PresetAlreadyExists>[LandingZone] User preset '{0}' already exists</LandingZone_PresetAlreadyExists>
   <LandingZone_PresetSavedWithOverrides>[LandingZone] Saved user preset '{0}' with {1} quality overrides</LandingZone_PresetSavedWithOverrides>
   <LandingZone_PresetSavedLog>[LandingZone] Saved user preset: {0}</LandingZone_PresetSavedLog>
-  <LandingZone_PresetDeleted>[LandingZone] Deleted user preset: {0}</LandingZone_PresetDeleted>
+  <!-- duplicate removed -->
   <LandingZone_UserCreatedPresetDesc>User-created preset from Simple mode</LandingZone_UserCreatedPresetDesc>
 
   <!-- Preset Import/Export (Token System) -->

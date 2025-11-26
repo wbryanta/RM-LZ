@@ -18,6 +18,7 @@ namespace LandingZone.Data
         private Dictionary<int, TileDetail>? _cache;
         private string _worldSeed = string.Empty;
         private bool _isBuilding = false;
+        private static HashSet<string>? _validOresCache; // Dynamically built from DefDatabase
 
         /// <summary>
         /// Details about a tile's minerals, stockpiles, animals, and plants.
@@ -212,20 +213,9 @@ namespace LandingZone.Data
                 int animalCount = 0;
                 int plantCount = 0;
 
-                // Whitelist of known valid ore defNames (based on canonical world data)
-                var validOres = new HashSet<string>
-                {
-                    "MineableSilver",
-                    "MineableSteel",        // Core construction resource (compacted steel)
-                    "MineableUranium",
-                    "MineablePlasteel",
-                    "MineableGold",
-                    "MineableComponentsIndustrial",
-                    "MineableJade",
-                    // "MineableObsidian", // Uncomment if validated in-game
-                    // "MineableVacstone", // Add if discovered in testing
-                };
-                var unknownOres = new HashSet<string>(); // Track unknown ores for warning
+                // Build valid ore set dynamically from DefDatabase (mod-agnostic)
+                var validOres = GetValidMineableOres();
+                var newOresDiscovered = new HashSet<string>(); // Track newly discovered mod ores for logging
 
                 if (LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
                 {
@@ -258,17 +248,20 @@ namespace LandingZone.Data
                             var oreDef = method.Invoke(mineralRichMutator.Worker, new object[] { planetTile }) as ThingDef;
                             if (oreDef != null)
                             {
-                                // Validate against whitelist
-                                if (validOres.Contains(oreDef.defName))
-                                {
-                                    minerals.Add(oreDef.defName); // e.g., MineableGold, MineableUranium, etc.
-                                    mineralCount++;
-                                }
-                                else
-                                {
-                                    // Track unknown ore for warning
-                                    unknownOres.Add(oreDef.defName);
-                                }
+                                // Dynamic validation - accept all mineable defs discovered from DefDatabase
+                            if (validOres.Contains(oreDef.defName))
+                            {
+                                minerals.Add(oreDef.defName); // e.g., MineableGold, MineableUranium, BVM_MineablePlatinum, etc.
+                                mineralCount++;
+                            }
+                            else
+                            {
+                                // Log newly discovered ores not in our dynamic set (shouldn't happen often)
+                                // But accept them anyway - they came from the game's ore system
+                                minerals.Add(oreDef.defName);
+                                mineralCount++;
+                                newOresDiscovered.Add(oreDef.defName);
+                            }
                             }
                         }
                     }
@@ -469,12 +462,14 @@ namespace LandingZone.Data
                         Log.Message($"[LandingZone] MineralStockpileCache: Plant distribution: {summary}");
                     }
 
-                    // Warn about unknown ores (not in whitelist)
-                    if (unknownOres.Count > 0)
+                    // Log newly discovered ores (not in DefDatabase at init time, but accepted anyway)
+                    if (newOresDiscovered.Count > 0)
                     {
-                        Log.Warning($"[LandingZone] MineralStockpileCache: Found {unknownOres.Count} unknown ore type(s): {string.Join(", ", unknownOres)}");
-                        Log.Warning($"[LandingZone]   → These ores were filtered out. Add to whitelist in MineralStockpileCache.cs if they're valid vanilla ores.");
+                        Log.Message($"[LandingZone] MineralStockpileCache: Accepted {newOresDiscovered.Count} ore(s) not in initial DefDatabase scan: {string.Join(", ", newOresDiscovered)}");
                     }
+
+                    // Log valid ores set size for debugging
+                    Log.Message($"[LandingZone] MineralStockpileCache: Valid ore set contains {validOres.Count} mineable defs (dynamic detection)");
                 }
                 else if (sw.ElapsedMilliseconds > 1000)
                 {
@@ -485,6 +480,97 @@ namespace LandingZone.Data
             {
                 _isBuilding = false;
             }
+        }
+
+        /// <summary>
+        /// Dynamically builds a set of valid mineable ore defNames from DefDatabase.
+        /// Uses strict heuristics to avoid grabbing non-ore defs (frames, furniture, etc.).
+        /// </summary>
+        private static HashSet<string> GetValidMineableOres()
+        {
+            // Return cached set if already built
+            if (_validOresCache != null)
+                return _validOresCache;
+
+            _validOresCache = new HashSet<string>();
+
+            // Known mod prefixes that produce mineable ores
+            var knownModPrefixes = new[] { "AB_", "BVM_", "DankPyon_", "EM_", "GL_", "VFE_", "VPE_", "VCHE_" };
+
+            try
+            {
+                // Scan all ThingDefs for mineable rocks/ores
+                foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading)
+                {
+                    if (def == null || def.building == null) continue;
+
+                    // Primary criteria: has mineable yield (produces resources when mined)
+                    bool hasMinedYield = def.building.mineableThing != null;
+
+                    // Secondary criteria: natural rock with scatter commonality (ore veins)
+                    bool isMineableRock = def.building.isNaturalRock && def.building.mineableScatterCommonality > 0;
+
+                    // Accept if it meets primary or secondary criteria
+                    if (hasMinedYield || isMineableRock)
+                    {
+                        _validOresCache.Add(def.defName);
+                        continue;
+                    }
+
+                    // Mod-specific handling: only accept known mod prefixes if they ALSO have mineable properties
+                    // This catches odd mod naming conventions but requires actual mineable behavior
+                    bool hasKnownModPrefix = knownModPrefixes.Any(p => def.defName.StartsWith(p));
+                    if (hasKnownModPrefix && def.building.mineableYieldWasteable)
+                    {
+                        _validOresCache.Add(def.defName);
+                    }
+                }
+
+                // Manual allowlist for edge cases that don't fit the heuristics
+                // (Add specific defNames here if discovered in testing)
+                var manualAllowlist = new[]
+                {
+                    // DankPyon golem rocks that spawn as map gen features
+                    "DankPyon_GolemRock_Iron_MapGen",
+                    "DankPyon_GolemRock_Silver_MapGen"
+                };
+                foreach (var defName in manualAllowlist)
+                {
+                    if (DefDatabase<ThingDef>.GetNamedSilentFail(defName) != null)
+                    {
+                        _validOresCache.Add(defName);
+                    }
+                }
+
+                if (LandingZoneSettings.LogLevel >= LoggingLevel.Verbose)
+                {
+                    Log.Message($"[LandingZone] MineralStockpileCache: Built valid ores set with {_validOresCache.Count} entries from DefDatabase");
+                    if (_validOresCache.Count > 0 && _validOresCache.Count <= 50)
+                    {
+                        Log.Message($"[LandingZone]   Valid ores: {string.Join(", ", _validOresCache.OrderBy(s => s))}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[LandingZone] MineralStockpileCache: Failed to build valid ores set: {ex.Message}");
+                // Fallback to basic vanilla ores
+                _validOresCache = new HashSet<string>
+                {
+                    "MineableSilver", "MineableSteel", "MineableUranium",
+                    "MineablePlasteel", "MineableGold", "MineableComponentsIndustrial", "MineableJade"
+                };
+            }
+
+            return _validOresCache;
+        }
+
+        /// <summary>
+        /// Gets the list of all valid mineable ore defNames (for UI/diagnostics).
+        /// </summary>
+        public static IReadOnlyCollection<string> GetAllValidOres()
+        {
+            return GetValidMineableOres();
         }
     }
 }

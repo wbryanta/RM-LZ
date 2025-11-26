@@ -234,8 +234,11 @@ namespace LandingZone.Core.Filtering.Filters
             {
                 if (Prefs.DevMode)
                     LandingZoneLogger.LogError($"[LandingZone] GetAllMapFeatureTypes: DefDatabase query failed: {ex.Message}. Falling back to world scan.");
+            }
 
-                // Fallback: Sample world tiles if DefDatabase query fails
+            // Fallback: If DefDatabase query failed or returned nothing, sample the world grid
+            if (featureTypes.Count == 0)
+            {
                 var world = Find.World;
                 if (world?.grid != null)
                 {
@@ -248,6 +251,13 @@ namespace LandingZone.Core.Filtering.Filters
                             featureTypes.Add(feature);
                         }
                     }
+
+                    if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
+                        LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Fallback world scan captured {featureTypes.Count} mutators");
+                }
+                else if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
+                {
+                    LandingZoneLogger.LogWarning("[LandingZone] GetAllMapFeatureTypes: World grid unavailable; returning empty feature list");
                 }
             }
 

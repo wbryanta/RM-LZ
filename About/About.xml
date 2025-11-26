@@ -3,8 +3,8 @@
   <name>LandingZone (DEV)</name>
   <author>wcbryant</author>
   <url>https://github.com/wbryanta/RM-LZ</url>
-  <packageId>wcb.landingzone-dev</packageId>
-  <modVersion>0.3.3-beta</modVersion>
+  <packageId>wcb.landingzone.dev</packageId>
+  <modVersion>0.3.5-dev</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>

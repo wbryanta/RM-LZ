@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using Verse;
 using RimWorld;
+using LandingZone.Core.Diagnostics;
 
 namespace LandingZone.Core.UI
 {
@@ -28,8 +29,8 @@ namespace LandingZone.Core.UI
 
         public override void DoWindowContents(Rect inRect)
         {
-            // Calculate content height - scrollbar appears automatically if content exceeds window height
-            float contentHeight = 350f; // Estimated total height of all content
+            // Calculate content height - keep generous to ensure all controls are visible
+            float contentHeight = 680f;  // Increased for new debug buttons
 
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
@@ -127,6 +128,89 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
 
             listing.Gap(12f);
+            listing.GapLine();
+            listing.Gap(8f);
+
+            // World definition dump (biomes, mutators, world objects)
+            if (listing.ButtonText("[DEV] Dump Biomes/Mutators/WorldObjs"))
+            {
+                try
+                {
+                    DevDiagnostics.DumpWorldDefinitions();
+                    Messages.Message("[DEV] Logged biomes/mutators/world objects to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed to dump world definitions: {ex}");
+                    Messages.Message("[DEV] Dump failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(6f);
+            // Coverage comparison: runtime mutators vs UI map features
+            if (listing.ButtonText("[DEV] Compare Mutator Coverage"))
+            {
+                try
+                {
+                    DevDiagnostics.CompareMutatorCoverage();
+                    Messages.Message("[DEV] Logged mutator coverage diff to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed mutator coverage compare: {ex}");
+                    Messages.Message("[DEV] Coverage compare failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(6f);
+            // Dump top search results with detailed breakdown
+            if (listing.ButtonText("[DEV] Dump Top 10 Results Detail"))
+            {
+                try
+                {
+                    DevDiagnostics.DumpTopResults(10);
+                    Messages.Message("[DEV] Dumped top 10 results to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed to dump top results: {ex}");
+                    Messages.Message("[DEV] Top results dump failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listing.Label("Shows tile ID, score, biome, features, and filter match breakdown");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listing.Gap(6f);
+            // Dump valid mineable ores (for mod ore debugging)
+            if (listing.ButtonText("[DEV] Dump Valid Mineable Ores"))
+            {
+                try
+                {
+                    DevDiagnostics.DumpValidOres();
+                    Messages.Message("[DEV] Dumped valid ores to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed to dump valid ores: {ex}");
+                    Messages.Message("[DEV] Valid ores dump failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listing.Label("Lists all ore defNames detected from DefDatabase (vanilla + mods)");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listing.Gap(12f);
+            listing.GapLine();
+            listing.Gap(8f);
 
             // Note about match data logging
             Text.Font = GameFont.Tiny;

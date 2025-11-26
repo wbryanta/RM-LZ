@@ -150,7 +150,7 @@ namespace LandingZone.Core.UI
             var goodRect = new Rect(filterX, rect.y + 2f, buttonWidth, rect.height - 4f);
             DrawFilterButton(goodRect, "LandingZone_Show75Plus".Translate(), 0.75f);
 
-            // Dev mode DEBUG button (right side, before Bookmark All)
+            // Right-side buttons
             float rightX = rect.xMax - 4f;
 
             // Bookmark All button
@@ -161,16 +161,7 @@ namespace LandingZone.Core.UI
                 BookmarkAllResults();
             }
 
-            // [DEBUG] Dump button (Dev mode only, left of Bookmark All)
-            if (Prefs.DevMode)
-            {
-                var dumpButtonWidth = 95f;
-                var dumpButtonRect = new Rect(bookmarkAllRect.x - dumpButtonWidth - 5f, rect.y + 2f, dumpButtonWidth, rect.height - 4f);
-                if (Widgets.ButtonText(dumpButtonRect, "LandingZone_DebugDump".Translate()))
-                {
-                    DumpMatchDataForAnalysis();
-                }
-            }
+            // Note: Debug dump moved to DevToolsWindow for cleaner UI
 
             Text.Font = prevFont;
         }
