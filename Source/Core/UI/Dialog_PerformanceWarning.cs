@@ -1,3 +1,4 @@
+#nullable enable
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -37,26 +38,26 @@ namespace LandingZone.Core.UI
             // Header
             Text.Font = GameFont.Medium;
             GUI.color = new Color(0.7f, 0.85f, 1f); // Informational blue (not warning yellow)
-            listing.Label("⏱ Performance Suggestion");
+            listing.Label("LandingZone_Perf_Header".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
             listing.GapLine();
             listing.Gap(8f);
 
             // Informational message (not a warning)
-            listing.Label($"Your search has been running for {_elapsedMs / 1000f:F1} seconds.");
+            listing.Label("LandingZone_Perf_Runtime".Translate(_elapsedMs / 1000f));
             listing.Gap(4f);
-            listing.Label($"Current settings: Chunk size = {_currentChunkSize}, Max candidates = {_currentMaxCandidates.ToLabel()}");
+            listing.Label("LandingZone_Perf_CurrentSettings".Translate(_currentChunkSize, _currentMaxCandidates.ToLabel()));
             listing.Gap(8f);
 
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
-            listing.Label("Large worlds or complex filters can cause longer search times.");
-            listing.Label("You can continue searching, or try these optional optimizations:");
+            listing.Label("LandingZone_Perf_InfoLine1".Translate());
+            listing.Label("LandingZone_Perf_InfoLine2".Translate());
             listing.Gap(6f);
-            listing.Label("• Reduce chunk size → faster UI updates (slightly slower overall search)");
-            listing.Label("• Lower max candidates → fewer tiles processed in Stage B");
-            listing.Label("• Apply Safe profile → conservative settings for slow machines");
+            listing.Label("LandingZone_Perf_Opt1".Translate());
+            listing.Label("LandingZone_Perf_Opt2".Translate());
+            listing.Label("LandingZone_Perf_Opt3".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
             listing.Gap(16f);
@@ -64,21 +65,21 @@ namespace LandingZone.Core.UI
             // Optional quick-apply actions
             Text.Font = GameFont.Small;
             GUI.color = new Color(0.9f, 0.9f, 0.9f);
-            listing.Label("Optional Quick Actions (or close to continue):");
+            listing.Label("LandingZone_Perf_QuickActions".Translate());
             GUI.color = Color.white;
             listing.Gap(8f);
 
             // Reduce chunk size button
             if (_currentChunkSize > 250)
             {
-                if (listing.ButtonText($"Reduce Chunk Size to 250 (currently {_currentChunkSize})"))
+                if (listing.ButtonText("LandingZone_Perf_ChunkButton".Translate(_currentChunkSize)))
                 {
                     var settings = LandingZoneMod.Instance?.Settings;
                     if (settings != null)
                     {
                         settings.EvaluationChunkSize = 250;
-                        LandingZoneMod.Instance.WriteSettings();
-                        Messages.Message("Chunk size reduced to 250. Restart search for changes to take effect.", MessageTypeDefOf.TaskCompletion, false);
+                        LandingZoneMod.Instance?.WriteSettings();
+                        Messages.Message("LandingZone_Perf_ChunkApplied".Translate(), MessageTypeDefOf.TaskCompletion, false);
                     }
                     Close();
                 }
@@ -86,7 +87,7 @@ namespace LandingZone.Core.UI
             else
             {
                 GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                listing.Label("Chunk size already at 250 or lower");
+                listing.Label("LandingZone_Perf_ChunkAlready".Translate());
                 GUI.color = Color.white;
             }
 
@@ -95,18 +96,18 @@ namespace LandingZone.Core.UI
             // Reduce max candidates button (if not already Conservative)
             if (_currentMaxCandidates != MaxCandidateTilesLimit.Conservative)
             {
-                if (listing.ButtonText($"Lower Max Candidates to Conservative (25k) (currently {_currentMaxCandidates.ToLabel()})"))
+                if (listing.ButtonText("LandingZone_Perf_MaxButton".Translate(_currentMaxCandidates.ToLabel())))
                 {
                     LandingZoneSettings.MaxCandidates = MaxCandidateTilesLimit.Conservative;
                     LandingZoneMod.Instance?.WriteSettings();
-                    Messages.Message("Max candidates set to Conservative (25k). Restart search for changes to take effect.", MessageTypeDefOf.TaskCompletion, false);
+                    Messages.Message("LandingZone_Perf_MaxApplied".Translate(), MessageTypeDefOf.TaskCompletion, false);
                     Close();
                 }
             }
             else
             {
                 GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                listing.Label("Max candidates already at Conservative (25k)");
+                listing.Label("LandingZone_Perf_MaxAlready".Translate());
                 GUI.color = Color.white;
             }
 
@@ -115,13 +116,13 @@ namespace LandingZone.Core.UI
             // Apply Safe profile button
             if (LandingZoneSettings.CurrentPerformanceProfile != PerformanceProfile.Safe)
             {
-                if (listing.ButtonText("Apply Safe Profile (Chunk: 250, Max: 25k)"))
+                if (listing.ButtonText("LandingZone_Perf_ProfileButton".Translate()))
                 {
                     var settings = LandingZoneMod.Instance?.Settings;
                     if (settings != null)
                     {
                         settings.ApplyPerformanceProfile(PerformanceProfile.Safe);
-                        Messages.Message("Performance profile set to Safe. Restart search for changes to take effect.", MessageTypeDefOf.TaskCompletion, false);
+                        Messages.Message("LandingZone_Perf_ProfileApplied".Translate(), MessageTypeDefOf.TaskCompletion, false);
                     }
                     Close();
                 }
@@ -129,7 +130,7 @@ namespace LandingZone.Core.UI
             else
             {
                 GUI.color = new Color(0.5f, 0.5f, 0.5f);
-                listing.Label("Safe profile already active");
+                listing.Label("LandingZone_Perf_ProfileAlready".Translate());
                 GUI.color = Color.white;
             }
 
@@ -138,8 +139,8 @@ namespace LandingZone.Core.UI
             // Continue message (emphasize it's optional)
             Text.Font = GameFont.Small;
             GUI.color = new Color(0.7f, 0.85f, 1f);
-            listing.Label("Close this dialog to continue searching with current settings.");
-            listing.Label("No changes required - this is just a performance tip.");
+            listing.Label("LandingZone_Perf_CloseContinue".Translate());
+            listing.Label("LandingZone_Perf_NoChanges".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 

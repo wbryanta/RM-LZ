@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
@@ -92,7 +93,7 @@ namespace LandingZone.Core
         /// <summary>
         /// Gets the bookmark for a specific tile, if it exists.
         /// </summary>
-        public TileBookmark GetBookmark(int tileId)
+        public TileBookmark? GetBookmark(int tileId)
         {
             return _bookmarks.FirstOrDefault(b => b.TileId == tileId);
         }
@@ -117,7 +118,7 @@ namespace LandingZone.Core
         /// <summary>
         /// Updates an existing bookmark's properties.
         /// </summary>
-        public bool UpdateBookmark(int tileId, string label = null, string notes = null, Color? color = null, bool? showTitleOnGlobe = null)
+        public bool UpdateBookmark(int tileId, string? label = null, string? notes = null, Color? color = null, bool? showTitleOnGlobe = null)
         {
             var bookmark = GetBookmark(tileId);
             if (bookmark == null)
@@ -152,7 +153,7 @@ namespace LandingZone.Core
         /// <summary>
         /// Gets the BookmarkManager instance for the current game.
         /// </summary>
-        public static BookmarkManager Get()
+        public static BookmarkManager? Get()
         {
             var game = Current.Game;
             if (game == null)
@@ -164,7 +165,7 @@ namespace LandingZone.Core
         /// <summary>
         /// Gets or creates the BookmarkManager instance for the current game.
         /// </summary>
-        public static BookmarkManager GetOrCreate()
+        public static BookmarkManager? GetOrCreate()
         {
             var game = Current.Game;
             if (game == null)

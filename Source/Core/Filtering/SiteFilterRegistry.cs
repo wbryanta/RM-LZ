@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
@@ -27,9 +28,11 @@ namespace LandingZone.Core.Filtering
             {
                 current = Enumerable.Range(0, worldGrid.TilesCount)
                     .Where(id => {
-                        var tile = worldGrid[id];
-                        var biome = tile?.PrimaryBiome;
-                        return biome != null && !biome.impassable && !world.Impassable(id);
+                        var tile = worldGrid?[id];
+                        if (tile == null) return false;
+                        var biome = tile.PrimaryBiome;
+                        if (biome == null) return false;
+                        return !biome.impassable && !world!.Impassable(id);
                     });
             }
             else
@@ -52,8 +55,9 @@ namespace LandingZone.Core.Filtering
         /// <summary>
         /// Converts all registered filters to predicates and partitions by heaviness.
         /// Used for k-of-n symmetric evaluation.
-        /// PERFORMANCE OPTIMIZATION: Heavy filters set to Critical are auto-demoted to Preferred
-        /// to prevent expensive operations (Growing Days, etc.) from hard-filtering 100k+ candidates.
+        /// NOTE: Heavy filters set to hard gates (MustHave/MustNotHave) are respected as-is.
+        /// A user-facing warning dialog is shown before search if heavy+gate filters are detected,
+        /// allowing the user to choose: Proceed, Demote to Priority, or Cancel.
         /// </summary>
         public (List<IFilterPredicate> Cheap, List<IFilterPredicate> Heavy) GetAllPredicates(GameState state)
         {
@@ -68,22 +72,10 @@ namespace LandingZone.Core.Filtering
                 var importance = GetFilterImportance(filter.Id, filters);
 
                 // Skip ignored filters
-                if (importance == FilterImportance.Ignored)
+                if (!importance.IsActive())
                     continue;
 
-                // AUTO-DEMOTION: Heavy + Critical → Preferred for performance
-                // Heavy filters (Growing Days, etc.) are too expensive to use as hard gates.
-                // Instead, they contribute to SCORING after cheap filters reduce candidates.
-                if (filter.Heaviness == FilterHeaviness.Heavy && importance == FilterImportance.Critical)
-                {
-                    Log.Warning($"[LandingZone] Filter '{filter.Id}' is Heavy + Critical. " +
-                               $"Auto-demoting to Preferred for performance. " +
-                               $"Heavy filters are used for SCORING top candidates, not hard filtering. " +
-                               $"This prevents {filter.Id} from processing 100k+ candidates (multi-minute delays).");
-                    importance = FilterImportance.Preferred;
-                }
-
-                // Create predicate adapter
+                // Create predicate adapter - respect user intent, no auto-demotion
                 var predicate = new FilterPredicateAdapter(filter, importance);
 
                 // Partition by heaviness
@@ -97,7 +89,38 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
+        /// Detects heavy filters that are set to hard gate importance levels (MustHave/MustNotHave).
+        /// Used by UI to show a warning before search.
+        /// </summary>
+        /// <returns>List of (filterId, filterLabel, importance) for heavy+gate filters</returns>
+        public List<(string Id, string Label, FilterImportance Importance)> GetHeavyGateFilters(FilterSettings filters)
+        {
+            var result = new List<(string, string, FilterImportance)>();
+
+            foreach (var filter in _filters)
+            {
+                var importance = GetFilterImportance(filter.Id, filters);
+
+                if (filter.Heaviness == FilterHeaviness.Heavy && importance.IsHardGate())
+                {
+                    string label = filter.Id switch
+                    {
+                        "growing_days" => "LandingZone_GrowingSeason".Translate(),
+                        "graze" => "LandingZone_Grazing".Translate(),
+                        "forageable_food" => "LandingZone_ForageableFood".Translate(),
+                        _ => filter.Id
+                    };
+                    result.Add((filter.Id, label, importance));
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Maps filter IDs to their importance settings in FilterSettings.
+        /// For container-based filters, returns the highest importance level present:
+        /// MustHave > MustNotHave > Priority > Preferred > Ignored
         /// </summary>
         internal static FilterImportance GetFilterImportance(string filterId, FilterSettings settings)
         {
@@ -125,18 +148,14 @@ namespace LandingZone.Core.Filtering
                 // Geography filters
                 "elevation" => settings.ElevationImportance,
                 "movement_difficulty" => settings.MovementDifficultyImportance,
-                "hilliness" => settings.AllowedHilliness.Count < 4 ? FilterImportance.Critical : FilterImportance.Ignored,
+                "hilliness" => settings.AllowedHilliness.Count < 4 ? FilterImportance.MustHave : FilterImportance.Ignored,
                 "coastal" => settings.CoastalImportance,
                 "coastal_lake" => settings.CoastalLakeImportance,
                 "water_access" => settings.WaterAccessImportance, // Coastal OR any river
 
-                // Individual importance filters: Use max importance (Critical > Preferred > Ignored)
-                "river" => settings.Rivers.HasCritical ? FilterImportance.Critical :
-                           settings.Rivers.HasPreferred ? FilterImportance.Preferred :
-                           FilterImportance.Ignored,
-                "road" => settings.Roads.HasCritical ? FilterImportance.Critical :
-                          settings.Roads.HasPreferred ? FilterImportance.Preferred :
-                          FilterImportance.Ignored,
+                // Container-based filters: Use highest importance (MustHave > MustNotHave > Priority > Preferred > Ignored)
+                "river" => GetContainerMaxImportance(settings.Rivers),
+                "road" => GetContainerMaxImportance(settings.Roads),
 
                 // Resource filters
                 "graze" => settings.GrazeImportance,
@@ -144,24 +163,29 @@ namespace LandingZone.Core.Filtering
                 // World features
                 "world_feature" => settings.FeatureImportance,
                 "landmark" => settings.LandmarkImportance,
-                "map_features" => settings.MapFeatures.HasCritical ? FilterImportance.Critical :
-                                  settings.MapFeatures.HasPreferred ? FilterImportance.Preferred :
-                                  FilterImportance.Ignored,
-                "adjacent_biomes" => settings.AdjacentBiomes.HasCritical ? FilterImportance.Critical :
-                                     settings.AdjacentBiomes.HasPreferred ? FilterImportance.Preferred :
-                                     FilterImportance.Ignored,
-                "stone" => settings.Stones.HasCritical ? FilterImportance.Critical :
-                           settings.Stones.HasPreferred ? FilterImportance.Preferred :
-                           FilterImportance.Ignored,
-                "stockpile" => settings.Stockpiles.HasCritical ? FilterImportance.Critical :
-                               settings.Stockpiles.HasPreferred ? FilterImportance.Preferred :
-                               FilterImportance.Ignored,
+                "map_features" => GetContainerMaxImportance(settings.MapFeatures),
+                "adjacent_biomes" => GetContainerMaxImportance(settings.AdjacentBiomes),
+                "stone" => GetContainerMaxImportance(settings.Stones),
+                "stockpile" => GetContainerMaxImportance(settings.Stockpiles),
 
-                // Biome filter is always Critical if LockedBiome is set
-                "biome" => settings.LockedBiome != null ? FilterImportance.Critical : FilterImportance.Ignored,
+                // Biome filter is always MustHave if LockedBiome is set
+                "biome" => settings.LockedBiome != null ? FilterImportance.MustHave : FilterImportance.Ignored,
 
                 _ => FilterImportance.Ignored
             };
+        }
+
+        /// <summary>
+        /// Gets the highest importance level present in a container.
+        /// Order: MustHave > MustNotHave > Priority > Preferred > Ignored
+        /// </summary>
+        private static FilterImportance GetContainerMaxImportance<T>(IndividualImportanceContainer<T> container) where T : notnull
+        {
+            if (container.HasMustHave) return FilterImportance.MustHave;
+            if (container.HasMustNotHave) return FilterImportance.MustNotHave;
+            if (container.HasPriority) return FilterImportance.Priority;
+            if (container.HasPreferred) return FilterImportance.Preferred;
+            return FilterImportance.Ignored;
         }
     }
 }

@@ -611,10 +611,79 @@ namespace LandingZone.Data
         }
     }
 
+    /// <summary>
+    /// 5-state importance model for filter configuration.
+    /// - MustHave/MustNotHave: Hard gates (tile MUST/MUST NOT match) - Apply phase only
+    /// - Priority: Higher scoring weight than Preferred
+    /// - Preferred: Normal scoring weight
+    /// - Ignored: Not evaluated
+    /// </summary>
     public enum FilterImportance : byte
     {
+        /// <summary>Not evaluated - filter is off.</summary>
         Ignored = 0,
+
+        /// <summary>Normal scoring weight.</summary>
         Preferred = 1,
-        Critical = 2
+
+        /// <summary>Higher scoring weight than Preferred.</summary>
+        Priority = 2,
+
+        /// <summary>Hard gate: tile MUST match this filter to be considered.</summary>
+        MustHave = 3,
+
+        /// <summary>Hard gate: tile MUST NOT match this filter to be considered.</summary>
+        MustNotHave = 4,
+
+        /// <summary>[LEGACY] Alias for MustHave. Use MustHave for new code.</summary>
+        Critical = MustHave
+    }
+
+    /// <summary>
+    /// Extension methods for FilterImportance to simplify gate/scoring logic.
+    /// </summary>
+    public static class FilterImportanceExtensions
+    {
+        /// <summary>
+        /// Returns true if this importance level is a hard gate (MustHave or MustNotHave).
+        /// Hard gates are evaluated in the Apply phase and exclude/include tiles absolutely.
+        /// </summary>
+        public static bool IsHardGate(this FilterImportance importance)
+        {
+            return importance == FilterImportance.MustHave || importance == FilterImportance.MustNotHave;
+        }
+
+        /// <summary>
+        /// Returns true if this importance level contributes to scoring (Priority or Preferred).
+        /// Scoring filters are evaluated in the Score phase and affect tile ranking.
+        /// </summary>
+        public static bool IsScoring(this FilterImportance importance)
+        {
+            return importance == FilterImportance.Priority || importance == FilterImportance.Preferred;
+        }
+
+        /// <summary>
+        /// Returns true if this importance level should be evaluated at all.
+        /// </summary>
+        public static bool IsActive(this FilterImportance importance)
+        {
+            return importance != FilterImportance.Ignored;
+        }
+
+        /// <summary>
+        /// Migrates old 3-state importance values to new 5-state model.
+        /// Critical (2) → MustHave (3)
+        /// Preferred (1) → Preferred (1)
+        /// Ignored (0) → Ignored (0)
+        /// </summary>
+        public static FilterImportance MigrateFromLegacy(byte legacyValue)
+        {
+            return legacyValue switch
+            {
+                2 => FilterImportance.MustHave,  // Critical → MustHave
+                1 => FilterImportance.Preferred,
+                _ => FilterImportance.Ignored
+            };
+        }
     }
 }

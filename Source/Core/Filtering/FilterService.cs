@@ -41,6 +41,11 @@ namespace LandingZone.Core.Filtering
         /// </summary>
         public TileDataCache TileCache => _tileCache;
 
+        /// <summary>
+        /// Gets the filter registry for querying filter metadata.
+        /// </summary>
+        public SiteFilterRegistry Registry => _registry;
+
         private void RegisterDefaultFilters()
         {
             // Core filters
@@ -438,10 +443,14 @@ namespace LandingZone.Core.Filtering
             private readonly GameState _state;
             private readonly Data.Preset? _preset; // Track active preset for fallback logic
             private List<CandidateTile> _candidates;
-            private readonly List<IFilterPredicate> _heavyCriticals;
-            private readonly List<IFilterPredicate> _heavyPreferreds;
-            private int _totalCriticals; // Not readonly - updated when fallback tiers activate
-            private int _totalPreferreds; // Not readonly - updated when fallback tiers activate
+            // Heavy predicates partitioned by importance
+            private readonly List<IFilterPredicate> _heavyMustHave;
+            private readonly List<IFilterPredicate> _heavyPriority;
+            private readonly List<IFilterPredicate> _heavyPreferred;
+            // Note: MustNotHave heavy predicates are auto-demoted to Priority in GetAllPredicates
+            private int _totalMustHave; // Not readonly - updated when fallback tiers activate
+            private int _totalPriority; // Not readonly - updated when fallback tiers activate
+            private int _totalPreferred; // Not readonly - updated when fallback tiers activate
             private float _kappa; // Not readonly - updated when fallback tiers activate
             private readonly float _strictness;
             private readonly FilterContext _context;
@@ -458,18 +467,22 @@ namespace LandingZone.Core.Filtering
             private float _minInHeap;
             private float _currentStrictness; // Mutable strictness for auto-relax
             private int _fallbackTierUsed = 0; // 0 = primary, 1+ = fallback tier index
+            private bool _scoringStartLogged = false; // Track if scoring phase start has been logged
 
             // For membership scoring
-            private readonly List<ISiteFilter> _criticalFilters;
+            private readonly List<ISiteFilter> _mustHaveFilters;
+            private readonly List<ISiteFilter> _priorityFilters;
             private readonly List<ISiteFilter> _preferredFilters;
-            private float[] _criticalWeights; // Not readonly - updated when fallback tiers activate
+            private float[] _mustHaveWeights; // Not readonly - updated when fallback tiers activate
+            private float[] _priorityWeights; // Not readonly - updated when fallback tiers activate
             private float[] _preferredWeights; // Not readonly - updated when fallback tiers activate
 
             internal FilterEvaluationJob(FilterService owner, GameState state)
             {
                 _owner = owner;
                 _state = state;
-                _preset = state.Preferences.ActivePreset; // Store preset for fallback logic
+                var preset = state.Preferences.ActivePreset;
+                _preset = preset; // Store preset for fallback logic
                 var filters = state.Preferences.GetActiveFilters();
                 _strictness = filters.CriticalStrictness;
 
@@ -482,10 +495,9 @@ namespace LandingZone.Core.Filtering
 
                 _currentStrictness = _strictness; // Initialize current strictness
                 _maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
-                var preset = state.Preferences.ActivePreset;
                 var modeLabel = state.Preferences.Options.PreferencesUIMode.ToString();
-                var presetLabel = preset != null
-                    ? $"{preset.Id} ({preset.Name})"
+                var presetLabel = _preset != null
+                    ? $"{_preset.Id} ({_preset.Name})"
                     : (state.Preferences.Options.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
 
                 // Minimal/Standard/Verbose: Always log search start with key parameters
@@ -517,15 +529,21 @@ namespace LandingZone.Core.Filtering
                 // STAGE A: Cheap aggregate gate (synchronous - fast enough)
                 var (cheapPredicates, heavyPredicates) = owner._registry.GetAllPredicates(state);
 
-                _heavyCriticals = heavyPredicates.Where(p => p.Importance == FilterImportance.Critical).ToList();
-                _heavyPreferreds = heavyPredicates.Where(p => p.Importance == FilterImportance.Preferred).ToList();
+                // Partition heavy predicates by importance
+                // Note: MustNotHave heavy predicates are auto-demoted to Priority in GetAllPredicates
+                _heavyMustHave = heavyPredicates.Where(p => p.Importance == FilterImportance.MustHave).ToList();
+                _heavyPriority = heavyPredicates.Where(p => p.Importance == FilterImportance.Priority).ToList();
+                _heavyPreferred = heavyPredicates.Where(p => p.Importance == FilterImportance.Preferred).ToList();
 
-                int cheapCriticals = cheapPredicates.Count(p => p.Importance == FilterImportance.Critical);
-                int cheapPreferreds = cheapPredicates.Count(p => p.Importance == FilterImportance.Preferred);
+                int cheapMustHave = cheapPredicates.Count(p => p.Importance == FilterImportance.MustHave);
+                int cheapPriority = cheapPredicates.Count(p => p.Importance == FilterImportance.Priority);
+                int cheapPreferred = cheapPredicates.Count(p => p.Importance == FilterImportance.Preferred);
 
-                _totalCriticals = cheapCriticals + _heavyCriticals.Count;
-                _totalPreferreds = cheapPreferreds + _heavyPreferreds.Count;
-                _kappa = ScoringWeights.ComputeKappa(_totalCriticals, _totalPreferreds);
+                _totalMustHave = cheapMustHave + _heavyMustHave.Count;
+                _totalPriority = cheapPriority + _heavyPriority.Count;
+                _totalPreferred = cheapPreferred + _heavyPreferred.Count;
+                int totalScoring = _totalPriority + _totalPreferred;
+                _kappa = ScoringWeights.ComputeKappa(_totalMustHave, totalScoring);
                 _context = new FilterContext(state, owner._tileCache);
 
                 // Eager-build MineralStockpileCache if StoneFilter is active (prevents lazy build during tile evaluation)
@@ -536,29 +554,40 @@ namespace LandingZone.Core.Filtering
                 }
 
                 // Initialize membership scoring data structures
-                _criticalFilters = new List<ISiteFilter>();
+                _mustHaveFilters = new List<ISiteFilter>();
+                _priorityFilters = new List<ISiteFilter>();
                 _preferredFilters = new List<ISiteFilter>();
 
                 foreach (var filter in owner._registry.Filters)
                 {
                     var importance = SiteFilterRegistry.GetFilterImportance(filter.Id, filters);
 
-                    if (importance == FilterImportance.Critical)
-                        _criticalFilters.Add(filter);
-                    else if (importance == FilterImportance.Preferred)
-                        _preferredFilters.Add(filter);
+                    switch (importance)
+                    {
+                        case FilterImportance.MustHave:
+                            _mustHaveFilters.Add(filter);
+                            break;
+                        case FilterImportance.Priority:
+                            _priorityFilters.Add(filter);
+                            break;
+                        case FilterImportance.Preferred:
+                            _preferredFilters.Add(filter);
+                            break;
+                    }
                 }
 
                 // For now, use equal weights (rank-based weighting comes in future UI)
-                _criticalWeights = Enumerable.Repeat(1f, _criticalFilters.Count).ToArray();
+                _mustHaveWeights = Enumerable.Repeat(1f, _mustHaveFilters.Count).ToArray();
+                _priorityWeights = Enumerable.Repeat(1f, _priorityFilters.Count).ToArray();
                 _preferredWeights = Enumerable.Repeat(1f, _preferredFilters.Count).ToArray();
 
-                LandingZoneLogger.LogStandard($"[LandingZone] Membership scoring: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters");
+                LandingZoneLogger.LogStandard($"[LandingZone] Membership scoring: {_mustHaveFilters.Count} MustHave, {_priorityFilters.Count} Priority, {_preferredFilters.Count} Preferred filters");
 
                 var aggregator = new BitsetAggregator(
                     cheapPredicates,
-                    _heavyCriticals.Count,
-                    _heavyPreferreds.Count,
+                    _heavyMustHave.Count,
+                    _heavyPriority.Count,
+                    _heavyPreferred.Count,
                     _context,
                     _tileCount
                 );
@@ -572,13 +601,13 @@ namespace LandingZone.Core.Filtering
                 // FALLBACK LOGIC: If zero candidates and preset has fallback tiers, try them
                 if (_candidates.Count == 0 && _preset?.FallbackTiers != null && _preset.FallbackTiers.Count > 0)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Primary filters yielded zero results. Trying fallback tiers...");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Primary filters yielded zero results. Trying fallback tiers...");
 
                     // Special warning for Exotic preset - ArcheanTrees might be missing
                     if (_preset.Id == "exotic")
                     {
-                        LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Exotic preset: ArcheanTrees anchor yielded zero results.");
-                        LandingZoneLogger.LogStandard($"[LandingZone]    → Possible causes: Biotech DLC not installed, or ArcheanTrees def missing from mod loadout.");
+                        LandingZoneLogger.LogStandard($"[LandingZone] Exotic preset: ArcheanTrees anchor yielded zero results.");
+                        LandingZoneLogger.LogStandard($"[LandingZone]    -> Possible causes: Biotech DLC not installed, or ArcheanTrees def missing from mod loadout.");
                     }
 
                     foreach (var (tier, index) in _preset.FallbackTiers.Select((t, i) => (t, i)))
@@ -592,18 +621,24 @@ namespace LandingZone.Core.Filtering
 
                         // Get predicates for fallback filters
                         var (cheapFallback, heavyFallback) = owner._registry.GetAllPredicates(tempState);
-                        int fallbackTotalCrits = cheapFallback.Count(p => p.Importance == FilterImportance.Critical) +
-                                                  heavyFallback.Count(p => p.Importance == FilterImportance.Critical);
-                        int fallbackTotalPrefs = cheapFallback.Count(p => p.Importance == FilterImportance.Preferred) +
-                                                  heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
-                        int fallbackHeavyCrits = heavyFallback.Count(p => p.Importance == FilterImportance.Critical);
-                        int fallbackHeavyPrefs = heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
+
+                        // Count by new importance levels
+                        int fallbackTotalMustHave = cheapFallback.Count(p => p.Importance == FilterImportance.MustHave) +
+                                                     heavyFallback.Count(p => p.Importance == FilterImportance.MustHave);
+                        int fallbackTotalPriority = cheapFallback.Count(p => p.Importance == FilterImportance.Priority) +
+                                                     heavyFallback.Count(p => p.Importance == FilterImportance.Priority);
+                        int fallbackTotalPreferred = cheapFallback.Count(p => p.Importance == FilterImportance.Preferred) +
+                                                      heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
+                        int fallbackHeavyMustHave = heavyFallback.Count(p => p.Importance == FilterImportance.MustHave);
+                        int fallbackHeavyPriority = heavyFallback.Count(p => p.Importance == FilterImportance.Priority);
+                        int fallbackHeavyPreferred = heavyFallback.Count(p => p.Importance == FilterImportance.Preferred);
 
                         // Re-run aggregator with fallback predicates
                         var fallbackAggregator = new BitsetAggregator(
                             cheapFallback,
-                            fallbackHeavyCrits,
-                            fallbackHeavyPrefs,
+                            fallbackHeavyMustHave,
+                            fallbackHeavyPriority,
+                            fallbackHeavyPreferred,
                             _context,
                             _tileCount
                         );
@@ -613,14 +648,15 @@ namespace LandingZone.Core.Filtering
                         if (_candidates.Count > 0)
                         {
                             _fallbackTierUsed = index + 1; // 1-indexed (Tier 2 = index 0 in list)
-                            LandingZoneLogger.LogStandard($"[LandingZone] ✓ Tier {index + 2} ({tier.Name}) yielded {_candidates.Count} candidates");
+                            LandingZoneLogger.LogStandard($"[LandingZone] Tier {index + 2} ({tier.Name}) yielded {_candidates.Count} candidates");
 
                             // CRITICAL: Update scoring context to use fallback tier's filters
-                            // Otherwise, scoring phase still checks against original preset's Critical requirements
+                            // Otherwise, scoring phase still checks against original preset's MustHave requirements
                             _state.Preferences.SimpleFilters.CopyFrom(tier.Filters);
 
                             // Re-initialize scoring filters from fallback tier
-                            _criticalFilters.Clear();
+                            _mustHaveFilters.Clear();
+                            _priorityFilters.Clear();
                             _preferredFilters.Clear();
                             var fallbackFilters = tier.Filters;
 
@@ -628,36 +664,48 @@ namespace LandingZone.Core.Filtering
                             {
                                 var importance = SiteFilterRegistry.GetFilterImportance(filter.Id, fallbackFilters);
 
-                                if (importance == FilterImportance.Critical)
-                                    _criticalFilters.Add(filter);
-                                else if (importance == FilterImportance.Preferred)
-                                    _preferredFilters.Add(filter);
+                                switch (importance)
+                                {
+                                    case FilterImportance.MustHave:
+                                        _mustHaveFilters.Add(filter);
+                                        break;
+                                    case FilterImportance.Priority:
+                                        _priorityFilters.Add(filter);
+                                        break;
+                                    case FilterImportance.Preferred:
+                                        _preferredFilters.Add(filter);
+                                        break;
+                                }
                             }
 
                             // Update weights (equal weights for now)
-                            Array.Resize(ref _criticalWeights, _criticalFilters.Count);
+                            Array.Resize(ref _mustHaveWeights, _mustHaveFilters.Count);
+                            Array.Resize(ref _priorityWeights, _priorityFilters.Count);
                             Array.Resize(ref _preferredWeights, _preferredFilters.Count);
-                            for (int i = 0; i < _criticalWeights.Length; i++) _criticalWeights[i] = 1f;
+                            for (int i = 0; i < _mustHaveWeights.Length; i++) _mustHaveWeights[i] = 1f;
+                            for (int i = 0; i < _priorityWeights.Length; i++) _priorityWeights[i] = 1f;
                             for (int i = 0; i < _preferredWeights.Length; i++) _preferredWeights[i] = 1f;
 
                             // Update totals
-                            _totalCriticals = fallbackTotalCrits;
-                            _totalPreferreds = fallbackTotalPrefs;
-                            _kappa = ScoringWeights.ComputeKappa(_totalCriticals, _totalPreferreds);
+                            _totalMustHave = fallbackTotalMustHave;
+                            _totalPriority = fallbackTotalPriority;
+                            _totalPreferred = fallbackTotalPreferred;
+                            int fallbackTotalScoring = _totalPriority + _totalPreferred;
+                            _kappa = ScoringWeights.ComputeKappa(_totalMustHave, fallbackTotalScoring);
 
-                            LandingZoneLogger.LogStandard($"[LandingZone] Updated scoring context: {_criticalFilters.Count} critical filters, {_preferredFilters.Count} preferred filters (from Tier {index + 2})");
+                            LandingZoneLogger.LogStandard($"[LandingZone] Updated scoring context: {_mustHaveFilters.Count} MustHave, {_priorityFilters.Count} Priority, {_preferredFilters.Count} Preferred filters (from Tier {index + 2})");
 
                             break; // Stop trying fallbacks once we have results
                         }
                         else
                         {
-                            LandingZoneLogger.LogStandard($"[LandingZone] ✗ Tier {index + 2} ({tier.Name}) also yielded zero results");
+                            LandingZoneLogger.LogStandard($"[LandingZone] Tier {index + 2} ({tier.Name}) also yielded zero results");
                         }
                     }
 
                     if (_candidates.Count == 0)
                     {
-                        LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ All fallback tiers exhausted. No results found.");
+                        LandingZoneLogger.LogStandard($"[LandingZone] All fallback tiers exhausted. No results found.");
                     }
                 }
 
@@ -670,20 +718,35 @@ namespace LandingZone.Core.Filtering
                     return; // Skip to next state check
                 }
 
-                // PERFORMANCE OPTIMIZATION: Skip precomputation of Heavy Preferred filters
-                // Heavy Preferred filters (e.g., Growing Days) are computed on-demand for top N candidates only
+                // PERFORMANCE OPTIMIZATION: Skip precomputation of Heavy scoring filters
+                // Heavy scoring filters (e.g., Growing Days) are computed on-demand for top N candidates only
                 // This prevents expensive operations on 100k+ candidates (3+ minutes → 3 seconds)
-                // Heavy Critical filters are also skipped since auto-demotion converts them to Preferred
-                _heavyPredicateCount = _heavyCriticals.Count + _heavyPreferreds.Count;
-                if (_heavyCriticals.Count > 0)
+                // Heavy MustHave filters are auto-demoted to Priority, so they also skip precomputation
+                int heavyScoringCount = _heavyPriority.Count + _heavyPreferred.Count;
+                _heavyPredicateCount = _heavyMustHave.Count + heavyScoringCount;
+                if (_heavyMustHave.Count > 0)
                 {
                     // This should never happen due to auto-demotion, but handle it gracefully
-                    LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ {_heavyCriticals.Count} Heavy Critical predicates detected (should be auto-demoted). Skipping precomputation.");
+                    LandingZoneLogger.LogWarning($"[LandingZone] {_heavyMustHave.Count} Heavy MustHave predicates detected (should be auto-demoted). Skipping precomputation.");
                 }
 
-                if (_heavyPreferreds.Count > 0)
+                if (heavyScoringCount > 0)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] Deferring {_heavyPreferreds.Count} Heavy Preferred filters to top-N scoring phase (no precomputation)");
+                    LandingZoneLogger.LogStandard($"[LandingZone] Deferring {heavyScoringCount} Heavy scoring filters to top-N scoring phase (no precomputation)");
+
+                    // Diagnostic: Log heavy filter defNames when deferred
+                    if (Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
+                    {
+                        var heavyMustHaveDefNames = _heavyMustHave.Select(p => p.Id ?? p.GetType().Name).ToList();
+                        var heavyPriorityDefNames = _heavyPriority.Select(p => p.Id ?? p.GetType().Name).ToList();
+                        var heavyPrefDefNames = _heavyPreferred.Select(p => p.Id ?? p.GetType().Name).ToList();
+                        if (heavyMustHaveDefNames.Count > 0)
+                            Log.Message($"[LZ][DIAG] Heavy MustHave deferred ({heavyMustHaveDefNames.Count}): {string.Join(", ", heavyMustHaveDefNames)}");
+                        if (heavyPriorityDefNames.Count > 0)
+                            Log.Message($"[LZ][DIAG] Heavy Priority deferred ({heavyPriorityDefNames.Count}): {string.Join(", ", heavyPriorityDefNames)}");
+                        if (heavyPrefDefNames.Count > 0)
+                            Log.Message($"[LZ][DIAG] Heavy Preferred deferred ({heavyPrefDefNames.Count}): {string.Join(", ", heavyPrefDefNames)}");
+                    }
                 }
 
                 // Skip all precomputation - Heavy filters compute on-demand during scoring
@@ -848,6 +911,24 @@ namespace LandingZone.Core.Filtering
                 if (_completed)
                     return true;
 
+                try
+                {
+                    return StepInternal(iterations);
+                }
+                catch (System.Exception ex)
+                {
+                    // Diagnostic: Log evaluation failure
+                    if (Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
+                    {
+                        Log.Error($"[LZ][DIAG] Evaluation failed: {ex.GetType().Name}: {ex.Message}");
+                        Log.Error($"[LZ][DIAG] Stack trace: {ex.StackTrace}");
+                    }
+                    throw; // Rethrow to preserve original behavior
+                }
+            }
+
+            private bool StepInternal(int iterations)
+            {
                 iterations = Mathf.Max(1, iterations);
 
                 // Performance watchdog: Check if search exceeds 10s threshold
@@ -887,6 +968,13 @@ namespace LandingZone.Core.Filtering
                 }
 
                 // PHASE 2: Heavy evaluation with branch-and-bound pruning
+                // Diagnostic: Log scoring phase start (once)
+                if (!_scoringStartLogged && Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    _scoringStartLogged = true;
+                    Log.Message($"[LZ][DIAG] Scoring phase START: candidates={_candidates.Count}, cursor={_cursor}, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+                }
+
                 for (int i = 0; i < iterations && _cursor < _candidates.Count; i++)
                 {
                     var candidate = _candidates[_cursor++];
@@ -918,20 +1006,23 @@ namespace LandingZone.Core.Filtering
                     else
                     {
                         // OLD: k-of-n binary scoring (legacy path)
-                        int critHeavyMatches = CountMatches(_heavyCriticals, candidate.TileId);
-                        int prefHeavyMatches = CountMatches(_heavyPreferreds, candidate.TileId);
+                        // Note: MustHave = Critical in the new model
+                        int mustHaveHeavyMatches = CountMatches(_heavyMustHave, candidate.TileId);
+                        int priorityHeavyMatches = CountMatches(_heavyPriority, candidate.TileId);
+                        int preferredHeavyMatches = CountMatches(_heavyPreferred, candidate.TileId);
 
-                        int totalCritMatches = candidate.CritCheapMatches + critHeavyMatches;
-                        int totalPrefMatches = candidate.PrefCheapMatches + prefHeavyMatches;
+                        int totalMustHaveMatches = candidate.CritCheapMatches + mustHaveHeavyMatches;
+                        int totalScoringMatches = candidate.PrefCheapMatches + priorityHeavyMatches + preferredHeavyMatches;
 
-                        critScore = ScoringWeights.NormalizeCriticalScore(totalCritMatches, _totalCriticals);
-                        prefScore = ScoringWeights.NormalizePreferredScore(totalPrefMatches, _totalPreferreds);
+                        int totalScoring = _totalPriority + _totalPreferred;
+                        critScore = ScoringWeights.NormalizeCriticalScore(totalMustHaveMatches, _totalMustHave);
+                        prefScore = ScoringWeights.NormalizePreferredScore(totalScoringMatches, totalScoring);
 
                         // Strictness check
                         if (critScore < _currentStrictness)
                         {
                             LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
-                                           $"(crit {totalCritMatches}/{_totalCriticals} = {critScore:F2} < {_currentStrictness:F2})");
+                                           $"(mustHave {totalMustHaveMatches}/{_totalMustHave} = {critScore:F2} < {_currentStrictness:F2})");
                             continue;
                         }
 
@@ -965,16 +1056,22 @@ namespace LandingZone.Core.Filtering
                 // Check if done
                 if (_cursor >= _candidates.Count)
                 {
+                    // Diagnostic: Log scoring phase end
+                    if (Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
+                    {
+                        Log.Message($"[LZ][DIAG] Scoring phase END: processed={_cursor}, results={_best.Count}, elapsed_ms={_stopwatch.ElapsedMilliseconds}");
+                    }
+
                     // Log Stage B completion telemetry
                     LandingZoneLogger.LogStandard($"[LandingZone] Stage B processed {_cursor}/{_candidates.Count} candidates in {_stopwatch.ElapsedMilliseconds}ms");
 
                     // Auto-relax: If 0 results and strictness is 1.0, retry with relaxed strictness
-                    if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalCriticals >= 2)
+                    if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalMustHave >= 2)
                     {
                         LandingZoneLogger.LogWarning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
-                        LandingZoneLogger.LogWarning($"[LandingZone] Auto-relaxing to {_totalCriticals - 1} of {_totalCriticals} criticals and retrying...");
+                        LandingZoneLogger.LogWarning($"[LandingZone] Auto-relaxing to {_totalMustHave - 1} of {_totalMustHave} MustHave and retrying...");
 
-                        float relaxedStrictness = (_totalCriticals - 1) / (float)_totalCriticals;
+                        float relaxedStrictness = (_totalMustHave - 1) / (float)_totalMustHave;
 
                         // Reset and retry with relaxed strictness
                         _currentStrictness = relaxedStrictness;
@@ -1004,10 +1101,10 @@ namespace LandingZone.Core.Filtering
                         : (_state.Preferences.Options.PreferencesUIMode == UIMode.Simple ? "custom_simple" : "advanced");
                     var modeLabel = _state.Preferences.Options.PreferencesUIMode.ToString();
 
-                    // CRITICAL=0 WARNING: If we have zero critical filters, warn user
-                    if (_totalCriticals == 0)
+                    // CRITICAL=0 WARNING: If we have zero MustHave filters, warn user
+                    if (_totalMustHave == 0)
                     {
-                        LandingZoneLogger.LogWarning($"[LandingZone] ⚠️ No Critical filters active (preset={presetLabel}). Results are unfiltered!");
+                        LandingZoneLogger.LogWarning($"[LandingZone] No MustHave filters active (preset={presetLabel}). Results are unfiltered!");
                     }
 
                     // Minimal/Standard/Verbose: Always log completion with key metrics
@@ -1020,8 +1117,8 @@ namespace LandingZone.Core.Filtering
                     // Standard/Verbose: Additional context about relaxed strictness
                     if (_results.Count > 0 && _currentStrictness < 1.0f)
                     {
-                        int requiredMatches = Mathf.CeilToInt(_totalCriticals * _currentStrictness);
-                        LandingZoneLogger.LogStandard($"[LandingZone] 💡 No tiles matched all {_totalCriticals} criticals. Showing tiles matching {requiredMatches} of {_totalCriticals}.");
+                        int requiredMatches = Mathf.CeilToInt(_totalMustHave * _currentStrictness);
+                        LandingZoneLogger.LogStandard($"[LandingZone] No tiles matched all {_totalMustHave} MustHave. Showing tiles matching {requiredMatches} of {_totalMustHave}.");
                     }
 
                     return true;
@@ -1051,25 +1148,52 @@ namespace LandingZone.Core.Filtering
             /// </summary>
             private (float critScore, float prefScore, float penalty, float finalScore, MatchBreakdownV2 breakdown) ComputeMembershipScoreForTile(int tileId)
             {
-                // Collect membership scores
-                float[] critMemberships = new float[_criticalFilters.Count];
-                for (int i = 0; i < _criticalFilters.Count; i++)
+                // Collect membership scores for MustHave filters (hard gates in Apply, also contribute to score)
+                float[] mustHaveMemberships = new float[_mustHaveFilters.Count];
+                for (int i = 0; i < _mustHaveFilters.Count; i++)
                 {
-                    critMemberships[i] = _criticalFilters[i].Membership(tileId, _context);
+                    mustHaveMemberships[i] = _mustHaveFilters[i].Membership(tileId, _context);
                 }
 
-                float[] prefMemberships = new float[_preferredFilters.Count];
+                // Collect membership scores for Priority filters (2x weight)
+                float[] priorityMemberships = new float[_priorityFilters.Count];
+                for (int i = 0; i < _priorityFilters.Count; i++)
+                {
+                    priorityMemberships[i] = _priorityFilters[i].Membership(tileId, _context);
+                }
+
+                // Collect membership scores for Preferred filters (1x weight)
+                float[] preferredMemberships = new float[_preferredFilters.Count];
                 for (int i = 0; i < _preferredFilters.Count; i++)
                 {
-                    prefMemberships[i] = _preferredFilters[i].Membership(tileId, _context);
+                    preferredMemberships[i] = _preferredFilters[i].Membership(tileId, _context);
                 }
 
-                // Compute group scores (weighted averages)
-                float critScore = ScoringWeights.ComputeGroupScore(critMemberships, _criticalWeights);
-                float prefScore = ScoringWeights.ComputeGroupScore(prefMemberships, _preferredWeights);
+                // Compute MustHave score (for strictness check and penalty)
+                float critScore = ScoringWeights.ComputeGroupScore(mustHaveMemberships, _mustHaveWeights);
 
-                // Compute worst critical for penalty
-                float worstCrit = ScoringWeights.ComputeWorstCritical(critMemberships);
+                // Compute scoring score: Priority (2x) + Preferred (1x) combined
+                // Build combined arrays for backward compatibility with ScoringWeights
+                int totalScoringFilters = _priorityFilters.Count + _preferredFilters.Count;
+                float[] combinedScoringMemberships = new float[totalScoringFilters];
+                float[] combinedScoringWeights = new float[totalScoringFilters];
+                int idx = 0;
+                for (int i = 0; i < _priorityFilters.Count; i++)
+                {
+                    combinedScoringMemberships[idx] = priorityMemberships[i];
+                    combinedScoringWeights[idx] = _priorityWeights[i] * 2f; // Priority gets 2x weight
+                    idx++;
+                }
+                for (int i = 0; i < _preferredFilters.Count; i++)
+                {
+                    combinedScoringMemberships[idx] = preferredMemberships[i];
+                    combinedScoringWeights[idx] = _preferredWeights[i]; // Preferred gets 1x weight
+                    idx++;
+                }
+                float prefScore = ScoringWeights.ComputeGroupScore(combinedScoringMemberships, combinedScoringWeights);
+
+                // Compute worst MustHave for penalty
+                float worstCrit = ScoringWeights.ComputeWorstCritical(mustHaveMemberships);
 
                 // Default penalty parameters (will be exposed in mod settings later)
                 const float alphaPen = 0.1f;  // 10% floor
@@ -1079,8 +1203,8 @@ namespace LandingZone.Core.Filtering
                 // Compute global weights from mod settings
                 var (critBase, prefBase, mutatorWeight) = LandingZoneSettings.GetWeightValues();
                 var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
-                    _criticalFilters.Count,
-                    _preferredFilters.Count,
+                    _mustHaveFilters.Count,
+                    totalScoringFilters,
                     critBase,
                     prefBase,
                     mutatorWeight
@@ -1105,8 +1229,9 @@ namespace LandingZone.Core.Filtering
                 // Build detailed breakdown
                 var breakdown = BuildDetailedBreakdown(
                     tileId,
-                    critMemberships,
-                    prefMemberships,
+                    mustHaveMemberships,
+                    priorityMemberships,
+                    preferredMemberships,
                     critScore,
                     prefScore,
                     mutatorScore,
@@ -1122,8 +1247,9 @@ namespace LandingZone.Core.Filtering
             /// </summary>
             private MatchBreakdownV2 BuildDetailedBreakdown(
                 int tileId,
-                float[] critMemberships,
-                float[] prefMemberships,
+                float[] mustHaveMemberships,
+                float[] priorityMemberships,
+                float[] preferredMemberships,
                 float critScore,
                 float prefScore,
                 float mutatorScore,
@@ -1133,18 +1259,18 @@ namespace LandingZone.Core.Filtering
                 var matched = new List<FilterMatchInfo>();
                 var missed = new List<FilterMatchInfo>();
 
-                // Process critical filters
-                for (int i = 0; i < _criticalFilters.Count; i++)
+                // Process MustHave filters (hard gates, highest importance)
+                for (int i = 0; i < _mustHaveFilters.Count; i++)
                 {
-                    var filter = _criticalFilters[i];
-                    float membership = critMemberships[i];
+                    var filter = _mustHaveFilters[i];
+                    float membership = mustHaveMemberships[i];
                     bool isMatched = membership >= 0.9f; // Match threshold
                     bool isRangeFilter = IsRangeFilter(filter);
                     float filterPenalty = isMatched ? 0f : (1f - membership) * (1f - membership);
 
                     var info = new FilterMatchInfo(
                         filter.Id,
-                        FilterImportance.Critical,
+                        FilterImportance.MustHave,
                         membership,
                         isMatched,
                         isRangeFilter,
@@ -1157,11 +1283,35 @@ namespace LandingZone.Core.Filtering
                         missed.Add(info);
                 }
 
-                // Process preferred filters
+                // Process Priority filters (2x weight scoring)
+                for (int i = 0; i < _priorityFilters.Count; i++)
+                {
+                    var filter = _priorityFilters[i];
+                    float membership = priorityMemberships[i];
+                    bool isMatched = membership >= 0.9f;
+                    bool isRangeFilter = IsRangeFilter(filter);
+                    float filterPenalty = isMatched ? 0f : (1f - membership) * 0.7f; // Priority penalty is moderate
+
+                    var info = new FilterMatchInfo(
+                        filter.Id,
+                        FilterImportance.Priority,
+                        membership,
+                        isMatched,
+                        isRangeFilter,
+                        filterPenalty
+                    );
+
+                    if (isMatched)
+                        matched.Add(info);
+                    else
+                        missed.Add(info);
+                }
+
+                // Process Preferred filters (1x weight scoring)
                 for (int i = 0; i < _preferredFilters.Count; i++)
                 {
                     var filter = _preferredFilters[i];
-                    float membership = prefMemberships[i];
+                    float membership = preferredMemberships[i];
                     bool isMatched = membership >= 0.9f;
                     bool isRangeFilter = IsRangeFilter(filter);
                     float filterPenalty = isMatched ? 0f : (1f - membership) * 0.5f; // Preferred penalty is softer
@@ -1436,7 +1586,7 @@ namespace LandingZone.Core.Filtering
                                 "MapFeature" => "Map features",
                                 "AdjacentBiomes" => "Adjacent biomes",
                                 "ForageableFood" => "Forageable food",
-                                _ => currentFilterId
+                                _ => currentFilterId ?? "Unknown filter"
                             };
                             return $"Processing {filterName}...";
                         }

@@ -131,13 +131,50 @@ namespace LandingZone.Core.UI
             listing.GapLine();
             listing.Gap(8f);
 
+            // Phase-A diagnostics toggle
+            var diagLabel = DevDiagnostics.PhaseADiagnosticsEnabled
+                ? "LandingZone_DevTools_PhaseADiag_On".Translate()
+                : "LandingZone_DevTools_PhaseADiag_Off".Translate();
+            if (listing.ButtonText(diagLabel))
+            {
+                DevDiagnostics.PhaseADiagnosticsEnabled = !DevDiagnostics.PhaseADiagnosticsEnabled;
+                var stateLabel = DevDiagnostics.PhaseADiagnosticsEnabled ? "ON" : "OFF";
+                Messages.Message($"[DEV] Phase-A diagnostics {stateLabel}", MessageTypeDefOf.NeutralEvent, false);
+            }
+
+            listing.Gap(6f);
+            // Mini world snapshot (small text dump)
+            if (listing.ButtonText("LandingZone_DevTools_MiniSnapshot".Translate()))
+            {
+                try
+                {
+                    DevDiagnostics.DumpMiniWorldSnapshot();
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed to dump mini world snapshot: {ex}");
+                    Messages.Message("[DEV] Mini snapshot dump failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listing.Label("LandingZone_DevTools_MiniSnapshot_Desc".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listing.Gap(12f);
+            listing.GapLine();
+            listing.Gap(8f);
+
             // World definition dump (biomes, mutators, world objects)
-            if (listing.ButtonText("[DEV] Dump Biomes/Mutators/WorldObjs"))
+            if (listing.ButtonText("LandingZone_DevTools_DumpWorld".Translate()))
             {
                 try
                 {
                     DevDiagnostics.DumpWorldDefinitions();
-                    Messages.Message("[DEV] Logged biomes/mutators/world objects to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                    Messages.Message("LandingZone_DevTools_DumpWorld_Message".Translate(), MessageTypeDefOf.TaskCompletion, false);
                 }
                 catch (System.Exception ex)
                 {
@@ -148,12 +185,12 @@ namespace LandingZone.Core.UI
 
             listing.Gap(6f);
             // Coverage comparison: runtime mutators vs UI map features
-            if (listing.ButtonText("[DEV] Compare Mutator Coverage"))
+            if (listing.ButtonText("LandingZone_DevTools_CompareMutators".Translate()))
             {
                 try
                 {
                     DevDiagnostics.CompareMutatorCoverage();
-                    Messages.Message("[DEV] Logged mutator coverage diff to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                    Messages.Message("LandingZone_DevTools_CompareMutators_Message".Translate(), MessageTypeDefOf.TaskCompletion, false);
                 }
                 catch (System.Exception ex)
                 {
@@ -164,12 +201,12 @@ namespace LandingZone.Core.UI
 
             listing.Gap(6f);
             // Dump top search results with detailed breakdown
-            if (listing.ButtonText("[DEV] Dump Top 10 Results Detail"))
+            if (listing.ButtonText("LandingZone_DevTools_DumpTopResults".Translate()))
             {
                 try
                 {
                     DevDiagnostics.DumpTopResults(10);
-                    Messages.Message("[DEV] Dumped top 10 results to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                    Messages.Message("LandingZone_DevTools_DumpTopResults_Message".Translate(), MessageTypeDefOf.TaskCompletion, false);
                 }
                 catch (System.Exception ex)
                 {
@@ -181,18 +218,18 @@ namespace LandingZone.Core.UI
             listing.Gap(4f);
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            listing.Label("Shows tile ID, score, biome, features, and filter match breakdown");
+            listing.Label("LandingZone_DevTools_DumpTopResults_Desc".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
             listing.Gap(6f);
             // Dump valid mineable ores (for mod ore debugging)
-            if (listing.ButtonText("[DEV] Dump Valid Mineable Ores"))
+            if (listing.ButtonText("LandingZone_DevTools_DumpOres".Translate()))
             {
                 try
                 {
                     DevDiagnostics.DumpValidOres();
-                    Messages.Message("[DEV] Dumped valid ores to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                    Messages.Message("LandingZone_DevTools_DumpOres_Message".Translate(), MessageTypeDefOf.TaskCompletion, false);
                 }
                 catch (System.Exception ex)
                 {
@@ -204,7 +241,7 @@ namespace LandingZone.Core.UI
             listing.Gap(4f);
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            listing.Label("Lists all ore defNames detected from DefDatabase (vanilla + mods)");
+            listing.Label("LandingZone_DevTools_DumpOres_Desc".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 

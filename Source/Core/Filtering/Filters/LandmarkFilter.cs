@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
@@ -98,7 +99,7 @@ namespace LandingZone.Core.Filtering.Filters
                         if (landmark != null)
                         {
                             // Try multiple name properties
-                            string landmarkName = null;
+                            string? landmarkName = null;
 
                             // Try "name" property
                             var nameProp = landmark.GetType().GetProperty("name");

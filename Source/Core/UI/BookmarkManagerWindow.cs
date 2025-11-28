@@ -1,3 +1,4 @@
+#nullable enable
 using System.Linq;
 using LandingZone.Data;
 using RimWorld.Planet;
@@ -19,7 +20,7 @@ namespace LandingZone.Core.UI
         private const float ScrollbarWidth = 16f;
 
         private Vector2 _scrollPosition;
-        private TileBookmark _selectedBookmark;
+        private TileBookmark? _selectedBookmark;
 
         public BookmarkManagerWindow()
         {

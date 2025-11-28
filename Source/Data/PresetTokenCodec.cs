@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -488,7 +489,7 @@ namespace LandingZone.Data
 
         // ===== HELPER METHODS =====
 
-        private static IndividualImportanceTokenDTO? IndividualImportanceToDTO<T>(IndividualImportanceContainer<T> container)
+        private static IndividualImportanceTokenDTO? IndividualImportanceToDTO<T>(IndividualImportanceContainer<T> container) where T : notnull
         {
             if (container.ItemImportance.Count == 0)
                 return null;
@@ -504,7 +505,9 @@ namespace LandingZone.Data
 
             foreach (var kvp in container.ItemImportance)
             {
-                string defName = typeof(T) == typeof(string) ? kvp.Key.ToString()! : (kvp.Key as Def)?.defName ?? "";
+                var keyObj = kvp.Key;
+                if (keyObj == null) continue;
+                string defName = typeof(T) == typeof(string) ? keyObj.ToString()! : (keyObj as Def)?.defName ?? "";
                 if (string.IsNullOrEmpty(defName)) continue;
 
                 switch (kvp.Value)
@@ -531,7 +534,7 @@ namespace LandingZone.Data
         private static (IndividualImportanceContainer<T> container, string? error) DTOToIndividualImportance<T>(
             IndividualImportanceTokenDTO dto,
             IEnumerable<T>? validDefs = null,
-            bool asString = false)
+            bool asString = false) where T : notnull
         {
             var container = new IndividualImportanceContainer<T>
             {

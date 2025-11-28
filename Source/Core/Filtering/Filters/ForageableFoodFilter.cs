@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
@@ -36,8 +37,10 @@ namespace LandingZone.Core.Filtering.Filters
             {
                 var tile = worldGrid[id];
                 if (tile == null) return false;
+                var biome = tile.PrimaryBiome;
+                if (biome == null) return false;
 
-                return TileHasForageableFood(id, tile.PrimaryBiome, requiredFoodDef);
+                return TileHasForageableFood(id, biome, requiredFoodDef!);
             });
         }
 
@@ -120,9 +123,11 @@ namespace LandingZone.Core.Filtering.Filters
 
             var tile = Find.World.grid[tileId];
             if (tile == null) return 0.0f;
+            var biome = tile.PrimaryBiome;
+            if (biome == null) return 0.0f;
 
             // Binary membership: 1.0 if tile has the required forageable food, 0.0 if not
-            bool hasFood = TileHasForageableFood(tileId, tile.PrimaryBiome, requiredFoodDef);
+            bool hasFood = TileHasForageableFood(tileId, biome, requiredFoodDef!);
             return MembershipFunctions.Binary(hasFood);
         }
     }

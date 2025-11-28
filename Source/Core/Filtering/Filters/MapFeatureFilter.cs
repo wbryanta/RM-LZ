@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Core;
@@ -215,10 +216,11 @@ namespace LandingZone.Core.Filtering.Filters
                                     var defNameProp = def.GetType().GetProperty("defName");
                                     if (defNameProp != null)
                                     {
-                                        var defName = defNameProp.GetValue(def)?.ToString();
-                                        if (!string.IsNullOrEmpty(defName))
+                                        var defNameObj = defNameProp.GetValue(def);
+                                        var defName = defNameObj?.ToString();
+                                        if (!string.IsNullOrWhiteSpace(defName))
                                         {
-                                            featureTypes.Add(defName);
+                                            featureTypes.Add(defName!);
                                         }
                                     }
                                 }
@@ -328,7 +330,7 @@ namespace LandingZone.Core.Filtering.Filters
         /// Gets the DLC requirement for a specific mutator.
         /// Returns null if mutator is from Core game or couldn't be determined.
         /// </summary>
-        public static string GetMutatorDLCRequirement(string defName)
+        public static string? GetMutatorDLCRequirement(string defName)
         {
             if (string.IsNullOrEmpty(defName))
                 return null;
@@ -361,11 +363,12 @@ namespace LandingZone.Core.Filtering.Filters
                                     var packageIdProp = modContentPack.GetType().GetProperty("PackageId");
                                     if (packageIdProp != null)
                                     {
-                                        var packageId = packageIdProp.GetValue(modContentPack)?.ToString();
+                                        var packageIdObj = packageIdProp.GetValue(modContentPack);
+                                        var packageId = packageIdObj?.ToString();
                                         if (!string.IsNullOrEmpty(packageId))
                                         {
                                             // Use DLCDetectionService to convert packageId to DLC label
-                                            string dlcLabel = DLCDetectionService.GetDLCLabel(packageId);
+                                            string dlcLabel = DLCDetectionService.GetDLCLabel(packageId!);
 
                                             // Only return non-Core DLCs
                                             if (dlcLabel != "Core")

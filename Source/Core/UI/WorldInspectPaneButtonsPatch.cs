@@ -1,24 +1,19 @@
 using HarmonyLib;
-using RimWorld;
 using RimWorld.Planet;
-using UnityEngine;
-using Verse;
-using Verse.Sound;
-using LandingZone.Core;
 
 namespace LandingZone.Core.UI
 {
+    /// <summary>
+    /// No-op patch. DEV button is shown in the world bottom ribbon only.
+    /// See LandingZoneBottomButtonDrawer in SelectStartingSiteButtonsPatch.cs.
+    /// </summary>
     [HarmonyPatch(typeof(WorldInspectPane), nameof(WorldInspectPane.DoInspectPaneButtons))]
     internal static class WorldInspectPaneButtonsPatch
     {
-        public static void Postfix(Rect rect, ref float lineEndWidth)
+        public static void Postfix()
         {
-            // No longer adding buttons here - all UI consolidated to bottom panel
-            // (SelectStartingSiteButtonsPatch handles everything now)
-            // Keeping this patch in case we need it later, but it's a no-op for now
+            // Intentionally empty - button removed from inspect pane.
+            // DEV tools are accessed via the bottom ribbon [DEV] button.
         }
-
-        // Removed DrawBookmarkButton and DrawBookmarkManagerButton
-        // These are now handled by icon buttons in SelectStartingSiteButtonsPatch
     }
 }

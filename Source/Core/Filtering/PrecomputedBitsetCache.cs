@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,7 +30,7 @@ namespace LandingZone.Core.Filtering
             public int TileCount;
             public BitArray Result;
             public int ProcessedCount;
-            public ISiteFilter SiteFilter;
+            public ISiteFilter? SiteFilter;
 
             public IncrementalPrecomputation(IFilterPredicate predicate, FilterContext context, int tileCount)
             {
@@ -229,7 +230,7 @@ namespace LandingZone.Core.Filtering
         /// <summary>
         /// Gets the ID of the predicate currently being precomputed (for progress display).
         /// </summary>
-        public string CurrentPredicateId { get; private set; }
+        public string? CurrentPredicateId { get; private set; }
 
         /// <summary>
         /// Gets the overall precomputation progress (0.0 to 1.0).

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using HarmonyLib;
+using LandingZone.Core.Diagnostics;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -161,7 +162,17 @@ namespace LandingZone.Data
         /// </summary>
         public void EnsureBuilt()
         {
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] MineralStockpileCache.EnsureBuilt START, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+            }
+            var sw = Stopwatch.StartNew();
             EnsureInitialized();
+            sw.Stop();
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] MineralStockpileCache.EnsureBuilt END, elapsed_ms={sw.ElapsedMilliseconds}");
+            }
         }
 
         private void EnsureInitialized()

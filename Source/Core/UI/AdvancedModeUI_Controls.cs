@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,7 +40,7 @@ namespace LandingZone.Core.UI
             float min,
             float max,
             string unit = "",
-            string filterId = null)
+            string? filterId = null)
         {
             return new FilterControl(
                 label,
@@ -60,7 +61,7 @@ namespace LandingZone.Core.UI
                     // Live selectivity feedback (Tier 3)
                     if (!string.IsNullOrEmpty(filterId))
                     {
-                        DrawSelectivityFeedback(listing, filterId, importanceVal);
+                        DrawSelectivityFeedback(listing, filterId!, importanceVal);
                     }
                 },
                 filters =>
@@ -75,7 +76,7 @@ namespace LandingZone.Core.UI
             string label,
             Func<FilterSettings, FilterImportance> importanceGetter,
             Action<FilterSettings, FilterImportance> importanceSetter,
-            string filterId = null)
+            string? filterId = null)
         {
             return new FilterControl(
                 label,
@@ -88,7 +89,7 @@ namespace LandingZone.Core.UI
                     // Live selectivity feedback (Tier 3)
                     if (!string.IsNullOrEmpty(filterId))
                     {
-                        DrawSelectivityFeedback(listing, filterId, importance);
+                        DrawSelectivityFeedback(listing, filterId!, importance);
                     }
                 },
                 filters =>
@@ -187,9 +188,9 @@ namespace LandingZone.Core.UI
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
                             // Check DLC requirement
-                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
+                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -290,9 +291,9 @@ namespace LandingZone.Core.UI
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
                             // Check DLC requirement
-                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
+                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -398,13 +399,13 @@ namespace LandingZone.Core.UI
                     0f, 1.3f
                 ),
                 new FilterControl(
-                    "Resource Modifiers",
+                    "LandingZone_Filter_ResourceModifiers_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Resource Modifiers (tile-wide bonuses):");
+                        listing.Label("LandingZone_Filter_ResourceModifiers_Title".Translate());
                         Text.Font = GameFont.Tiny;
                         GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                        listing.Label("MineralRich = more ore veins on tile; Fertile = better soil quality");
+                        listing.Label("LandingZone_Filter_ResourceModifiers_Subtitle".Translate());
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                         listing.Gap(2f);
@@ -416,9 +417,9 @@ namespace LandingZone.Core.UI
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
                             // Check DLC requirement
-                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
+                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -437,10 +438,10 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterControl(
-                    "Life & Wildlife Modifiers",
+                    "LandingZone_Filter_LifeWildlife_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Life & Wildlife Modifiers (animal/plant/fish abundance):");
+                        listing.Label("LandingZone_Filter_LifeWildlife_Subtitle".Translate());
 
                         var lifeMutators = GetLifeModifierMutators();
                         foreach (var mutator in lifeMutators)
@@ -449,9 +450,9 @@ namespace LandingZone.Core.UI
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
                             // Check DLC requirement
-                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
+                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -470,10 +471,10 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterControl(
-                    "Natural Stones",
+                    "LandingZone_Filter_NaturalStones_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Natural Stones (construction materials):");
+                        listing.Label("LandingZone_Filter_NaturalStones_Subtitle".Translate());
                         listing.Gap(4f);
 
                         // Operator toggle (only show if critical items configured)
@@ -515,7 +516,7 @@ namespace LandingZone.Core.UI
                         {
                             Text.Font = GameFont.Tiny;
                             GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                            listing.Label($"({naturalStones.Count} stone types - scroll to see all)");
+                            listing.Label("LandingZone_StoneScrollHint".Translate(naturalStones.Count));
                             GUI.color = Color.white;
                             Text.Font = GameFont.Small;
                         }
@@ -541,7 +542,7 @@ namespace LandingZone.Core.UI
                             var dividerRect = innerListing.GetRect(dividerHeight);
                             Text.Font = GameFont.Tiny;
                             GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                            Widgets.Label(dividerRect, "─── Modded Stones ───");
+                            Widgets.Label(dividerRect, "LandingZone_ModdedStonesDivider".Translate());
                             GUI.color = Color.white;
                             Text.Font = GameFont.Small;
                         }
@@ -582,15 +583,15 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterControl(
-                    "Mineable Resources",
+                    "LandingZone_Filter_MineableOres_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Mineable Ores (specific ore deposits):");
+                        listing.Label("LandingZone_Filter_MineableOres_Title".Translate());
                         Text.Font = GameFont.Tiny;
                         GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                        listing.Label("Distinct from 'MineralRich' mutator - these are specific ore types.");
+                        listing.Label("LandingZone_Filter_MineableOres_Subtitle".Translate());
                         GUI.color = new Color(1f, 0.8f, 0.4f);
-                        listing.Label("Note: Tiles have only ONE mineable ore type (Gold OR Silver OR Uranium, etc.)");
+                        listing.Label("LandingZone_Filter_MineableOres_Note".Translate());
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                         listing.Gap(4f);
@@ -667,10 +668,10 @@ namespace LandingZone.Core.UI
                     filters => (filters.Roads.HasAnyImportance, filters.Roads.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
                 ),
                 new FilterControl(
-                    "Special Sites",
+                    "LandingZone_Filter_SpecialSites_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Special Sites (ancient ruins, exotic features):");
+                        listing.Label("LandingZone_Filter_SpecialSites_Subtitle".Translate());
 
                         var specialSites = GetSpecialSiteMutators();
                         foreach (var mutator in specialSites)
@@ -679,9 +680,9 @@ namespace LandingZone.Core.UI
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
                             // Check DLC requirement
-                            string dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement) : null;
+                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
+                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -700,10 +701,10 @@ namespace LandingZone.Core.UI
                     }
                 ),
                 new FilterControl(
-                    "Stockpiles",
+                    "LandingZone_Filter_Stockpiles_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Stockpiles (abandoned supply caches):");
+                        listing.Label("LandingZone_Filter_Stockpiles_Subtitle".Translate());
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.Stockpiles.HasCritical)
@@ -724,7 +725,7 @@ namespace LandingZone.Core.UI
                         }
 
                         // Known stockpile types from StockpileFilter.GetStockpileQuality
-                        var stockpileTypes = new List<(string defName, string label, string dlc)>
+                        var stockpileTypes = new List<(string defName, string label, string? dlc)>
                         {
                             ("Gravcore", "Compacted Gravcore", "Anomaly"),
                             ("Weapons", "Weapons Cache", null),
@@ -739,8 +740,8 @@ namespace LandingZone.Core.UI
                             var importance = filters.Stockpiles.GetImportance(defName);
 
                             // Check DLC requirement
-                            bool isEnabled = string.IsNullOrEmpty(dlc) || DLCDetectionService.IsDLCAvailable(dlc);
-                            string disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlc) : null;
+                            bool isEnabled = string.IsNullOrEmpty(dlc) || DLCDetectionService.IsDLCAvailable(dlc!);
+                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlc ?? "") : null;
                             string displayLabel = isEnabled ? label : $"{label} (DLC Required)";
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, null, isEnabled, disabledReason);
@@ -773,10 +774,10 @@ namespace LandingZone.Core.UI
             var filters = new List<FilterControl>
             {
                 new FilterControl(
-                    "Locked Biome",
+                    "LandingZone_Filter_LockedBiome_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Locked Biome (restrict to single biome):");
+                        listing.Label("LandingZone_Filter_LockedBiome_Subtitle".Translate());
                         var biomes = GetAllBiomes();
                         var currentBiome = filters.LockedBiome;
                         var biomeLabels = new List<string> { "(None)" };
@@ -802,13 +803,13 @@ namespace LandingZone.Core.UI
                     filters => (filters.LockedBiome != null, FilterImportance.Critical)
                 ),
                 new FilterControl(
-                    "Adjacent Biomes",
+                    "LandingZone_Filter_AdjacentBiomes_Title".Translate(),
                     (listing, filters) =>
                     {
-                        listing.Label("Adjacent Biomes:");
+                        listing.Label("LandingZone_Filter_AdjacentBiomes_Header".Translate());
                         Text.Font = GameFont.Tiny;
                         GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                        listing.Label("(Affects weather patterns from neighboring tiles)");
+                        listing.Label("LandingZone_Filter_AdjacentBiomes_Subtitle".Translate());
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                         listing.Gap(4f);
@@ -871,23 +872,23 @@ namespace LandingZone.Core.UI
 
                         Text.Font = GameFont.Tiny;
                         GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                        listing.Label("Number of top-scored tiles to return from search");
+                        listing.Label("LandingZone_Filter_ResultLimit_Title".Translate());
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                     },
                     filters => (true, FilterImportance.Ignored) // Always active, not a filter
                 ),
                 new FilterControl(
-                    "Critical Filtering",
+                    "LandingZone_Filter_CriticalAdaptive_Title".Translate(),
                     (listing, filters) =>
                     {
                         Text.Font = GameFont.Small;
-                        listing.Label("Critical Filtering: Adaptive (automatic)");
+                        listing.Label("LandingZone_Filter_CriticalAdaptive_Title".Translate());
 
                         Text.Font = GameFont.Tiny;
                         GUI.color = new Color(0.7f, 0.85f, 0.7f);
-                        listing.Label("Stage A uses intelligent k-of-n fallback to keep candidate count reasonable.");
-                        listing.Label("Example: 6 criticals → tries 6/6, 5/6, 4/6... until 1,000-10,000 candidates found.");
+                        listing.Label("LandingZone_Filter_CriticalAdaptive_Subtitle1".Translate());
+                        listing.Label("LandingZone_Filter_CriticalAdaptive_Subtitle2".Translate());
                         GUI.color = Color.white;
                         Text.Font = GameFont.Small;
                         listing.Gap(4f);

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using LandingZone.Data;
 using RimWorld.Planet;
@@ -13,11 +14,10 @@ namespace LandingZone.Core
     [StaticConstructorOnStartup]
     public static class WorldLayerBookmarks
     {
-        private static Material _bookmarkMaterial;
-        private static Mesh _cachedMesh;
+        private static Material? _bookmarkMaterial;
+        private static Mesh? _cachedMesh;
         private static bool _meshDirty = true;
         private static float _lastAltitude = -1f;
-        private static bool _materialInitFailed = false;
         private static bool _hasLoggedDraw = false;
 
         static WorldLayerBookmarks()
@@ -37,7 +37,6 @@ namespace LandingZone.Core
                 catch (System.Exception ex)
                 {
                     Log.Error($"[LandingZone] Exception creating bookmark material in static constructor: {ex}");
-                    _materialInitFailed = true;
                 }
             });
         }
@@ -53,7 +52,7 @@ namespace LandingZone.Core
         /// <summary>
         /// Gets the bookmark material initialized in the static constructor.
         /// </summary>
-        private static Material BookmarkMaterial => _bookmarkMaterial;
+        private static Material? BookmarkMaterial => _bookmarkMaterial;
 
         /// <summary>
         /// Called when bookmarks change to mark mesh as needing regeneration.

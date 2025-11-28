@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Core;
@@ -66,7 +67,7 @@ namespace LandingZone.Core.Filtering.Filters
         /// <summary>
         /// Gets the RiverDef for a specific tile, if any.
         /// </summary>
-        private static RiverDef GetTileRiverDef(int tileId)
+        private static RiverDef? GetTileRiverDef(int tileId)
         {
             var tile = Find.WorldGrid?[tileId];
             if (tile == null)

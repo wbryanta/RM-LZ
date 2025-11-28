@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Core.Filtering.Filters;
@@ -350,7 +351,7 @@ namespace LandingZone.Core.UI
             if (listing.ButtonText("LandingZone_ApplyAndSearchNow".Translate()))
             {
                 ApplyGuidedBuilderFilters(preferences);
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
+                LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.Manual, focusOnComplete: true);
             }
             GUI.enabled = true;
 
@@ -390,7 +391,7 @@ namespace LandingZone.Core.UI
             }
         }
 
-        private void ApplyGuidedBuilderFilters(UserPreferences preferences, FilterSettings targetFilters = null)
+        private void ApplyGuidedBuilderFilters(UserPreferences preferences, FilterSettings? targetFilters = null)
         {
             var filters = targetFilters ?? preferences.GetActiveFilters();
 

@@ -1,3 +1,4 @@
+#nullable enable
 using LandingZone.Data;
 using RimWorld;
 using UnityEngine;
@@ -70,7 +71,7 @@ namespace LandingZone.Core.UI
                     _errorMessage = error;
                     _decodedPreset = null;
                 }
-                else
+                else if (preset != null)
                 {
                     _decodedPreset = preset;
 

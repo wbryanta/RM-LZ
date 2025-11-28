@@ -1,3 +1,4 @@
+#nullable enable
 using System.Linq;
 using UnityEngine;
 using Verse;
@@ -26,7 +27,7 @@ namespace LandingZone.Core.UI
         /// Returns true if filter is active (not Ignored).
         /// Tier 3 enhancement: Red accent for Critical, Blue for Preferred, subtle background tint.
         /// </summary>
-        public static bool DrawImportanceSelector(Rect rect, string label, ref FilterImportance importance, string tooltip = null, bool isEnabled = true, string disabledReason = null)
+        public static bool DrawImportanceSelector(Rect rect, string label, ref FilterImportance importance, string? tooltip = null, bool isEnabled = true, string? disabledReason = null)
         {
             var buttonRect = rect;
 
@@ -100,7 +101,7 @@ namespace LandingZone.Core.UI
             }
 
             // Show enhanced tooltip (Tier 3: expanded explanations)
-            string finalTooltip = tooltip;
+            string? finalTooltip = tooltip;
 
             // Add importance level explanation to tooltip
             string importanceExplanation = importance switch

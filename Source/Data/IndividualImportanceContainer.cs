@@ -91,9 +91,19 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Gets all items marked as Critical.
+        /// Gets all items marked as MustHave.
         /// </summary>
-        public IEnumerable<T> GetCriticalItems() => GetItemsByImportance(FilterImportance.Critical);
+        public IEnumerable<T> GetMustHaveItems() => GetItemsByImportance(FilterImportance.MustHave);
+
+        /// <summary>
+        /// Gets all items marked as MustNotHave.
+        /// </summary>
+        public IEnumerable<T> GetMustNotHaveItems() => GetItemsByImportance(FilterImportance.MustNotHave);
+
+        /// <summary>
+        /// Gets all items marked as Priority.
+        /// </summary>
+        public IEnumerable<T> GetPriorityItems() => GetItemsByImportance(FilterImportance.Priority);
 
         /// <summary>
         /// Gets all items marked as Preferred.
@@ -101,14 +111,57 @@ namespace LandingZone.Data
         public IEnumerable<T> GetPreferredItems() => GetItemsByImportance(FilterImportance.Preferred);
 
         /// <summary>
-        /// Checks if any items are set to Critical.
+        /// Gets all items that are hard gates (MustHave or MustNotHave).
         /// </summary>
-        public bool HasCritical => ItemImportance.Any(kvp => kvp.Value == FilterImportance.Critical);
+        public IEnumerable<T> GetHardGateItems() =>
+            ItemImportance.Where(kvp => kvp.Value.IsHardGate()).Select(kvp => kvp.Key);
+
+        /// <summary>
+        /// Gets all items that contribute to scoring (Priority or Preferred).
+        /// </summary>
+        public IEnumerable<T> GetScoringItems() =>
+            ItemImportance.Where(kvp => kvp.Value.IsScoring()).Select(kvp => kvp.Key);
+
+        /// <summary>
+        /// Checks if any items are set to MustHave.
+        /// </summary>
+        public bool HasMustHave => ItemImportance.Any(kvp => kvp.Value == FilterImportance.MustHave);
+
+        /// <summary>
+        /// Checks if any items are set to MustNotHave.
+        /// </summary>
+        public bool HasMustNotHave => ItemImportance.Any(kvp => kvp.Value == FilterImportance.MustNotHave);
+
+        /// <summary>
+        /// Checks if any items are set to Priority.
+        /// </summary>
+        public bool HasPriority => ItemImportance.Any(kvp => kvp.Value == FilterImportance.Priority);
 
         /// <summary>
         /// Checks if any items are set to Preferred.
         /// </summary>
         public bool HasPreferred => ItemImportance.Any(kvp => kvp.Value == FilterImportance.Preferred);
+
+        /// <summary>
+        /// Checks if any items have hard gate importance (MustHave or MustNotHave).
+        /// </summary>
+        public bool HasHardGates => ItemImportance.Any(kvp => kvp.Value.IsHardGate());
+
+        /// <summary>
+        /// Checks if any items have scoring importance (Priority or Preferred).
+        /// </summary>
+        public bool HasScoring => ItemImportance.Any(kvp => kvp.Value.IsScoring());
+
+        // Legacy compatibility properties and methods
+        /// <summary>
+        /// [LEGACY] Alias for HasMustHave. Checks if any items are set to MustHave (formerly Critical).
+        /// </summary>
+        public bool HasCritical => HasMustHave;
+
+        /// <summary>
+        /// [LEGACY] Alias for GetMustHaveItems. Gets all items marked as MustHave (formerly Critical).
+        /// </summary>
+        public IEnumerable<T> GetCriticalItems() => GetMustHaveItems();
 
         /// <summary>
         /// Checks if any items have non-Ignored importance.
@@ -152,29 +205,57 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Checks if a tile's items match the Critical requirements.
+        /// Checks if a tile's items match the MustHave requirements.
         /// Respects the Operator setting:
-        /// - AND: Returns true if ALL critical items are present
-        /// - OR: Returns true if ANY critical item is present
+        /// - AND: Returns true if ALL MustHave items are present
+        /// - OR: Returns true if ANY MustHave item is present
         /// </summary>
-        public bool MeetsCriticalRequirements(IEnumerable<T> tileItems)
+        public bool MeetsMustHaveRequirements(IEnumerable<T> tileItems)
         {
-            if (!HasCritical)
-                return true;  // No Critical requirements
+            if (!HasMustHave)
+                return true;  // No MustHave requirements
 
             var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
 
             if (Operator == ImportanceOperator.OR)
             {
-                // OR: Tile must have AT LEAST ONE critical item
-                return GetCriticalItems().Any(criticalItem => tileSet.Contains(criticalItem));
+                // OR: Tile must have AT LEAST ONE MustHave item
+                return GetMustHaveItems().Any(item => tileSet.Contains(item));
             }
             else
             {
-                // AND: Tile must have ALL critical items (original behavior)
-                return GetCriticalItems().All(criticalItem => tileSet.Contains(criticalItem));
+                // AND: Tile must have ALL MustHave items
+                return GetMustHaveItems().All(item => tileSet.Contains(item));
             }
         }
+
+        /// <summary>
+        /// Checks if a tile's items satisfy the MustNotHave requirements.
+        /// Returns false if any MustNotHave item is present in tileItems.
+        /// </summary>
+        public bool MeetsMustNotHaveRequirements(IEnumerable<T> tileItems)
+        {
+            if (!HasMustNotHave)
+                return true;  // No MustNotHave requirements
+
+            var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
+
+            // Tile must NOT have ANY of the MustNotHave items
+            return !GetMustNotHaveItems().Any(item => tileSet.Contains(item));
+        }
+
+        /// <summary>
+        /// Checks if a tile passes all hard gate requirements (MustHave AND MustNotHave).
+        /// </summary>
+        public bool MeetsHardGateRequirements(IEnumerable<T> tileItems)
+        {
+            return MeetsMustHaveRequirements(tileItems) && MeetsMustNotHaveRequirements(tileItems);
+        }
+
+        /// <summary>
+        /// [LEGACY] Alias for MeetsMustHaveRequirements.
+        /// </summary>
+        public bool MeetsCriticalRequirements(IEnumerable<T> tileItems) => MeetsMustHaveRequirements(tileItems);
 
         /// <summary>
         /// Calculates how many Preferred items are present in tileItems.
@@ -186,28 +267,72 @@ namespace LandingZone.Data
                 return 0;
 
             var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
-            return GetPreferredItems().Count(preferredItem => tileSet.Contains(preferredItem));
+            return GetPreferredItems().Count(item => tileSet.Contains(item));
         }
 
         /// <summary>
-        /// Computes proportional critical satisfaction for membership scoring.
+        /// Calculates how many Priority items are present in tileItems.
+        /// Returns the count of matching Priority items.
+        /// </summary>
+        public int CountPriorityMatches(IEnumerable<T> tileItems)
+        {
+            if (!HasPriority)
+                return 0;
+
+            var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
+            return GetPriorityItems().Count(item => tileSet.Contains(item));
+        }
+
+        /// <summary>
+        /// Calculates weighted score for scoring items (Priority and Preferred).
+        /// Priority items have higher weight than Preferred items.
+        /// </summary>
+        /// <param name="tileItems">Items present on the tile.</param>
+        /// <param name="priorityWeight">Weight multiplier for Priority items (default 2.0).</param>
+        /// <param name="preferredWeight">Weight multiplier for Preferred items (default 1.0).</param>
+        /// <returns>Weighted score based on matching items.</returns>
+        public float GetScoringScore(IEnumerable<T> tileItems, float priorityWeight = 2.0f, float preferredWeight = 1.0f)
+        {
+            if (!HasScoring)
+                return 0f;
+
+            var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
+            float score = 0f;
+
+            foreach (var item in GetPriorityItems())
+            {
+                if (tileSet.Contains(item))
+                    score += priorityWeight;
+            }
+
+            foreach (var item in GetPreferredItems())
+            {
+                if (tileSet.Contains(item))
+                    score += preferredWeight;
+            }
+
+            return score;
+        }
+
+        /// <summary>
+        /// Computes proportional MustHave satisfaction for membership scoring.
         /// Respects the Operator setting:
-        /// - OR: Returns 1.0 if ANY critical item present, 0.0 otherwise
-        /// - AND: Returns fraction of critical items present (proportional)
+        /// - OR: Returns 1.0 if ANY MustHave item present, 0.0 otherwise
+        /// - AND: Returns fraction of MustHave items present (proportional)
         /// Used by Membership() methods to align with Apply() phase logic.
         /// </summary>
-        public float GetCriticalSatisfaction(IEnumerable<T> tileItems)
+        public float GetMustHaveSatisfaction(IEnumerable<T> tileItems)
         {
-            if (!HasCritical)
+            if (!HasMustHave)
                 return 1.0f;  // No requirements = fully satisfied
 
             var tileSet = tileItems as HashSet<T> ?? new HashSet<T>(tileItems);
-            var criticals = GetCriticalItems().ToList();
+            var mustHaves = GetMustHaveItems().ToList();
 
-            if (criticals.Count == 0)
+            if (mustHaves.Count == 0)
                 return 1.0f;
 
-            int matches = criticals.Count(critical => tileSet.Contains(critical));
+            int matches = mustHaves.Count(item => tileSet.Contains(item));
 
             if (Operator == ImportanceOperator.OR)
             {
@@ -217,9 +342,14 @@ namespace LandingZone.Data
             else
             {
                 // AND: Proportional satisfaction (fraction of required items present)
-                return (float)matches / criticals.Count;
+                return (float)matches / mustHaves.Count;
             }
         }
+
+        /// <summary>
+        /// [LEGACY] Alias for GetMustHaveSatisfaction.
+        /// </summary>
+        public float GetCriticalSatisfaction(IEnumerable<T> tileItems) => GetMustHaveSatisfaction(tileItems);
 
         /// <summary>
         /// Creates a copy of this container.
@@ -238,11 +368,15 @@ namespace LandingZone.Data
             if (!HasAnyImportance)
                 return "No items configured";
 
-            var criticalCount = CountByImportance(FilterImportance.Critical);
+            var mustHaveCount = CountByImportance(FilterImportance.MustHave);
+            var mustNotHaveCount = CountByImportance(FilterImportance.MustNotHave);
+            var priorityCount = CountByImportance(FilterImportance.Priority);
             var preferredCount = CountByImportance(FilterImportance.Preferred);
 
             var parts = new List<string>();
-            if (criticalCount > 0) parts.Add($"{criticalCount} Critical");
+            if (mustHaveCount > 0) parts.Add($"{mustHaveCount} MustHave");
+            if (mustNotHaveCount > 0) parts.Add($"{mustNotHaveCount} MustNotHave");
+            if (priorityCount > 0) parts.Add($"{priorityCount} Priority");
             if (preferredCount > 0) parts.Add($"{preferredCount} Preferred");
 
             return string.Join(", ", parts);

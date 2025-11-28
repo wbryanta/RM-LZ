@@ -10,6 +10,21 @@ using Verse.Sound;
 namespace LandingZone.Core.UI
 {
     /// <summary>
+    /// Patches WorldInterface.WorldInterfaceUpdate to tick the evaluation job every frame.
+    /// This is a safety net to ensure scoring continues even if GUI-driven ticks pause.
+    /// </summary>
+    [HarmonyPatch(typeof(WorldInterface), "WorldInterfaceUpdate")]
+    internal static class WorldInterfaceUpdatePatch
+    {
+        public static void Postfix()
+        {
+            // Tick the background evaluation job if one is active
+            // This is a safety net alongside the UI-driven ticks in SelectStartingSiteDoWindowContentsPatch
+            LandingZoneContext.StepEvaluation();
+        }
+    }
+
+    /// <summary>
     /// Patches WorldInterface to add LandingZone UI when the in-game world map is visible.
     /// This allows players to use LandingZone when planning caravans, forming new settlements, etc.
     /// </summary>
@@ -60,7 +75,9 @@ namespace LandingZone.Core.UI
         public static void Draw()
         {
             // Calculate button panel dimensions
-            const int numButtons = 3; // Filters, Search, Top (XX)
+            // In Dev mode: Filters, Search, Dev, Top (4 buttons)
+            // Otherwise: Filters, Search, Top (3 buttons)
+            int numButtons = Prefs.DevMode ? 4 : 3;
             const float labelHeight = 18f;
             const float statusRowHeight = 22f;
             float width = ButtonSize.x * numButtons + Gap * (numButtons + 1);
@@ -107,12 +124,19 @@ namespace LandingZone.Core.UI
             DrawLabel(labelRect);
             cursorY += labelHeight + Gap;
 
-            // Button row: Filters, Search, Top (XX)
+            // Button row: Filters, Search, [Dev], Top (XX)
             DrawFiltersButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
             cursorX += ButtonSize.x + Gap;
 
             DrawSearchButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
             cursorX += ButtonSize.x + Gap;
+
+            // Dev button (Dev Mode only) - same style as in world-gen ribbon
+            if (Prefs.DevMode)
+            {
+                DrawDevButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
+                cursorX += ButtonSize.x + Gap;
+            }
 
             DrawTopButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
 
@@ -184,7 +208,7 @@ namespace LandingZone.Core.UI
                 if (highlightState != null)
                 {
                     highlightState.ShowBestSites = true;
-                    LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                    LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
                 }
             }
 
@@ -221,6 +245,20 @@ namespace LandingZone.Core.UI
             TooltipHandler.TipRegion(rect, tooltip);
         }
 
+        private static void DrawDevButton(Rect rect)
+        {
+            var prevColor = GUI.color;
+            GUI.color = new Color(1f, 0.7f, 0.7f); // Pinkish-red to indicate dev-only (same as world-gen ribbon)
+
+            if (Widgets.ButtonText(rect, "LandingZone_DevButton".Translate()))
+            {
+                Find.WindowStack.Add(new DevToolsWindow());
+            }
+
+            GUI.color = prevColor;
+            TooltipHandler.TipRegion(rect, "LandingZone_DevTooltip".Translate());
+        }
+
         private static void DrawStatusRow(Rect rect)
         {
             const float iconSize = 20f;
@@ -232,8 +270,14 @@ namespace LandingZone.Core.UI
             var bookmarkMgrIconRect = new Rect(iconsRect.xMax - iconSize, rect.y, iconSize, iconSize);
             var bookmarkIconRect = new Rect(bookmarkMgrIconRect.x - iconSize - iconGap, rect.y, iconSize, iconSize);
 
+            // Stop button (between status text and icons, only when evaluating)
+            const float stopButtonWidth = 50f;
+            bool showStopButton = LandingZoneContext.IsEvaluating && LandingZoneSettings.AllowCancelSearch;
+            float stopButtonSpace = showStopButton ? stopButtonWidth + iconGap : 0f;
+            var stopButtonRect = new Rect(iconsRect.x - stopButtonSpace, rect.y, stopButtonWidth, rect.height);
+
             // Left side: status text
-            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - 8f, rect.height);
+            var statusRect = new Rect(rect.x, rect.y, rect.width - iconsWidth - stopButtonSpace - 8f, rect.height);
 
             // Draw status text
             var prevFont = Text.Font;
@@ -268,11 +312,38 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
             Text.Font = prevFont;
 
+            // Draw Stop button when evaluating (if enabled)
+            if (showStopButton)
+            {
+                DrawStopButton(stopButtonRect);
+            }
+
             // Draw bookmark toggle icon
             DrawBookmarkIcon(bookmarkIconRect);
 
             // Draw bookmark manager icon
             DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+        }
+
+        private static void DrawStopButton(Rect rect)
+        {
+            var prevColor = GUI.color;
+            var prevFont = Text.Font;
+
+            // Dark red color (same as world-gen ribbon)
+            GUI.color = new Color(0.7f, 0.15f, 0.15f);
+            Text.Font = GameFont.Tiny;
+
+            if (Widgets.ButtonText(rect, "LandingZone_StopButton".Translate(), drawBackground: true, doMouseoverSound: true, active: true))
+            {
+                LandingZoneContext.CancelEvaluation();
+                SoundDefOf.Click.PlayOneShotOnCamera();
+            }
+
+            GUI.color = prevColor;
+            Text.Font = prevFont;
+
+            TooltipHandler.TipRegion(rect, "LandingZone_CancelSearchTooltip".Translate());
         }
 
         private static void DrawBookmarkIcon(Rect rect)

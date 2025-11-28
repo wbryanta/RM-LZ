@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -65,7 +66,6 @@ namespace LandingZone.Core.UI
             var userPresets = PresetLibrary.GetUserPresets();
 
             const int columns = 4;
-            const float totalWidth = (PresetCardWidth * columns) + (PresetCardSpacing * (columns - 1));
 
             // Draw curated presets in 4-column grid
             int curatedRows = (curatedPresets.Count + columns - 1) / columns; // Ceiling division
@@ -422,6 +422,10 @@ namespace LandingZone.Core.UI
                 preset.ApplyTo(preferences.AdvancedFilters);
                 preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
                 preferences.Options.PreferencesUIMode = UIMode.Advanced; // Switch to Advanced mode
+
+                // If in Workspace mode and preset has hidden filters, auto-switch to Classic
+                AdvancedModeUI.EnsureHiddenFiltersVisible(preferences.AdvancedFilters);
+
                 remixTimer.Stop();
                 Log.Message($"[LandingZone][Remix] Completed remix of '{preset.Name}' in {remixTimer.ElapsedMilliseconds} ms");
                 Messages.Message("LandingZone_LoadedPresetForEditing".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
@@ -444,6 +448,13 @@ namespace LandingZone.Core.UI
                 {
                     preset.ApplyTo(filters);
                     preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
+
+                    // If in Advanced mode with Workspace view, check for hidden filters
+                    if (preferences.Options.PreferencesUIMode == UIMode.Advanced)
+                    {
+                        AdvancedModeUI.EnsureHiddenFiltersVisible(filters);
+                    }
+
                     Messages.Message("LandingZone_AppliedPreset".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
                 }
             }

@@ -1,7 +1,10 @@
+#nullable enable
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using LandingZone.Data;
+using LandingZone.Core.Diagnostics;
 using UnityEngine;
 using Verse;
 
@@ -9,98 +12,143 @@ namespace LandingZone.Core.Filtering
 {
     /// <summary>
     /// Stage A: Cheap aggregate gate using bitset operations.
-    /// Evaluates cheap predicates (Critical + Preferred) and computes per-tile match counts.
+    /// Evaluates cheap predicates and computes per-tile match counts.
+    /// - MustHave: Hard include gates (k-of-n matching)
+    /// - MustNotHave: Hard exclude gates (eliminate tiles)
+    /// - Priority/Preferred: Scoring predicates (weighted)
     /// Gates candidates by upper bound scoring to keep dataset bounded.
     /// </summary>
     public sealed class BitsetAggregator
     {
-        private readonly List<IFilterPredicate> _cheapCriticals;
-        private readonly List<IFilterPredicate> _cheapPreferreds;
-        private readonly int _heavyCriticalCount;
+        private readonly List<IFilterPredicate> _cheapMustHave;
+        private readonly List<IFilterPredicate> _cheapMustNotHave;
+        private readonly List<IFilterPredicate> _cheapPriority;
+        private readonly List<IFilterPredicate> _cheapPreferred;
+        private readonly int _heavyMustHaveCount;
+        private readonly int _heavyPriorityCount;
         private readonly int _heavyPreferredCount;
         private readonly int _tileCount;
         private readonly FilterContext _context;
 
         // Per-tile counts of cheap matches
-        private int[] _critCheapCount;
-        private int[] _prefCheapCount;
+        private int[] _mustHaveCheapCount;
+        private int[] _priorityCheapCount;
+        private int[] _preferredCheapCount;
+        // Per-tile exclusion flags for MustNotHave
+        private bool[] _excludedByMustNotHave;
 
         public BitsetAggregator(
             List<IFilterPredicate> cheapPredicates,
-            int heavyCriticalCount,
+            int heavyMustHaveCount,
+            int heavyPriorityCount,
             int heavyPreferredCount,
             FilterContext context,
             int tileCount)
         {
-            _cheapCriticals = cheapPredicates.Where(p => p.Importance == FilterImportance.Critical).ToList();
-            _cheapPreferreds = cheapPredicates.Where(p => p.Importance == FilterImportance.Preferred).ToList();
-            _heavyCriticalCount = heavyCriticalCount;
+            _cheapMustHave = cheapPredicates.Where(p => p.Importance == FilterImportance.MustHave).ToList();
+            _cheapMustNotHave = cheapPredicates.Where(p => p.Importance == FilterImportance.MustNotHave).ToList();
+            _cheapPriority = cheapPredicates.Where(p => p.Importance == FilterImportance.Priority).ToList();
+            _cheapPreferred = cheapPredicates.Where(p => p.Importance == FilterImportance.Preferred).ToList();
+            _heavyMustHaveCount = heavyMustHaveCount;
+            _heavyPriorityCount = heavyPriorityCount;
             _heavyPreferredCount = heavyPreferredCount;
             _context = context;
             _tileCount = tileCount;
 
-            _critCheapCount = new int[tileCount];
-            _prefCheapCount = new int[tileCount];
+            _mustHaveCheapCount = new int[tileCount];
+            _priorityCheapCount = new int[tileCount];
+            _preferredCheapCount = new int[tileCount];
+            _excludedByMustNotHave = new bool[tileCount];
         }
 
         /// <summary>
         /// Stored cheap counts for later use in Stage B.
+        /// Returns (mustHave, priority, preferred) counts per tile.
         /// </summary>
-        public (int[] critical, int[] preferred) CheapCounts => (_critCheapCount, _prefCheapCount);
+        public (int[] mustHave, int[] priority, int[] preferred) CheapCounts =>
+            (_mustHaveCheapCount, _priorityCheapCount, _preferredCheapCount);
+
+        // Legacy compatibility
+        /// <summary>
+        /// [LEGACY] Returns (critical, preferred) counts. Critical = MustHave, Preferred = Priority + Preferred combined.
+        /// </summary>
+        public (int[] critical, int[] preferred) LegacyCheapCounts
+        {
+            get
+            {
+                // Combine priority + preferred for backwards compatibility
+                var combinedPreferred = new int[_tileCount];
+                for (int i = 0; i < _tileCount; i++)
+                {
+                    combinedPreferred[i] = _priorityCheapCount[i] + _preferredCheapCount[i];
+                }
+                return (_mustHaveCheapCount, combinedPreferred);
+            }
+        }
 
         /// <summary>
         /// Gets candidate tiles that pass the cheap aggregate gate.
         /// </summary>
-        /// <param name="strictness">Critical strictness threshold [0,1]</param>
+        /// <param name="strictness">MustHave strictness threshold [0,1]</param>
         /// <param name="maxCandidates">Maximum candidates to return (adaptive tightening)</param>
         /// <returns>List of candidates with their upper bound scores</returns>
         public List<CandidateTile> GetCandidates(float strictness, int maxCandidates)
         {
+            Stopwatch? phaseASw = null;
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                phaseASw = Stopwatch.StartNew();
+                Log.Message($"[LZ][DIAG] Phase A START: maxCandidates={maxCandidates}, strictness={strictness:F2}, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+            }
+
             // Step 1: Evaluate all cheap predicates and accumulate counts
             EvaluateAndAccumulate();
 
-            // Step 2: Compute total critical and preferred counts
-            int totalCriticals = _cheapCriticals.Count + _heavyCriticalCount;
-            int totalPreferreds = _cheapPreferreds.Count + _heavyPreferredCount;
+            // Step 2: Compute totals for scoring
+            // MustHave gates are binary (pass/fail), scoring uses Priority + Preferred
+            int totalMustHave = _cheapMustHave.Count + _heavyMustHaveCount;
+            int totalPriority = _cheapPriority.Count + _heavyPriorityCount;
+            int totalPreferred = _cheapPreferred.Count + _heavyPreferredCount;
+            int totalScoring = totalPriority + totalPreferred;
 
-            // Step 3: Compute kappa for score weighting
-            float kappa = ScoringWeights.ComputeKappa(totalCriticals, totalPreferreds);
+            // Step 3: Compute kappa for score weighting (gates don't contribute to kappa)
+            float kappa = ScoringWeights.ComputeKappa(totalMustHave, totalScoring);
 
-            Log.Message($"[LandingZone] BitsetAggregator: {_cheapCriticals.Count} cheap crits, " +
-                       $"{_cheapPreferreds.Count} cheap prefs, " +
-                       $"{_heavyCriticalCount} heavy crits, " +
-                       $"{_heavyPreferredCount} heavy prefs, κ={kappa:F3}");
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {_cheapMustHave.Count} cheap mustHave, " +
+                       $"{_cheapMustNotHave.Count} cheap mustNotHave, " +
+                       $"{_cheapPriority.Count} cheap priority, {_cheapPreferred.Count} cheap preferred, " +
+                       $"{_heavyMustHaveCount} heavy mustHave, {_heavyPriorityCount} heavy priority, " +
+                       $"{_heavyPreferredCount} heavy preferred, κ={kappa:F3}");
 
-            // Step 4: ADAPTIVE K-OF-N FALLBACK
-            // Instead of using strictness directly, find the best k-of-n threshold
-            // that produces a reasonable candidate count for Heavy filter processing.
-            // Example: "Impossible" preset has 6 cheap criticals:
-            //   - 6/6 match: 0 tiles (too strict)
-            //   - 5/6 match: 42 tiles (too few)
-            //   - 4/6 match: 2,847 tiles (GOOD - use this!)
-            //   - This avoids processing 104k tiles with Growing Days
-
+            // Step 4: ADAPTIVE K-OF-N FALLBACK for MustHave gates
             int minReasonableCandidates = LandingZoneSettings.MaxCandidatesForHeavyFilters;
-            int maxReasonableCandidates = minReasonableCandidates * 10; // Allow 10x for flexibility
+            int maxReasonableCandidates = minReasonableCandidates * 10;
 
-            int effectiveMinCriticals = DetermineAdaptiveThreshold(
+            int effectiveMinMustHave = DetermineAdaptiveThreshold(
                 minReasonableCandidates,
                 maxReasonableCandidates,
                 strictness);
 
-            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Adaptive threshold = {effectiveMinCriticals}/{_cheapCriticals.Count} cheap criticals");
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Adaptive threshold = {effectiveMinMustHave}/{_cheapMustHave.Count} cheap MustHave");
 
             // Step 5: Compute upper bounds and create candidates
-            // Use reasonable initial capacity - don't pre-allocate for int.MaxValue!
             int initialCapacity = Mathf.Min(maxCandidates, 100000);
             var candidates = new List<CandidateTile>(initialCapacity);
             var world = Find.World;
             var worldGrid = world?.grid;
 
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A: tileCount={_tileCount}, cheapMustHave={_cheapMustHave.Count}, " +
+                    $"cheapMustNotHave={_cheapMustNotHave.Count}, cheapPriority={_cheapPriority.Count}, " +
+                    $"cheapPreferred={_cheapPreferred.Count}, strictness={strictness:F2}");
+            }
+
+            int excludedByMustNotHave = 0;
             for (int tileId = 0; tileId < _tileCount; tileId++)
             {
                 // Filter out unsettleable tiles (ocean, impassable biomes)
-                if (worldGrid != null)
+                if (worldGrid != null && world != null)
                 {
                     var tile = worldGrid[tileId];
                     var biome = tile?.PrimaryBiome;
@@ -108,47 +156,71 @@ namespace LandingZone.Core.Filtering
                         continue;
                 }
 
-                // ADAPTIVE K-OF-N GATE: Tile must match at least effectiveMinCriticals cheap criticals
-                // This replaces strictness-based filtering with intelligent k-of-n matching
-                if (_cheapCriticals.Count > 0 && _critCheapCount[tileId] < effectiveMinCriticals)
+                // HARD GATE: MustNotHave - exclude any tile that matches a MustNotHave predicate
+                if (_excludedByMustNotHave[tileId])
                 {
-                    // Tile matched too few cheap criticals → eliminate
+                    excludedByMustNotHave++;
                     continue;
                 }
 
-                // Upper bound: assume this tile matches ALL heavy predicates
-                float critScoreUB = (totalCriticals == 0) ? 1f :
-                    (_critCheapCount[tileId] + _heavyCriticalCount) / (float)totalCriticals;
+                // ADAPTIVE K-OF-N GATE: Tile must match at least effectiveMinMustHave cheap MustHave predicates
+                if (_cheapMustHave.Count > 0 && _mustHaveCheapCount[tileId] < effectiveMinMustHave)
+                {
+                    continue;
+                }
 
-                float prefScoreUB = (totalPreferreds == 0) ? 0f :
-                    (_prefCheapCount[tileId] + _heavyPreferredCount) / (float)totalPreferreds;
+                // Upper bound scoring: assume tile matches ALL heavy predicates
+                // MustHave gates contribute to binary satisfaction (not weighted)
+                float mustHaveScoreUB = (totalMustHave == 0) ? 1f :
+                    (_mustHaveCheapCount[tileId] + _heavyMustHaveCount) / (float)totalMustHave;
 
-                float upperBound = ScoringWeights.ComputeFinalScore(critScoreUB, prefScoreUB, kappa);
+                // Scoring: Priority has 2x weight, Preferred has 1x weight
+                float priorityScore = (totalPriority == 0) ? 0f :
+                    (_priorityCheapCount[tileId] + _heavyPriorityCount) / (float)totalPriority;
+                float preferredScore = (totalPreferred == 0) ? 0f :
+                    (_preferredCheapCount[tileId] + _heavyPreferredCount) / (float)totalPreferred;
 
+                // Combine Priority (2x) and Preferred (1x) with normalized weights
+                float scoringScoreUB = (totalScoring == 0) ? 0f :
+                    (priorityScore * 2f + preferredScore) / 3f; // Weighted average
+
+                float upperBound = ScoringWeights.ComputeFinalScore(mustHaveScoreUB, scoringScoreUB, kappa);
+
+                // For backwards compatibility, store combined counts
+                int combinedScoringCount = _priorityCheapCount[tileId] + _preferredCheapCount[tileId];
                 candidates.Add(new CandidateTile(
                     tileId,
                     upperBound,
-                    _critCheapCount[tileId],
-                    _prefCheapCount[tileId]
+                    _mustHaveCheapCount[tileId],
+                    combinedScoringCount
                 ));
             }
 
-            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {candidates.Count} candidates pass strictness {strictness:F2}");
+            if (excludedByMustNotHave > 0)
+            {
+                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {excludedByMustNotHave} tiles excluded by MustNotHave gates");
+            }
 
-            // Step 5: Adaptive tightening if too many candidates
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {candidates.Count} candidates pass gates");
+
             bool capHit = candidates.Count > maxCandidates;
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A candidates: {candidates.Count} (cap {maxCandidates}, capHit={capHit})");
+            }
+
+            // Step 6: Adaptive tightening if too many candidates
             if (capHit)
             {
                 int originalCount = candidates.Count;
-                LandingZoneLogger.LogStandard($"[LandingZone] ⚠️ Candidate cap hit! {originalCount} candidates exceed limit of {maxCandidates}. " +
+                LandingZoneLogger.LogStandard($"[LandingZone] Candidate cap hit! {originalCount} candidates exceed limit of {maxCandidates}. " +
                                               $"Tightening to top {maxCandidates} by score. Consider using stricter filters or increasing Max Candidate Tiles in settings.");
 
-                // Sort by upper bound and take top N
                 candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
                 candidates = candidates.Take(maxCandidates).ToList();
             }
 
-            // Step 6: Sort by upper bound descending for branch-and-bound
+            // Step 7: Sort by upper bound descending for branch-and-bound
             candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
 
             // Final summary
@@ -162,24 +234,81 @@ namespace LandingZone.Core.Filtering
                 LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {candidates.Count} candidates ({capStatus})");
             }
 
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A candidates: {candidates.Count} (cap {maxCandidates}, capHit={capHit})");
+                phaseASw?.Stop();
+                Log.Message($"[LZ][DIAG] Phase A END: candidates={candidates.Count}, elapsed_ms={phaseASw?.ElapsedMilliseconds ?? 0}");
+            }
+
             return candidates;
         }
 
         private void EvaluateAndAccumulate()
         {
-            // Evaluate cheap critical predicates
-            foreach (var predicate in _cheapCriticals)
+            // Evaluate cheap MustHave predicates (hard include gates)
+            foreach (var predicate in _cheapMustHave)
             {
                 var bitset = predicate.Evaluate(_context, _tileCount);
-                AccumulateCounts(bitset, _critCheapCount);
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    int matches = CountBits(bitset);
+                    LandingZoneLogger.LogStandard($"[LZ][DIAG] CheapMustHave {predicate.Id ?? predicate.GetType().Name}: matches={matches}");
+                }
+                AccumulateCounts(bitset, _mustHaveCheapCount);
             }
 
-            // Evaluate cheap preferred predicates
-            foreach (var predicate in _cheapPreferreds)
+            // Evaluate cheap MustNotHave predicates (hard exclude gates)
+            // Any tile that matches a MustNotHave predicate is excluded
+            foreach (var predicate in _cheapMustNotHave)
             {
                 var bitset = predicate.Evaluate(_context, _tileCount);
-                AccumulateCounts(bitset, _prefCheapCount);
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    int matches = CountBits(bitset);
+                    LandingZoneLogger.LogStandard($"[LZ][DIAG] CheapMustNotHave {predicate.Id ?? predicate.GetType().Name}: matches={matches} (will EXCLUDE)");
+                }
+                // For MustNotHave, matching tiles are EXCLUDED
+                for (int i = 0; i < bitset.Length; i++)
+                {
+                    if (bitset[i])
+                        _excludedByMustNotHave[i] = true;
+                }
             }
+
+            // Evaluate cheap Priority predicates (high-weight scoring)
+            foreach (var predicate in _cheapPriority)
+            {
+                var bitset = predicate.Evaluate(_context, _tileCount);
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    int matches = CountBits(bitset);
+                    LandingZoneLogger.LogStandard($"[LZ][DIAG] CheapPriority {predicate.Id ?? predicate.GetType().Name}: matches={matches}");
+                }
+                AccumulateCounts(bitset, _priorityCheapCount);
+            }
+
+            // Evaluate cheap Preferred predicates (normal-weight scoring)
+            foreach (var predicate in _cheapPreferred)
+            {
+                var bitset = predicate.Evaluate(_context, _tileCount);
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    int matches = CountBits(bitset);
+                    LandingZoneLogger.LogStandard($"[LZ][DIAG] CheapPreferred {predicate.Id ?? predicate.GetType().Name}: matches={matches}");
+                }
+                AccumulateCounts(bitset, _preferredCheapCount);
+            }
+        }
+
+        private static int CountBits(BitArray bitset)
+        {
+            int count = 0;
+            for (int i = 0; i < bitset.Length; i++)
+            {
+                if (bitset[i]) count++;
+            }
+            return count;
         }
 
         private static void AccumulateCounts(BitArray bitset, int[] counts)
@@ -192,28 +321,28 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
-        /// Determines the minimum number of cheap criticals a tile must match to pass Stage A.
+        /// Determines the minimum number of cheap MustHave predicates a tile must match to pass Stage A.
         /// Uses adaptive k-of-n fallback to ensure a reasonable candidate count for Heavy filter processing.
         /// </summary>
         /// <param name="minCandidates">Minimum desired candidates (e.g., 1000)</param>
         /// <param name="maxCandidates">Maximum desired candidates (e.g., 10000)</param>
         /// <param name="strictness">User's strictness setting (informational)</param>
-        /// <returns>Minimum cheap criticals required (k in k-of-n)</returns>
+        /// <returns>Minimum cheap MustHave matches required (k in k-of-n)</returns>
         private int DetermineAdaptiveThreshold(int minCandidates, int maxCandidates, float strictness)
         {
-            // If no cheap criticals, no filtering possible
-            if (_cheapCriticals.Count == 0)
+            // If no cheap MustHave predicates, no filtering possible
+            if (_cheapMustHave.Count == 0)
                 return 0;
 
-            // Count tiles matching k cheap criticals for each k
-            int[] tileCounts = new int[_cheapCriticals.Count + 1]; // tileCounts[k] = # tiles matching ≥k criticals
+            // Count tiles matching k cheap MustHave predicates for each k
+            int[] tileCounts = new int[_cheapMustHave.Count + 1]; // tileCounts[k] = # tiles matching ≥k MustHave
             var world = Find.World;
             var worldGrid = world?.grid;
 
             for (int tileId = 0; tileId < _tileCount; tileId++)
             {
                 // Skip unsettleable tiles
-                if (worldGrid != null)
+                if (worldGrid != null && world != null)
                 {
                     var tile = worldGrid[tileId];
                     var biome = tile?.PrimaryBiome;
@@ -221,7 +350,11 @@ namespace LandingZone.Core.Filtering
                         continue;
                 }
 
-                int matchCount = _critCheapCount[tileId];
+                // Also skip tiles excluded by MustNotHave
+                if (_excludedByMustNotHave[tileId])
+                    continue;
+
+                int matchCount = _mustHaveCheapCount[tileId];
                 for (int k = 0; k <= matchCount; k++)
                 {
                     tileCounts[k]++;
@@ -230,34 +363,34 @@ namespace LandingZone.Core.Filtering
 
             // Log tile distribution for transparency
             LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: k-of-n distribution:");
-            for (int k = _cheapCriticals.Count; k >= 0; k--)
+            for (int k = _cheapMustHave.Count; k >= 0; k--)
             {
-                LandingZoneLogger.LogStandard($"  {k}/{_cheapCriticals.Count}: {tileCounts[k]} tiles");
+                LandingZoneLogger.LogStandard($"  {k}/{_cheapMustHave.Count}: {tileCounts[k]} tiles");
             }
 
             // Find the best k (highest match requirement) that produces a reasonable candidate count
-            // Start from strictest (all criticals) and relax until we have enough candidates
-            for (int k = _cheapCriticals.Count; k >= 0; k--)
+            // Start from strictest (all MustHave) and relax until we have enough candidates
+            for (int k = _cheapMustHave.Count; k >= 0; k--)
             {
                 int candidateCount = tileCounts[k];
 
                 // Perfect: Within target range
                 if (candidateCount >= minCandidates && candidateCount <= maxCandidates)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapCriticals.Count} (produces {candidateCount} candidates, target: {minCandidates}-{maxCandidates})");
+                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapMustHave.Count} (produces {candidateCount} candidates, target: {minCandidates}-{maxCandidates})");
                     return k;
                 }
 
                 // Good enough: Exceeds minimum
                 if (candidateCount >= minCandidates)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapCriticals.Count} (produces {candidateCount} candidates, exceeds minimum {minCandidates})");
+                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapMustHave.Count} (produces {candidateCount} candidates, exceeds minimum {minCandidates})");
                     return k;
                 }
             }
 
             // Fallback: No k produces enough candidates, use 0 (accept all)
-            LandingZoneLogger.LogWarning($"[LandingZone] BitsetAggregator: No k-of-n threshold produces {minCandidates}+ candidates. Using 0/{_cheapCriticals.Count} (all tiles).");
+            LandingZoneLogger.LogWarning($"[LandingZone] BitsetAggregator: No k-of-n threshold produces {minCandidates}+ candidates. Using 0/{_cheapMustHave.Count} (all tiles).");
             return 0;
         }
     }

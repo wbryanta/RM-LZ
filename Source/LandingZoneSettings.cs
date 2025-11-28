@@ -20,13 +20,13 @@ namespace LandingZone
         public static bool AllowCancelSearch = true;
         public static PerformanceProfile CurrentPerformanceProfile = PerformanceProfile.Default;
 
-        // ===== BETA FEATURES =====
+        // ===== FEATURES =====
 
         /// <summary>
         /// Enable LandingZone UI on the in-game world map (during gameplay).
-        /// DEFAULT: false (opt-in) - This is a beta feature.
+        /// DEFAULT: true - Shows LandingZone controls when viewing the world map.
         /// </summary>
-        public static bool EnableInGameWorldMap = false;
+        public static bool EnableInGameWorldMap = true;
 
         /// <summary>
         /// Maximum candidates to process with Heavy filters (Growing Days, etc).
@@ -35,6 +35,15 @@ namespace LandingZone
         /// Default: 1000 (1000 tiles × 3ms = 3 seconds vs 100k tiles × 3ms = 5 minutes)
         /// </summary>
         public static int MaxCandidatesForHeavyFilters = 1000;
+
+        /// <summary>
+        /// Pre-compute growing days (and other expensive tile data) on world load.
+        /// When enabled, all tiles are cached in the background when a world loads,
+        /// making Growing Days filter behave like a cheap filter.
+        /// DEFAULT: false - Lazy computation only (on-demand caching).
+        /// WARNING: May take several seconds on large worlds (500k+ tiles).
+        /// </summary>
+        public static bool PrecomputeGrowingDaysOnLoad = false;
 
         // ===== SCORING WEIGHT PRESETS =====
 
@@ -84,7 +93,8 @@ namespace LandingZone
             Scribe_Values.Look(ref AllowCancelSearch, "allowCancelSearch", true);
             Scribe_Values.Look(ref CurrentPerformanceProfile, "performanceProfile", PerformanceProfile.Default);
             Scribe_Values.Look(ref MaxCandidatesForHeavyFilters, "maxCandidatesForHeavyFilters", 1000);
-            Scribe_Values.Look(ref EnableInGameWorldMap, "enableInGameWorldMap", false);
+            Scribe_Values.Look(ref EnableInGameWorldMap, "enableInGameWorldMap", true);
+            Scribe_Values.Look(ref PrecomputeGrowingDaysOnLoad, "precomputeGrowingDaysOnLoad", false);
 
             // User presets (global persistence)
             Scribe_Collections.Look(ref _userPresets, "userPresets", LookMode.Deep);
@@ -180,12 +190,23 @@ namespace LandingZone
 
             listingStandard.Gap(12f);
 
-            // Section: Beta Features
-            listingStandard.Label("Beta Features:");
-            listingStandard.CheckboxLabeled("Enable in-game world map (Beta)", ref EnableInGameWorldMap);
+            // Section: In-Game World Map
+            listingStandard.CheckboxLabeled("Enable in-game world map", ref EnableInGameWorldMap);
             listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
-            listingStandard.Label("Shows LandingZone controls when viewing the world map during gameplay. Disable if you experience issues.");
+            listingStandard.Label("Shows LandingZone controls when viewing the world map during gameplay.");
+            Text.Font = GameFont.Small;
+
+            listingStandard.Gap(12f);
+
+            // Section: Precompute Growing Days
+            listingStandard.CheckboxLabeled("Precompute growing days on world load (beta)", ref PrecomputeGrowingDaysOnLoad);
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(1f, 0.85f, 0.5f); // Amber warning color
+            listingStandard.Label("May take several seconds on large worlds (500k+ tiles). Runs in background chunks to keep UI responsive.");
+            GUI.color = Color.white;
+            listingStandard.Label("When enabled, Growing Days filter becomes instant after initial world load.");
             Text.Font = GameFont.Small;
 
             listingStandard.Gap(8f);

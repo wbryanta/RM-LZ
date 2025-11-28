@@ -8,11 +8,12 @@ namespace LandingZone.Core.Filtering.Filters
 {
     /// <summary>
     /// Filters tiles by minimum (winter) temperature.
+    /// Uses cached SurfaceTile.MinTemperature property (fast, O(1) lookup).
     /// </summary>
     public sealed class MinimumTemperatureFilter : ISiteFilter
     {
         public string Id => "minimum_temperature";
-        public FilterHeaviness Heaviness => FilterHeaviness.Heavy;
+        public FilterHeaviness Heaviness => FilterHeaviness.Light;
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {

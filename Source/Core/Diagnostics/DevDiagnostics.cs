@@ -1,12 +1,15 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.IO;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
 using LandingZone.Core.Filtering.Filters;
 using LandingZone.Core.UI;
 using LandingZone.Data;
+using UnityEngine;
 
 namespace LandingZone.Core.Diagnostics
 {
@@ -15,6 +18,14 @@ namespace LandingZone.Core.Diagnostics
     /// </summary>
     public static class DevDiagnostics
     {
+        private static bool _phaseADiagnosticsEnabled;
+
+        public static bool PhaseADiagnosticsEnabled
+        {
+            get => _phaseADiagnosticsEnabled;
+            set => _phaseADiagnosticsEnabled = value;
+        }
+
         public static void DumpWorldDefinitions()
         {
             DumpBiomes();
@@ -164,6 +175,76 @@ namespace LandingZone.Core.Diagnostics
 
             sb.AppendLine($"[LandingZone][DEV] ===== END VALID ORES =====");
             Log.Message(sb.ToString());
+        }
+
+        /// <summary>
+        /// Writes a small text snapshot of the current world to Config/, sampling a limited number of tiles.
+        /// Includes world size, seed, mod list hash, distinct biomes, and sampled tiles with biome/hilliness/features.
+        /// </summary>
+        public static void DumpMiniWorldSnapshot(int sampleSize = 200)
+        {
+            var world = Find.World;
+            if (world == null)
+            {
+                Log.Warning("[LandingZone][DEV] DumpMiniWorldSnapshot: World unavailable.");
+                return;
+            }
+            var worldGrid = world?.grid;
+            if (worldGrid == null)
+            {
+                Log.Warning("[LandingZone][DEV] DumpMiniWorldSnapshot: World grid unavailable.");
+                return;
+            }
+
+            int tileCount = worldGrid.TilesCount;
+            var seed = world!.info?.seedString ?? "unknown";
+
+            // Build a simple mod hash for reference
+            var modIds = LoadedModManager.RunningModsListForReading.Select(m => m.PackageId).OrderBy(id => id).ToList();
+            string modHash = GenText.StableStringHash(string.Join(";", modIds)).ToString("X");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("[LandingZone][DEV] ===== MINI WORLD SNAPSHOT =====");
+            sb.AppendLine($"World seed: {seed}");
+            sb.AppendLine($"Tiles: {tileCount}");
+            sb.AppendLine($"Mod count: {modIds.Count} (hash {modHash})");
+
+            // Distinct biomes present (sampled via tiles)
+            var biomes = new HashSet<string>();
+            for (int i = 0; i < Mathf.Min(tileCount, 5000); i++)
+            {
+                var tile = worldGrid[i];
+                var biomeLabel = tile?.PrimaryBiome?.defName ?? "unknown";
+                biomes.Add(biomeLabel);
+            }
+            sb.AppendLine($"Biomes observed (sampled): {string.Join(", ", biomes.OrderBy(b => b))}");
+
+            sb.AppendLine();
+            sb.AppendLine($"Sampled tiles (first {Mathf.Min(sampleSize, tileCount)}):");
+
+            int sampleCount = Mathf.Min(sampleSize, tileCount);
+            for (int i = 0; i < sampleCount; i++)
+            {
+                var tile = worldGrid[i];
+                if (tile == null) continue;
+                var biome = tile.PrimaryBiome?.defName ?? "unknown";
+                var rivers = tile.Rivers != null && tile.Rivers.Any()
+                    ? string.Join(",", tile.Rivers.Select(r => r.river?.defName ?? "unknown").Distinct())
+                    : "none";
+                var roads = tile.Roads != null && tile.Roads.Any()
+                    ? string.Join(",", tile.Roads.Select(r => r.road?.defName ?? "unknown").Distinct())
+                    : "none";
+                var features = MapFeatureFilter.GetTileMapFeatures(i).ToList();
+                string featureStr = features.Any() ? string.Join(",", features) : "none";
+
+                sb.AppendLine($"Tile {i}: biome={biome}, hilliness={tile.hilliness}, elev={tile.elevation:F0}, rivers={rivers}, roads={roads}, features={featureStr}");
+            }
+
+            sb.AppendLine("[LandingZone][DEV] ===== END MINI WORLD SNAPSHOT =====");
+
+            var path = Path.Combine(GenFilePaths.ConfigFolderPath, $"LZ_MiniWorldSnapshot_{System.DateTime.Now:yyyyMMdd_HHmmss}.txt");
+            File.WriteAllText(path, sb.ToString());
+            Log.Message($"[LandingZone][DEV] Mini world snapshot written to {path}");
         }
 
         /// <summary>

@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,7 +66,7 @@ namespace LandingZone.Core.UI
                     highlightState.ShowBestSites = !showing;
                     if (highlightState.ShowBestSites && !LandingZoneContext.HasMatches)
                     {
-                        LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                        LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
                     }
                 }
             }
@@ -293,8 +294,9 @@ namespace LandingZone.Core.UI
                         if (worldGrid == null) return 0;
                         var tileA = worldGrid[a.TileId];
                         var tileB = worldGrid[b.TileId];
-                        float tempA = tileA?.temperature ?? 0f;
-                        float tempB = tileB?.temperature ?? 0f;
+                        if (tileA == null || tileB == null) return 0;
+                        float tempA = tileA.temperature;
+                        float tempB = tileB.temperature;
                         return tempB.CompareTo(tempA); // Descending
                     });
                     break;
@@ -305,8 +307,9 @@ namespace LandingZone.Core.UI
                         if (worldGrid == null) return 0;
                         var tileA = worldGrid[a.TileId];
                         var tileB = worldGrid[b.TileId];
-                        string nameA = tileA?.PrimaryBiome != null ? tileA.PrimaryBiome.LabelCap.ToString() : "";
-                        string nameB = tileB?.PrimaryBiome != null ? tileB.PrimaryBiome.LabelCap.ToString() : "";
+                        if (tileA == null || tileB == null) return 0;
+                        string nameA = tileA.PrimaryBiome?.LabelCap.ToString() ?? "";
+                        string nameB = tileB.PrimaryBiome?.LabelCap.ToString() ?? "";
                         return string.Compare(nameA, nameB, StringComparison.Ordinal);
                     });
                     break;
@@ -766,29 +769,41 @@ namespace LandingZone.Core.UI
                     var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
 
                     // Climate line - draw colored segments
-                    DrawColoredClimateLine(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), score.TileId, tile, extended, filters);
+                    if (tile != null)
+                    {
+                        DrawColoredClimateLine(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), score.TileId, tile, extended, filters);
+                    }
                     curY += 20f;
 
                     // Terrain line
-                    string terrainLine = tile.hilliness.GetLabelCap().ToString();
-                    // Get stone types directly (cheap: 0.0014ms/tile)
-                    var world = Find.World;
-                    var planetTile = new PlanetTile(score.TileId, world.grid.Surface);
-                    var stoneTypes = world.NaturalRockTypesIn(planetTile)?
-                        .Where(t => t != null)
-                        .Select(t => t.defName)
-                        .ToArray();
-                    if (stoneTypes != null && stoneTypes.Length > 0)
+                    if (tile != null)
                     {
-                        terrainLine += " • " + string.Join("/", stoneTypes);
+                        string terrainLine = tile.hilliness.GetLabelCap().ToString();
+                        // Get stone types directly (cheap: 0.0014ms/tile)
+                        var world = Find.World;
+                        if (world != null)
+                        {
+                            var planetTile = new PlanetTile(score.TileId, world.grid.Surface);
+                            var stoneTypes = world.NaturalRockTypesIn(planetTile)?
+                                .Where(t => t != null)
+                                .Select(t => t.defName)
+                                .ToArray();
+                            if (stoneTypes != null && stoneTypes.Length > 0)
+                            {
+                                terrainLine += " • " + string.Join("/", stoneTypes);
+                            }
+                            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+                            var terrainRect = new Rect(rect.x + 4f, curY, rect.width - 8f, 16f);
+                            Widgets.Label(terrainRect, terrainLine);
+                        }
                     }
-                    GUI.color = new Color(0.85f, 0.85f, 0.85f);
-                    var terrainRect = new Rect(rect.x + 4f, curY, rect.width - 8f, 16f);
-                    Widgets.Label(terrainRect, terrainLine);
                     curY += 20f;
 
                     // Failure line (only show if there are failures)
-                    DrawFailureLine(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), score.TileId, tile, extended, filters);
+                    if (tile != null)
+                    {
+                        DrawFailureLine(new Rect(rect.x + 4f, curY, rect.width - 8f, 16f), score.TileId, tile, extended, filters);
+                    }
                     curY += 20f;
                 }
                 else
@@ -861,7 +876,8 @@ namespace LandingZone.Core.UI
             {
                 var plant = plantRecord?.plant;
                 if (plant?.plant?.harvestedThingDef != null &&
-                    plant.plant.harvestedThingDef.IsNutritionGivingIngestible)
+                    plant.plant.harvestedThingDef.IsNutritionGivingIngestible &&
+                    plantRecord != null)
                 {
                     if (plantRecord.commonality > highestCommonality)
                     {
@@ -1011,6 +1027,7 @@ namespace LandingZone.Core.UI
                             var tileRivers = tile.Rivers
                                 .Select(r => r.river?.defName)
                                 .Where(n => n != null)
+                                .Cast<string>()
                                 .Distinct()
                                 .ToList();
                             var selectedRivers = tileRivers.Where(r => filters.Rivers.GetImportance(r) != FilterImportance.Ignored).ToList();
@@ -1040,6 +1057,7 @@ namespace LandingZone.Core.UI
                             var tileRoads = tile.Roads
                                 .Select(r => r.road?.defName)
                                 .Where(n => n != null)
+                                .Cast<string>()
                                 .Distinct()
                                 .ToList();
                             var selectedRoads = tileRoads.Where(r => filters.Roads.GetImportance(r) != FilterImportance.Ignored).ToList();
@@ -1346,11 +1364,11 @@ namespace LandingZone.Core.UI
             sb.AppendLine("LandingZone_DebugDumpHeader".Translate());
             sb.AppendLine("LandingZone_DebugTotalMatches".Translate(matches.Count, allMatches.Count));
             sb.AppendLine("LandingZone_DebugMinScoreFilter".Translate(_minScoreFilter > 0 ? $"{_minScoreFilter:P0}" : "All"));
-            sb.AppendLine("LandingZone_DebugSortMode".Translate(_sortMode));
+            sb.AppendLine("LandingZone_DebugSortMode".Translate(_sortMode.ToString()));
             sb.AppendLine("LandingZone_DebugPresetMode".Translate(presetLabel, modeLabel));
             if (preset != null)
                 sb.AppendLine("LandingZone_DebugMutatorOverrides".Translate(preset.MutatorQualityOverrides.Count));
-            sb.AppendLine("LandingZone_DebugLoggingTier".Translate(LandingZoneSettings.LogLevel, LandingZoneLogger.IsVerbose ? "LandingZone_DebugAllCaps".Translate() : "LandingZone_DebugTop3".Translate()));
+            sb.AppendLine("LandingZone_DebugLoggingTier".Translate(LandingZoneSettings.LogLevel.ToString(), LandingZoneLogger.IsVerbose ? "LandingZone_DebugAllCaps".Translate().ToString() : "LandingZone_DebugTop3".Translate().ToString()));
             sb.AppendLine("========================================\n");
 
             int dumpLimit = LandingZoneLogger.IsVerbose ? matches.Count : Math.Min(3, matches.Count);
@@ -1361,16 +1379,16 @@ namespace LandingZone.Core.UI
                 var worldGrid = Find.World?.grid;
                 var tile = worldGrid?[match.TileId];
 
-                sb.AppendLine("LandingZone_DebugRankTile".Translate(i + 1, match.TileId));
-                sb.AppendLine("LandingZone_DebugScore".Translate(match.Score.ToString("F6")));
-                sb.AppendLine("LandingZone_DebugBiome".Translate(tile?.PrimaryBiome?.LabelCap ?? "Unknown"));
+                sb.AppendLine(("LandingZone_DebugRankTile").Translate(i + 1, match.TileId));
+                sb.AppendLine(("LandingZone_DebugScore").Translate(match.Score.ToString("F6")));
+                sb.AppendLine(("LandingZone_DebugBiome").Translate(tile?.PrimaryBiome?.LabelCap ?? "Unknown"));
 
                 if (match.BreakdownV2.HasValue)
                 {
                     var breakdown = match.BreakdownV2.Value;
 
-                    sb.AppendLine("LandingZone_DebugPerfectMatch".Translate(breakdown.IsPerfectMatch));
-                    sb.AppendLine("LandingZone_DebugPerfectPlus".Translate(breakdown.IsPerfectPlus));
+                    sb.AppendLine("LandingZone_DebugPerfectMatch".Translate(breakdown.IsPerfectMatch.ToString()));
+                    sb.AppendLine("LandingZone_DebugPerfectPlus".Translate(breakdown.IsPerfectPlus.ToString()));
                     sb.AppendLine("LandingZone_DebugCriticalScore".Translate(breakdown.CriticalScore.ToString("F4")));
                     sb.AppendLine("LandingZone_DebugPreferredScore".Translate(breakdown.PreferredScore.ToString("F4")));
                     sb.AppendLine("LandingZone_DebugMutatorScore".Translate(breakdown.MutatorScore.ToString("F4")));

@@ -4,7 +4,7 @@
   <author>wcbryant</author>
   <url>https://github.com/wbryanta/RM-LZ</url>
   <packageId>wcb.landingzone.dev</packageId>
-  <modVersion>0.3.5-dev</modVersion>
+  <modVersion>0.4.0-dev</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
@@ -37,4 +37,19 @@ AI Usage Disclosure: This mod was created with quality control and organizationa
       <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
     </li>
   </modDependencies>
+
+  <loadAfter>
+    <!-- Biome mods - LZ must load after to see their biome defs -->
+    <li>sarg.alphabiomes</li>
+    <li>zylle.MoreVanillaBiomes</li>
+    <li>ReGrowth.BOTR.Core</li>
+    <li>m00nl1ght.GeologicalLandforms</li>
+    <li>m00nl1ght.GeologicalLandforms.BiomeTransitions</li>
+    <li>BiomesTeam.BiomesCore</li>
+    <li>Okagrim.duskwood</li>
+    <!-- Resource/mineral mods -->
+    <li>bean.mineralpack</li>
+    <li>DankPyon.Medieval.Overhaul</li>
+    <li>dankpyon.rimcuisine3</li>
+  </loadAfter>
 </ModMetaData>

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 using LandingZone.Data;
@@ -284,21 +285,25 @@ namespace LandingZone.Core.UI
             // Tweak in Advanced button
             if (Widgets.ButtonText(new Rect(buttonRect.x, buttonRect.y, buttonWidth, buttonRect.height), "LandingZone_TweakInAdvanced".Translate()))
             {
-                ApplyRecommendations(LandingZoneContext.State?.Preferences?.AdvancedFilters);
                 var prefs = LandingZoneContext.State?.Preferences;
                 if (prefs != null)
                 {
+                    ApplyRecommendations(prefs.AdvancedFilters);
                     prefs.Options.PreferencesUIMode = UIMode.Advanced;
+                    Messages.Message("LandingZone_GoalLoadedForEditing".Translate(goalLabel), MessageTypeDefOf.NeutralEvent, false);
                 }
-                Messages.Message("LandingZone_GoalLoadedForEditing".Translate(goalLabel), MessageTypeDefOf.NeutralEvent, false);
                 Close();
             }
 
             // Search Now button
             if (Widgets.ButtonText(new Rect(buttonRect.x + buttonWidth + 8f, buttonRect.y, buttonWidth, buttonRect.height), "LandingZone_SearchNow".Translate()))
             {
-                ApplyRecommendations(LandingZoneContext.State?.Preferences?.GetActiveFilters());
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.Manual, focusOnComplete: true);
+                var activeFilters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
+                if (activeFilters != null)
+                {
+                    ApplyRecommendations(activeFilters);
+                }
+                LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.Manual, focusOnComplete: true);
                 Close();
             }
 
@@ -344,7 +349,7 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Small;
         }
 
-        private void ApplyRecommendations(FilterSettings filters)
+        private void ApplyRecommendations(FilterSettings? filters)
         {
             if (filters == null) return;
 

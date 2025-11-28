@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -118,8 +119,8 @@ namespace LandingZone.Data
             float combinedProbability = 1.0f;
 
             // Factor in biome probability
-            string biomeDefName = tile.PrimaryBiome?.defName;
-            if (!string.IsNullOrEmpty(biomeDefName) && _probabilities.TryGetValue(biomeDefName, out float biomeProbability))
+            string? biomeDefName = tile.PrimaryBiome?.defName;
+            if (biomeDefName != null && _probabilities.TryGetValue(biomeDefName, out float biomeProbability))
             {
                 combinedProbability *= biomeProbability;
             }

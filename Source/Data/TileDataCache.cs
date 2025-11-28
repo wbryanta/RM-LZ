@@ -12,6 +12,18 @@ namespace LandingZone.Data
     /// </summary>
     public sealed class TileDataCache
     {
+        /// <summary>
+        /// Minimum temperature for optimal plant growth (matches RimWorld's Plant growth curve).
+        /// Plants grow at reduced rates below this temperature.
+        /// </summary>
+        private const float MinOptimalGrowthTemperature = 6f;
+
+        /// <summary>
+        /// Maximum temperature for optimal plant growth (matches RimWorld's Plant growth curve).
+        /// Plants grow at reduced rates above this temperature.
+        /// </summary>
+        private const float MaxOptimalGrowthTemperature = 42f;
+
         private readonly Dictionary<int, TileInfoExtended> _cache = new();
         private string _worldSeed = string.Empty;
 
@@ -68,7 +80,10 @@ namespace LandingZone.Data
             var planetTile = new PlanetTile(tileId, world.grid.Surface);
 
             // EXPENSIVE: Growing days calculation (2-3ms per tile)
-            var growingTwelfths = GenTemperature.TwelfthsInAverageTemperatureRange(planetTile, 6f, 42f);
+            var growingTwelfths = GenTemperature.TwelfthsInAverageTemperatureRange(
+                planetTile,
+                MinOptimalGrowthTemperature,
+                MaxOptimalGrowthTemperature);
             var daysPerTwelfth = GenDate.DaysPerYear / (float)GenDate.TwelfthsPerYear;
             var growingDays = (growingTwelfths?.Count ?? 0) * daysPerTwelfth;
 

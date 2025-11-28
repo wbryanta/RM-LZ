@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -247,7 +248,7 @@ namespace LandingZone.Data
             Log.Message("LandingZone_PresetSavedLog".Translate(preset.Name));
 
             // Persist to disk immediately
-            LandingZoneMod.Instance.WriteSettings();
+            LandingZoneMod.Instance?.WriteSettings();
 
             return true;
         }
@@ -298,7 +299,7 @@ namespace LandingZone.Data
             Log.Message("LandingZone_PresetSavedLog".Translate(name));
 
             // Persist to disk immediately
-            LandingZoneMod.Instance.WriteSettings();
+            LandingZoneMod.Instance?.WriteSettings();
 
             return true;
         }
@@ -322,7 +323,7 @@ namespace LandingZone.Data
                 Log.Message("LandingZone_PresetDeleted".Translate(name));
 
                 // Persist to disk immediately
-                LandingZoneMod.Instance.WriteSettings();
+                LandingZoneMod.Instance?.WriteSettings();
 
                 return true;
             }

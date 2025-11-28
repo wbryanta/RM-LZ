@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -29,9 +30,9 @@ namespace LandingZone.Core.Filtering
         public class ValidationIssue
         {
             public IssueSeverity Severity { get; set; }
-            public string FilterName { get; set; }
-            public string Message { get; set; }
-            public string Suggestion { get; set; }
+            public string FilterName { get; set; } = "";
+            public string Message { get; set; } = "";
+            public string Suggestion { get; set; } = "";
 
             public Color GetSeverityColor()
             {
@@ -191,7 +192,7 @@ namespace LandingZone.Core.Filtering
         private static void ValidateIndividualImportanceContainer<T>(
             IndividualImportanceContainer<T> container,
             string filterName,
-            List<ValidationIssue> issues)
+            List<ValidationIssue> issues) where T : notnull
         {
             if (container == null)
                 return;

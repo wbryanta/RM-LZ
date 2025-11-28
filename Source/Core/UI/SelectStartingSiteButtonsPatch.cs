@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using HarmonyLib;
 using RimWorld;
@@ -39,7 +40,7 @@ namespace LandingZone.Core.UI
     {
         private const float Gap = 10f;
         private static readonly Vector2 ButtonSize = new Vector2(150f, 38f);
-        private static string _cachedWorldStats = null;
+        private static string? _cachedWorldStats = null;
         private static readonly Func<Page, bool> CanDoBack = AccessTools.MethodDelegate<Func<Page, bool>>(AccessTools.Method(typeof(Page), "CanDoBack"));
         private static readonly Action<Page> DoBack = AccessTools.MethodDelegate<Action<Page>>(AccessTools.Method(typeof(Page), "DoBack"));
         private static readonly Func<Page_SelectStartingSite, bool> CanDoNext = AccessTools.MethodDelegate<Func<Page_SelectStartingSite, bool>>(AccessTools.Method(typeof(Page_SelectStartingSite), "CanDoNext"));
@@ -543,7 +544,7 @@ namespace LandingZone.Core.UI
             {
                 // Fallback: start search without warning
                 highlightState.ShowBestSites = true;
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
                 return;
             }
 
@@ -558,9 +559,9 @@ namespace LandingZone.Core.UI
                     "Continue".Translate(),
                     () =>
                     {
-                        // User confirmed - start the search
+                        // User confirmed - start the search (with heavy filter warning if needed)
                         highlightState.ShowBestSites = true;
-                        LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                        LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
                     },
                     "Cancel".Translate(),
                     null,
@@ -573,9 +574,9 @@ namespace LandingZone.Core.UI
             }
             else
             {
-                // Fast search - start immediately
+                // Fast search - start (with heavy filter warning if needed)
                 highlightState.ShowBestSites = true;
-                LandingZoneContext.RequestEvaluation(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
+                LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
             }
         }
 

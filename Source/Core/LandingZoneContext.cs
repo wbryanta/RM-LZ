@@ -1,7 +1,9 @@
+#nullable enable
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using LandingZone.Core.Diagnostics;
 using LandingZone.Core.Filtering;
 using LandingZone.Data;
 using RimWorld.Planet;
@@ -136,10 +138,47 @@ namespace LandingZone.Core
             return LatestResults;
         }
 
+        /// <summary>
+        /// Requests evaluation with heavy filter warning check.
+        /// If heavy filters are set to hard gate importance, shows a warning dialog first.
+        /// </summary>
+        public static void RequestEvaluationWithWarning(EvaluationRequestSource source, bool focusOnComplete)
+        {
+            if (Filters == null || State == null)
+                return;
+
+            var filters = State.Preferences.GetActiveFilters();
+            var heavyGates = Filters.Registry.GetHeavyGateFilters(filters);
+
+            if (heavyGates.Count > 0)
+            {
+                // Show warning dialog - let user choose action
+                var dialog = new UI.Dialog_HeavyFilterWarning(
+                    heavyGates,
+                    filters,
+                    onProceed: () => RequestEvaluation(source, focusOnComplete),
+                    onCancel: null
+                );
+                Find.WindowStack.Add(dialog);
+            }
+            else
+            {
+                // No heavy+gate filters, proceed directly
+                RequestEvaluation(source, focusOnComplete);
+            }
+        }
+
         public static bool RequestEvaluation(EvaluationRequestSource source, bool focusOnComplete)
         {
             if (Filters == null || State == null)
                 return false;
+
+            // Diagnostic: Log evaluation request start
+            string contextType = Current.ProgramState == ProgramState.Playing ? "in-game" : "world-gen";
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] RequestEvaluation START: source={source}, context={contextType}, focus={focusOnComplete}, diagEnabled=true, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+            }
 
             EnsureEvaluationComponent();
             EnsureCacheReady();
@@ -157,6 +196,10 @@ namespace LandingZone.Core
             catch (System.Exception ex)
             {
                 Log.Error($"[LandingZone] Failed to start evaluation: {ex}");
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    Log.Error($"[LZ][DIAG] RequestEvaluation FAILED: {ex.Message}");
+                }
                 _activeJob = null;
                 return false;
             }
@@ -167,6 +210,11 @@ namespace LandingZone.Core
             LastEvaluationCount = 0;
             EvaluationProgress = 0f;
             LogMessage("Best site search started.");
+
+            // Immediately kick the job once to start scoring phase
+            // (tick-driven stepping continues via StepEvaluation calls)
+            StepEvaluation();
+
             return true;
         }
 
@@ -189,6 +237,12 @@ namespace LandingZone.Core
         {
             if (_activeJob == null || Filters == null || State == null)
                 return;
+
+            // Diagnostic breadcrumb: log step tick when diagnostics enabled
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] Step tick: cursor={_activeJob.ProcessedTiles}/{_activeJob.TotalTiles}, progress={_activeJob.Progress:P0}");
+            }
 
             int iterations = LandingZoneMod.Instance?.Settings.EvaluationChunkSize ?? 250;
             iterations = Mathf.Max(50, iterations);
@@ -218,6 +272,12 @@ namespace LandingZone.Core
             LastEvaluationMs = job.ElapsedMs;
             UpdateBreakdowns(list);
 
+            // Diagnostic: Log evaluation completion
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] RequestEvaluation END: results={list.Count}, elapsed_ms={job.ElapsedMs:F0}, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+            }
+
             // Concise completion summary for diagnostics
             var preset = State?.Preferences?.ActivePreset;
             var modeLabel = State?.Preferences?.Options?.PreferencesUIMode.ToString() ?? "Unknown";
@@ -238,7 +298,10 @@ namespace LandingZone.Core
                 LogMessage("Best site search finished with no matching tiles.");
             }
 
-            Highlighter?.Update(State, list);
+            if (State != null)
+            {
+                Highlighter?.Update(State, list);
+            }
             IsEvaluating = false;
             EvaluationProgress = 1f;
 

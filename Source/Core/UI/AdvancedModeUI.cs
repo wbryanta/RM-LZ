@@ -31,6 +31,10 @@ namespace LandingZone.Core.UI
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
         private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
 
+        // Workspace mode toggle
+        // Default to Classic view until workspace mode has full filter coverage
+        private static bool _useWorkspaceMode = false;
+
         /// <summary>
         /// Tab categories for Advanced mode (Tier 3).
         /// </summary>
@@ -186,7 +190,10 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Renders the Advanced mode UI (tabs + search + grouped filters + live preview panel).
+        /// Renders the Advanced mode UI.
+        /// Supports two modes:
+        /// - Workspace Mode (default): 4-bucket drag-and-drop interface with OR grouping
+        /// - Classic Mode: Tabbed filter lists with importance selectors
         /// </summary>
         /// <param name="inRect">Available drawing area</param>
         /// <param name="preferences">User preferences containing filter settings</param>
@@ -196,6 +203,190 @@ namespace LandingZone.Core.UI
             // Run conflict detection on current filter settings
             _activeConflicts = ConflictDetector.DetectConflicts(preferences.GetActiveFilters());
 
+            // Mode toggle at top
+            var toggleRect = new Rect(inRect.x, inRect.y, inRect.width, 28f);
+            DrawModeToggle(toggleRect);
+
+            // Content area below toggle
+            var contentRect = new Rect(inRect.x, inRect.y + 32f, inRect.width, inRect.height - 32f);
+
+            if (_useWorkspaceMode)
+            {
+                // New bucket workspace mode
+                DrawBucketWorkspace(contentRect, preferences);
+                return contentRect.height + 32f;
+            }
+            else
+            {
+                // Classic tabbed mode
+                return DrawClassicContent(contentRect, preferences) + 32f;
+            }
+        }
+
+        /// <summary>
+        /// Counts active filters that are not visible/editable in Workspace mode.
+        /// Used to warn users before switching to limited-coverage workspace.
+        /// </summary>
+        private static (int count, List<string> names) CountHiddenActiveFilters(FilterSettings filters)
+        {
+            var hiddenNames = new List<string>();
+
+            // Container filters (rivers, roads, stones, map features, adjacent biomes, stockpiles)
+            if (filters.Rivers.HasAnyImportance)
+                hiddenNames.Add("Rivers");
+            if (filters.Roads.HasAnyImportance)
+                hiddenNames.Add("Roads");
+            if (filters.Stones.HasAnyImportance)
+                hiddenNames.Add("Stones");
+            if (filters.MapFeatures.HasAnyImportance)
+                hiddenNames.Add("Map Features");
+            if (filters.AdjacentBiomes.HasAnyImportance)
+                hiddenNames.Add("Adjacent Biomes");
+            if (filters.Stockpiles.HasAnyImportance)
+                hiddenNames.Add("Stockpiles");
+
+            // Biome lock
+            if (filters.LockedBiome != null)
+                hiddenNames.Add("Biome Lock");
+
+            // Forageable food (requires food type selection)
+            if (filters.ForageableFoodImportance != FilterImportance.Ignored && !string.IsNullOrEmpty(filters.ForageableFoodDefName))
+                hiddenNames.Add("Forageable Food");
+
+            // Hilliness (if restricted - not all 4 types allowed)
+            if (filters.AllowedHilliness.Count < 4)
+                hiddenNames.Add("Hilliness");
+
+            return (hiddenNames.Count, hiddenNames);
+        }
+
+        /// <summary>
+        /// Shows warning dialog and switches to workspace mode if user confirms.
+        /// </summary>
+        private static void TrySwitchToWorkspace(FilterSettings filters)
+        {
+            var (hiddenCount, hiddenNames) = CountHiddenActiveFilters(filters);
+
+            if (hiddenCount > 0)
+            {
+                // Show warning dialog
+                string filterList = string.Join(", ", hiddenNames);
+                string message = "LandingZone_Workspace_LimitedWarning".Translate(hiddenCount, filterList);
+
+                Find.WindowStack.Add(new Dialog_MessageBox(
+                    message,
+                    "LandingZone_Workspace_SwitchAnyway".Translate(),
+                    () =>
+                    {
+                        _useWorkspaceMode = true;
+                        ResetWorkspace();
+                    },
+                    "LandingZone_Cancel".Translate(),
+                    null,
+                    null,
+                    false,
+                    null,
+                    null
+                ));
+            }
+            else
+            {
+                // No hidden filters - switch directly
+                _useWorkspaceMode = true;
+                ResetWorkspace();
+            }
+        }
+
+        /// <summary>
+        /// Called after a preset or import is applied to ensure hidden filters are visible.
+        /// If currently in Workspace mode and the filters include hidden container filters,
+        /// auto-switches to Classic view and shows a message.
+        /// </summary>
+        /// <param name="filters">The filters that were just applied.</param>
+        public static void EnsureHiddenFiltersVisible(FilterSettings filters)
+        {
+            // Only relevant if currently in Workspace mode
+            if (!_useWorkspaceMode)
+                return;
+
+            var (hiddenCount, hiddenNames) = CountHiddenActiveFilters(filters);
+
+            if (hiddenCount > 0)
+            {
+                // Auto-switch to Classic view to make hidden filters visible
+                _useWorkspaceMode = false;
+                ResetWorkspace();
+
+                string filterList = string.Join(", ", hiddenNames);
+                Messages.Message(
+                    "LandingZone_Workspace_SwitchedToClassic".Translate(hiddenCount, filterList),
+                    MessageTypeDefOf.NeutralEvent,
+                    false
+                );
+            }
+        }
+
+        /// <summary>
+        /// Draws the mode toggle at the top of the Advanced UI.
+        /// </summary>
+        private static void DrawModeToggle(Rect rect)
+        {
+            // Background
+            Widgets.DrawBoxSolid(rect, new Color(0.12f, 0.12f, 0.12f));
+
+            float buttonWidth = 120f;
+            float x = rect.x + 8f;
+
+            // Workspace button
+            var workspaceRect = new Rect(x, rect.y + 2f, buttonWidth, rect.height - 4f);
+            Color workspaceBg = _useWorkspaceMode ? new Color(0.25f, 0.3f, 0.35f) : new Color(0.15f, 0.15f, 0.15f);
+            Widgets.DrawBoxSolid(workspaceRect, workspaceBg);
+            if (Widgets.ButtonText(workspaceRect, "LandingZone_Workspace_BucketView".Translate(), drawBackground: false))
+            {
+                // Get current filters to check for hidden active filters
+                var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
+                if (filters != null)
+                {
+                    TrySwitchToWorkspace(filters);
+                }
+                else
+                {
+                    _useWorkspaceMode = true;
+                    ResetWorkspace();
+                }
+            }
+            if (_useWorkspaceMode)
+            {
+                GUI.color = new Color(0.4f, 0.7f, 0.9f);
+                Widgets.DrawBox(workspaceRect);
+                GUI.color = Color.white;
+            }
+            TooltipHandler.TipRegion(workspaceRect, "LandingZone_Workspace_BucketViewTooltip".Translate());
+
+            x += buttonWidth + 8f;
+
+            // Classic button
+            var classicRect = new Rect(x, rect.y + 2f, buttonWidth, rect.height - 4f);
+            Color classicBg = !_useWorkspaceMode ? new Color(0.25f, 0.3f, 0.35f) : new Color(0.15f, 0.15f, 0.15f);
+            Widgets.DrawBoxSolid(classicRect, classicBg);
+            if (Widgets.ButtonText(classicRect, "LandingZone_Workspace_ClassicView".Translate(), drawBackground: false))
+            {
+                _useWorkspaceMode = false;
+            }
+            if (!_useWorkspaceMode)
+            {
+                GUI.color = new Color(0.4f, 0.7f, 0.9f);
+                Widgets.DrawBox(classicRect);
+                GUI.color = Color.white;
+            }
+            TooltipHandler.TipRegion(classicRect, "LandingZone_Workspace_ClassicViewTooltip".Translate());
+        }
+
+        /// <summary>
+        /// Renders the classic tabbed Advanced mode UI.
+        /// </summary>
+        private static float DrawClassicContent(Rect inRect, UserPreferences preferences)
+        {
             // Two-column layout: left = filters, right = live preview
             float leftColumnWidth = inRect.width - RightPanelWidth - ColumnGap;
             Rect leftColumn = new Rect(inRect.x, inRect.y, leftColumnWidth, inRect.height);
@@ -395,11 +586,11 @@ namespace LandingZone.Core.UI
             listing.Gap(4f);
 
             // Reset All button
-            if (listing.ButtonText("Reset All Filters"))
+            if (listing.ButtonText("LandingZone_Advanced_ResetAll".Translate()))
             {
                 // Clear all filters to Ignored
                 filters.ClearAll();
-                Messages.Message("All filters cleared to Ignored", MessageTypeDefOf.NeutralEvent, false);
+                Messages.Message("LandingZone_Advanced_ResetAll_Message".Translate(), MessageTypeDefOf.NeutralEvent, false);
             }
             listing.Gap(12f);
 

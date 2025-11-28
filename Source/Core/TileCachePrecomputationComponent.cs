@@ -1,3 +1,4 @@
+#nullable enable
 using System.Diagnostics;
 using LandingZone.Data;
 using Verse;
@@ -6,17 +7,28 @@ namespace LandingZone.Core
 {
     /// <summary>
     /// GameComponent that pre-caches all tile data on world load.
-    /// Processes tiles incrementally to avoid UI freeze.
+    /// Processes tiles incrementally in chunks to avoid UI freeze.
+    /// Chunk size is tuned for responsive UI (500-1000 tiles per frame).
     /// </summary>
     public class TileCachePrecomputationComponent : GameComponent
     {
-        private const int TilesPerFrame = 10000; // Process 10k tiles per frame (very fast)
+        /// <summary>
+        /// Tiles processed per frame. Tuned for UI responsiveness on large worlds.
+        /// Growing days calculation is ~2-3ms per tile, so 500 tiles ≈ 1-1.5 seconds per frame.
+        /// </summary>
+        private const int TilesPerFrame = 500;
 
-        private TileDataCache _cache;
+        /// <summary>
+        /// Log progress every N tiles to show the user it's still working.
+        /// </summary>
+        private const int ProgressLogInterval = 50000;
+
+        private TileDataCache? _cache;
         private int _totalTiles;
         private int _processedTiles;
+        private int _lastProgressLog;
         private bool _completed;
-        private Stopwatch _stopwatch;
+        private Stopwatch? _stopwatch;
 
         public TileCachePrecomputationComponent(Game game)
         {
@@ -30,10 +42,11 @@ namespace LandingZone.Core
             _cache = cache;
             _totalTiles = Find.WorldGrid?.TilesCount ?? 0;
             _processedTiles = 0;
+            _lastProgressLog = 0;
             _completed = false;
             _stopwatch = Stopwatch.StartNew();
 
-            Log.Message($"[LandingZone] Starting tile cache precomputation for {_totalTiles} tiles...");
+            Log.Message($"[LandingZone] Tile cache precomputation START: {_totalTiles} tiles, chunk size {TilesPerFrame}");
         }
 
         public override void GameComponentTick()
@@ -56,6 +69,14 @@ namespace LandingZone.Core
 
             _processedTiles = endTile;
 
+            // Log progress periodically for large worlds
+            if (_processedTiles - _lastProgressLog >= ProgressLogInterval)
+            {
+                _lastProgressLog = _processedTiles;
+                var elapsedSec = (_stopwatch?.ElapsedMilliseconds ?? 0) / 1000f;
+                Log.Message($"[LandingZone] Tile cache precomputation: {_processedTiles}/{_totalTiles} ({Progress:P0}) - {elapsedSec:F1}s elapsed");
+            }
+
             // Update status through LandingZoneContext
             LandingZoneContext.UpdateTileCacheStatus(Progress, _processedTiles, false);
 
@@ -63,8 +84,9 @@ namespace LandingZone.Core
             if (_processedTiles >= _totalTiles)
             {
                 _completed = true;
-                _stopwatch.Stop();
-                Log.Message($"[LandingZone] Tile cache precomputation complete: {_totalTiles} tiles cached in {_stopwatch.ElapsedMilliseconds}ms");
+                _stopwatch?.Stop();
+                var elapsedMs = _stopwatch?.ElapsedMilliseconds ?? 0;
+                Log.Message($"[LandingZone] Tile cache precomputation COMPLETE: {_totalTiles} tiles cached in {elapsedMs}ms ({elapsedMs / 1000f:F1}s)");
                 LandingZoneContext.UpdateTileCacheStatus(1f, _processedTiles, true);
             }
         }

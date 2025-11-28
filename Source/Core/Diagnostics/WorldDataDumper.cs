@@ -1,3 +1,4 @@
+#nullable enable
 using RimWorld;
 using RimWorld.Planet;
 using System;
@@ -331,7 +332,7 @@ namespace LandingZone.Core.Diagnostics
 
                             if (shouldInspectInternals)
                             {
-                                var objType = value.GetType();
+                                var objType = value!.GetType();
                                 sb.AppendLine($"  {objType.FullName}");
                                 sb.AppendLine($"  --- Internals of {field.Name} ---");
 
@@ -358,7 +359,8 @@ namespace LandingZone.Core.Diagnostics
                                                     sb.AppendLine($"      ... and {objDict.Count - dictCount} more");
                                                     break;
                                                 }
-                                                sb.AppendLine($"      [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                                var entryKey = entry.Key;
+                                                sb.AppendLine($"      [{entryKey}] = {DumpValue(entry.Value, depth: 0)}");
                                                 dictCount++;
                                             }
                                         }
@@ -418,7 +420,8 @@ namespace LandingZone.Core.Diagnostics
                                                     sb.AppendLine($"      ... and {genDict.Count - dictCount} more");
                                                     break;
                                                 }
-                                                sb.AppendLine($"      [{entry.Key}] = {DumpValue(entry.Value, depth: 0)}");
+                                                var entryKey = entry.Key;
+                                                sb.AppendLine($"      [{entryKey}] = {DumpValue(entry.Value, depth: 0)}");
                                                 dictCount++;
                                             }
                                         }
@@ -539,7 +542,7 @@ namespace LandingZone.Core.Diagnostics
                             }
                             else
                             {
-                                sb.AppendLine($"  {DumpValue(value, depth: 0)}");
+                                sb.AppendLine($"  {(value != null ? DumpValue(value, depth: 0) : "null")}");
                             }
                             sb.AppendLine();
                         }
@@ -595,7 +598,7 @@ namespace LandingZone.Core.Diagnostics
                             }
                             else
                             {
-                                sb.AppendLine($"  {DumpValue(value, depth: 0)}");
+                                sb.AppendLine($"  {(value != null ? DumpValue(value, depth: 0) : "null")}");
                             }
                             sb.AppendLine();
                         }

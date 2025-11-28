@@ -8,11 +8,12 @@ namespace LandingZone.Core.Filtering.Filters
 {
     /// <summary>
     /// Filters tiles by maximum (summer) temperature.
+    /// Uses cached SurfaceTile.MaxTemperature property (fast, O(1) lookup).
     /// </summary>
     public sealed class MaximumTemperatureFilter : ISiteFilter
     {
         public string Id => "maximum_temperature";
-        public FilterHeaviness Heaviness => FilterHeaviness.Heavy;
+        public FilterHeaviness Heaviness => FilterHeaviness.Light;
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {

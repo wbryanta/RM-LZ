@@ -109,6 +109,74 @@
   <LandingZone_ConflictInfo>INFO</LandingZone_ConflictInfo>
   <LandingZone_SearchFiltersPlaceholder>Search filters...</LandingZone_SearchFiltersPlaceholder>
 
+  <!-- Advanced: Resources & Stones UI text -->
+  <LandingZone_Filter_ResourceModifiers_Title>Resource Modifiers (tile-wide bonuses):</LandingZone_Filter_ResourceModifiers_Title>
+  <LandingZone_Filter_ResourceModifiers_Subtitle>MineralRich = more ore veins on tile; Fertile = better soil quality</LandingZone_Filter_ResourceModifiers_Subtitle>
+  <LandingZone_StoneScrollHint>({0} stone types - scroll to see all)</LandingZone_StoneScrollHint>
+  <LandingZone_ModdedStonesDivider>─── Modded Stones ───</LandingZone_ModdedStonesDivider>
+  <LandingZone_Filter_MineableOres_Title>Mineable Ores (specific ore deposits):</LandingZone_Filter_MineableOres_Title>
+  <LandingZone_Filter_MineableOres_Subtitle>Distinct from 'MineralRich' mutator - these are specific ore types.</LandingZone_Filter_MineableOres_Subtitle>
+  <LandingZone_Filter_MineableOres_Note>Note: Tiles have only ONE mineable ore type (Gold OR Silver OR Uranium, etc.)</LandingZone_Filter_MineableOres_Note>
+  <LandingZone_Advanced_ResetAll>Reset All Filters</LandingZone_Advanced_ResetAll>
+  <LandingZone_Advanced_ResetAll_Message>All filters cleared to Ignored</LandingZone_Advanced_ResetAll_Message>
+  <LandingZone_Filter_LifeWildlife_Title>Life &amp; Wildlife Modifiers</LandingZone_Filter_LifeWildlife_Title>
+  <LandingZone_Filter_LifeWildlife_Subtitle>Life &amp; Wildlife Modifiers (animal/plant/fish abundance):</LandingZone_Filter_LifeWildlife_Subtitle>
+  <LandingZone_Filter_NaturalStones_Title>Natural Stones</LandingZone_Filter_NaturalStones_Title>
+  <LandingZone_Filter_NaturalStones_Subtitle>Natural Stones (construction materials):</LandingZone_Filter_NaturalStones_Subtitle>
+  <LandingZone_Filter_SpecialSites_Title>Special Sites</LandingZone_Filter_SpecialSites_Title>
+  <LandingZone_Filter_SpecialSites_Subtitle>Special Sites (ancient ruins, exotic features):</LandingZone_Filter_SpecialSites_Subtitle>
+  <LandingZone_Filter_Stockpiles_Title>Stockpiles</LandingZone_Filter_Stockpiles_Title>
+  <LandingZone_Filter_Stockpiles_Subtitle>Stockpiles (abandoned supply caches):</LandingZone_Filter_Stockpiles_Subtitle>
+  <LandingZone_Filter_LockedBiome_Title>Locked Biome</LandingZone_Filter_LockedBiome_Title>
+  <LandingZone_Filter_LockedBiome_Subtitle>Locked Biome (restrict to single biome):</LandingZone_Filter_LockedBiome_Subtitle>
+  <LandingZone_Filter_AdjacentBiomes_Title>Adjacent Biomes</LandingZone_Filter_AdjacentBiomes_Title>
+  <LandingZone_Filter_AdjacentBiomes_Header>Adjacent Biomes:</LandingZone_Filter_AdjacentBiomes_Header>
+  <LandingZone_Filter_AdjacentBiomes_Subtitle>(Affects weather patterns from neighboring tiles)</LandingZone_Filter_AdjacentBiomes_Subtitle>
+  <LandingZone_Filter_ResultLimit_Title>Number of top-scored tiles to return from search</LandingZone_Filter_ResultLimit_Title>
+  <LandingZone_Filter_CriticalAdaptive_Title>Critical Filtering</LandingZone_Filter_CriticalAdaptive_Title>
+  <LandingZone_Filter_CriticalAdaptive_Subtitle1>Stage A uses intelligent k-of-n fallback to keep candidate count reasonable.</LandingZone_Filter_CriticalAdaptive_Subtitle1>
+  <LandingZone_Filter_CriticalAdaptive_Subtitle2>Example: 6 criticals → tries 6/6, 5/6, 4/6... until 1,000-10,000 candidates found.</LandingZone_Filter_CriticalAdaptive_Subtitle2>
+
+  <!-- Performance suggestion dialog -->
+  <LandingZone_Perf_Header>⏱ Performance Suggestion</LandingZone_Perf_Header>
+  <LandingZone_Perf_Runtime>Your search has been running for {0:F1} seconds.</LandingZone_Perf_Runtime>
+  <LandingZone_Perf_CurrentSettings>Current settings: Chunk size = {0}, Max candidates = {1}</LandingZone_Perf_CurrentSettings>
+  <LandingZone_Perf_InfoLine1>Large worlds or complex filters can cause longer search times.</LandingZone_Perf_InfoLine1>
+  <LandingZone_Perf_InfoLine2>You can continue searching, or try these optional optimizations:</LandingZone_Perf_InfoLine2>
+  <LandingZone_Perf_Opt1>• Reduce chunk size → faster UI updates (slightly slower overall search)</LandingZone_Perf_Opt1>
+  <LandingZone_Perf_Opt2>• Lower max candidates → fewer tiles processed in Stage B</LandingZone_Perf_Opt2>
+  <LandingZone_Perf_Opt3>• Apply Safe profile → conservative settings for slow machines</LandingZone_Perf_Opt3>
+  <LandingZone_Perf_QuickActions>Optional Quick Actions (or close to continue):</LandingZone_Perf_QuickActions>
+  <LandingZone_Perf_ChunkButton>Reduce Chunk Size to 250 (currently {0})</LandingZone_Perf_ChunkButton>
+  <LandingZone_Perf_ChunkApplied>Chunk size reduced to 250. Restart search for changes to take effect.</LandingZone_Perf_ChunkApplied>
+  <LandingZone_Perf_ChunkAlready>Chunk size already at 250 or lower</LandingZone_Perf_ChunkAlready>
+  <LandingZone_Perf_MaxButton>Lower Max Candidates to Conservative (25k) (currently {0})</LandingZone_Perf_MaxButton>
+  <LandingZone_Perf_MaxApplied>Max candidates set to Conservative (25k). Restart search for changes to take effect.</LandingZone_Perf_MaxApplied>
+  <LandingZone_Perf_MaxAlready>Max candidates already at Conservative (25k)</LandingZone_Perf_MaxAlready>
+  <LandingZone_Perf_ProfileButton>Apply Safe Profile (Chunk: 250, Max: 25k)</LandingZone_Perf_ProfileButton>
+  <LandingZone_Perf_ProfileApplied>Performance profile set to Safe. Restart search for changes to take effect.</LandingZone_Perf_ProfileApplied>
+  <LandingZone_Perf_ProfileAlready>Safe profile already active</LandingZone_Perf_ProfileAlready>
+  <LandingZone_Perf_CloseContinue>Close this dialog to continue searching with current settings.</LandingZone_Perf_CloseContinue>
+  <LandingZone_Perf_NoChanges>No changes required - this is just a performance tip.</LandingZone_Perf_NoChanges>
+
+  <!-- Dev tools window -->
+  <LandingZone_DevTools_DumpWorld>[DEV] Dump Biomes/Mutators/WorldObjs</LandingZone_DevTools_DumpWorld>
+  <LandingZone_DevTools_DumpWorld_Message>[DEV] Logged biomes/mutators/world objects to Player.log</LandingZone_DevTools_DumpWorld_Message>
+  <LandingZone_DevTools_CompareMutators>[DEV] Compare Mutator Coverage</LandingZone_DevTools_CompareMutators>
+  <LandingZone_DevTools_CompareMutators_Message>[DEV] Logged mutator coverage diff to Player.log</LandingZone_DevTools_CompareMutators_Message>
+  <LandingZone_DevTools_DumpTopResults>[DEV] Dump Top 10 Results Detail</LandingZone_DevTools_DumpTopResults>
+  <LandingZone_DevTools_DumpTopResults_Message>[DEV] Dumped top 10 results to Player.log</LandingZone_DevTools_DumpTopResults_Message>
+  <LandingZone_DevTools_DumpTopResults_Desc>Shows tile ID, score, biome, features, and filter match breakdown</LandingZone_DevTools_DumpTopResults_Desc>
+  <LandingZone_DevTools_DumpOres>[DEV] Dump Valid Mineable Ores</LandingZone_DevTools_DumpOres>
+  <LandingZone_DevTools_DumpOres_Message>[DEV] Dumped valid ores to Player.log</LandingZone_DevTools_DumpOres_Message>
+  <LandingZone_DevTools_OpenButton>[DEV] Tools</LandingZone_DevTools_OpenButton>
+  <LandingZone_DevTools_OpenTooltip>Open LandingZone developer tools</LandingZone_DevTools_OpenTooltip>
+  <LandingZone_DevTools_DumpOres_Desc>Lists all ore defNames detected from DefDatabase (vanilla + mods)</LandingZone_DevTools_DumpOres_Desc>
+  <LandingZone_DevTools_PhaseADiag_On>[DEV] Phase-A Diagnostics: ON</LandingZone_DevTools_PhaseADiag_On>
+  <LandingZone_DevTools_PhaseADiag_Off>[DEV] Phase-A Diagnostics: OFF</LandingZone_DevTools_PhaseADiag_Off>
+  <LandingZone_DevTools_MiniSnapshot>[DEV] Dump Mini World Snapshot</LandingZone_DevTools_MiniSnapshot>
+  <LandingZone_DevTools_MiniSnapshot_Desc>Small text snapshot (biomes, rivers/roads, first 200 tiles)</LandingZone_DevTools_MiniSnapshot_Desc>
+
   <!-- Bookmark Manager -->
   <LandingZone_BookmarksTitle>Bookmarks ({0}/20)</LandingZone_BookmarksTitle>
   <LandingZone_NoActiveGame>No active game - bookmarks unavailable</LandingZone_NoActiveGame>
@@ -595,5 +663,127 @@
   <LandingZone_FallbackTierManager_Tooltip>{0}\nClick to set strictness to {1}</LandingZone_FallbackTierManager_Tooltip>
   <LandingZone_FallbackTierManager_NoAlternatives>No alternative tiers available (adjust strictness manually if needed)</LandingZone_FallbackTierManager_NoAlternatives>
   <LandingZone_FallbackTierManager_Error>Error loading fallback tiers: {0}</LandingZone_FallbackTierManager_Error>
+
+  <!-- ========================================
+       Heavy Filter Warning Dialog
+       ======================================== -->
+
+  <LandingZone_HeavyFilter_Header>⚠ Heavy Filters Warning</LandingZone_HeavyFilter_Header>
+  <LandingZone_HeavyFilter_Explanation>One or more "heavy" filters are set to hard gate importance (Must Have / Must NOT Have). Heavy filters require expensive calculations that can significantly slow down searches on large worlds.</LandingZone_HeavyFilter_Explanation>
+  <LandingZone_HeavyFilter_AffectedFilters>Affected filters:</LandingZone_HeavyFilter_AffectedFilters>
+  <LandingZone_HeavyFilter_PerformanceNote>Heavy filters work best as Priority/Preferred where they score the top candidates rather than filter all tiles.</LandingZone_HeavyFilter_PerformanceNote>
+  <LandingZone_HeavyFilter_ChooseAction>Choose an action:</LandingZone_HeavyFilter_ChooseAction>
+  <LandingZone_HeavyFilter_Proceed>Proceed Anyway (may be slow)</LandingZone_HeavyFilter_Proceed>
+  <LandingZone_HeavyFilter_Demote>Demote to Priority (recommended)</LandingZone_HeavyFilter_Demote>
+  <LandingZone_HeavyFilter_DemotedMessage>Demoted {0} heavy filter(s) to Priority importance</LandingZone_HeavyFilter_DemotedMessage>
+
+  <!-- 5-State Importance Labels -->
+  <LandingZone_ImportanceState_MustHave>Must Have</LandingZone_ImportanceState_MustHave>
+  <LandingZone_ImportanceState_MustNotHave>Must NOT</LandingZone_ImportanceState_MustNotHave>
+  <LandingZone_ImportanceState_Priority>Priority</LandingZone_ImportanceState_Priority>
+
+  <!-- ========================================
+       Advanced Bucket Workspace UI
+       ======================================== -->
+
+  <!-- Mode Toggle -->
+  <LandingZone_Workspace_BucketView>Bucket View</LandingZone_Workspace_BucketView>
+  <LandingZone_Workspace_BucketViewTooltip>Visual bucket-based filter configuration with drag-and-drop and OR grouping</LandingZone_Workspace_BucketViewTooltip>
+  <LandingZone_Workspace_ClassicView>Classic View</LandingZone_Workspace_ClassicView>
+  <LandingZone_Workspace_ClassicViewTooltip>Traditional tabbed filter list with importance toggles</LandingZone_Workspace_ClassicViewTooltip>
+  <LandingZone_Workspace_LimitedWarning>Bucket View is a preview feature with limited filter coverage.\n\nYou have {0} active filter(s) that won't be visible or editable in Bucket View:\n{1}\n\nThese filters will remain active but hidden. Use Classic View for full control.\n\nSwitch to Bucket View anyway?</LandingZone_Workspace_LimitedWarning>
+  <LandingZone_Workspace_SwitchAnyway>Switch Anyway</LandingZone_Workspace_SwitchAnyway>
+  <LandingZone_Workspace_SwitchedToClassic>Switched to Classic View: preset includes {0} filter(s) not editable in Bucket View ({1})</LandingZone_Workspace_SwitchedToClassic>
+
+  <!-- Palette -->
+  <LandingZone_Workspace_PaletteHeader>Filter Palette</LandingZone_Workspace_PaletteHeader>
+  <LandingZone_Workspace_PaletteHint>Click 'Add' to place a filter in a bucket</LandingZone_Workspace_PaletteHint>
+  <LandingZone_Workspace_AddButton>Add...</LandingZone_Workspace_AddButton>
+  <LandingZone_Workspace_RemoveTooltip>Click to remove from workspace</LandingZone_Workspace_RemoveTooltip>
+  <LandingZone_Workspace_HeavyFilterWarning>Heavy Filter: This filter requires expensive calculations.\nIf set to Must Have/Must NOT, a warning will be shown before search.</LandingZone_Workspace_HeavyFilterWarning>
+
+  <!-- Palette Categories -->
+  <LandingZone_Workspace_Category_Climate>Climate</LandingZone_Workspace_Category_Climate>
+  <LandingZone_Workspace_Category_Geography>Geography</LandingZone_Workspace_Category_Geography>
+  <LandingZone_Workspace_Category_Resources>Resources</LandingZone_Workspace_Category_Resources>
+  <LandingZone_Workspace_Category_Features>Features</LandingZone_Workspace_Category_Features>
+
+  <!-- Bucket Labels -->
+  <LandingZone_Workspace_Bucket_MustHave>Must Have</LandingZone_Workspace_Bucket_MustHave>
+  <LandingZone_Workspace_Bucket_MustNotHave>Must NOT</LandingZone_Workspace_Bucket_MustNotHave>
+  <LandingZone_Workspace_Bucket_Priority>Priority</LandingZone_Workspace_Bucket_Priority>
+  <LandingZone_Workspace_Bucket_Preferred>Preferred</LandingZone_Workspace_Bucket_Preferred>
+
+  <!-- Bucket Tooltips -->
+  <LandingZone_Workspace_Bucket_MustHaveTooltip>Required - tiles must match</LandingZone_Workspace_Bucket_MustHaveTooltip>
+  <LandingZone_Workspace_Bucket_MustNotHaveTooltip>Excluded - tiles must NOT match</LandingZone_Workspace_Bucket_MustNotHaveTooltip>
+  <LandingZone_Workspace_Bucket_PriorityTooltip>Strong preference (2x weight)</LandingZone_Workspace_Bucket_PriorityTooltip>
+  <LandingZone_Workspace_Bucket_PreferredTooltip>Normal preference (1x weight)</LandingZone_Workspace_Bucket_PreferredTooltip>
+
+  <!-- Bucket Subtitles -->
+  <LandingZone_Workspace_Bucket_MustHaveSubtitle>Requires all of (AND)</LandingZone_Workspace_Bucket_MustHaveSubtitle>
+  <LandingZone_Workspace_Bucket_MustNotHaveSubtitle>Any of these excludes tile</LandingZone_Workspace_Bucket_MustNotHaveSubtitle>
+  <LandingZone_Workspace_Bucket_PrioritySubtitle>Higher weight (2x)</LandingZone_Workspace_Bucket_PrioritySubtitle>
+  <LandingZone_Workspace_Bucket_PreferredSubtitle>Normal weight (1x)</LandingZone_Workspace_Bucket_PreferredSubtitle>
+
+  <!-- Legend -->
+  <LandingZone_Workspace_LegendLine1>Must Have = required to match | Must NOT = disqualifies tile | Priority/Preferred = influences ranking</LandingZone_Workspace_LegendLine1>
+  <LandingZone_Workspace_LegendLine2>OR groups: 'any of' | Chips within bucket: AND together</LandingZone_Workspace_LegendLine2>
+
+  <!-- Logic Summary -->
+  <LandingZone_Workspace_LogicSummary_Require>Require: {0}</LandingZone_Workspace_LogicSummary_Require>
+  <LandingZone_Workspace_LogicSummary_Exclude>Exclude: {0}</LandingZone_Workspace_LogicSummary_Exclude>
+  <LandingZone_Workspace_LogicSummary_Priority>Priority: {0}</LandingZone_Workspace_LogicSummary_Priority>
+  <LandingZone_Workspace_LogicSummary_Preferred>Preferred: {0}</LandingZone_Workspace_LogicSummary_Preferred>
+  <LandingZone_Workspace_LogicSummary_Empty>No filters configured</LandingZone_Workspace_LogicSummary_Empty>
+
+  <!-- Bucket Inline Hint -->
+  <LandingZone_Workspace_BucketInlineHint>Filters AND together; select 2+ and 'Group as OR' for any-of</LandingZone_Workspace_BucketInlineHint>
+
+  <!-- Bucket Toolbar -->
+  <LandingZone_Workspace_GroupAsOr>Group as OR</LandingZone_Workspace_GroupAsOr>
+  <LandingZone_Workspace_GroupAsOrTooltip>Combine {0} selected filters into an OR group (any match satisfies)</LandingZone_Workspace_GroupAsOrTooltip>
+  <LandingZone_Workspace_Ungroup>Ungroup</LandingZone_Workspace_Ungroup>
+  <LandingZone_Workspace_UngroupTooltip>Break the OR group back into individual filters</LandingZone_Workspace_UngroupTooltip>
+  <LandingZone_Workspace_OrGroupSelected>OR group selected</LandingZone_Workspace_OrGroupSelected>
+  <LandingZone_Workspace_ChipsSelected>{0} filters selected</LandingZone_Workspace_ChipsSelected>
+
+  <!-- Chip Interactions -->
+  <LandingZone_Workspace_ChipTooltip>{0}\nClick to remove</LandingZone_Workspace_ChipTooltip>
+  <LandingZone_Workspace_ChipDragTooltip>{0}\nDrag to move between buckets | Ctrl/Cmd+Click to multi-select | Right-click to remove</LandingZone_Workspace_ChipDragTooltip>
+  <LandingZone_Workspace_ChipHeavyNote>[Heavy filter - may affect performance]</LandingZone_Workspace_ChipHeavyNote>
+  <LandingZone_Workspace_EmptyBucket>(drag filters here)</LandingZone_Workspace_EmptyBucket>
+  <LandingZone_Workspace_HeavyDemoteWarning>'{0}' is a heavy filter. Consider using Priority importance for better performance.</LandingZone_Workspace_HeavyDemoteWarning>
+
+  <!-- OR Groups -->
+  <LandingZone_Workspace_OrGroup_Tooltip>OR Group: Any of these filters will match\nClick to break apart</LandingZone_Workspace_OrGroup_Tooltip>
+  <LandingZone_Workspace_OrGroup_DragTooltip>OR Group: Any filter inside matches\nDrag to move entire group | Right-click to ungroup</LandingZone_Workspace_OrGroup_DragTooltip>
+  <LandingZone_Workspace_OrGroup_AnyOf>Any of: {0}</LandingZone_Workspace_OrGroup_AnyOf>
+  <LandingZone_Workspace_OrGroup_Empty>(empty)</LandingZone_Workspace_OrGroup_Empty>
+
+  <!-- Clauses (OR-of-clauses per bucket) -->
+  <LandingZone_Workspace_Clause_Label>Clause {0}</LandingZone_Workspace_Clause_Label>
+  <LandingZone_Workspace_AddClause>+ Clause</LandingZone_Workspace_AddClause>
+  <LandingZone_Workspace_AddClauseTooltip>Add another clause to this bucket.\nClauses are ORed together: if any clause matches, the tile qualifies.</LandingZone_Workspace_AddClauseTooltip>
+  <LandingZone_Workspace_RemoveClauseTooltip>Remove this clause.\nIf this is the only clause, it will be emptied instead.</LandingZone_Workspace_RemoveClauseTooltip>
+  <LandingZone_Workspace_EmptyClause>(drag filters here)</LandingZone_Workspace_EmptyClause>
+  <LandingZone_Workspace_AddOrCondition>+ OR condition</LandingZone_Workspace_AddOrCondition>
+  <LandingZone_Workspace_AddOrConditionTooltip>Add an alternate condition (OR clause).\nTile matches if ANY clause is satisfied.</LandingZone_Workspace_AddOrConditionTooltip>
+  <LandingZone_Workspace_ClauseHint>Clauses ORed; items inside ANDed (OR groups allowed)</LandingZone_Workspace_ClauseHint>
+
+  <!-- Workspace Toolbar -->
+  <LandingZone_Workspace_ClearAll>Clear All</LandingZone_Workspace_ClearAll>
+  <LandingZone_Workspace_ClearAllTooltip>Reset all buckets to empty</LandingZone_Workspace_ClearAllTooltip>
+  <LandingZone_Workspace_ClearAllConfirm>Are you sure you want to clear all filters from all buckets?</LandingZone_Workspace_ClearAllConfirm>
+  <LandingZone_Workspace_Cleared>All filters cleared.</LandingZone_Workspace_Cleared>
+  <LandingZone_Workspace_SavePreset>Save Preset...</LandingZone_Workspace_SavePreset>
+  <LandingZone_Workspace_SavePresetTooltip>Save current filter configuration as a reusable preset</LandingZone_Workspace_SavePresetTooltip>
+  <LandingZone_Confirm>Confirm</LandingZone_Confirm>
+
+  <!-- Tile Estimate -->
+  <LandingZone_Workspace_EstimateNA>Estimating...</LandingZone_Workspace_EstimateNA>
+  <LandingZone_Workspace_EstimateAll>Est: ~{0} tiles (all)</LandingZone_Workspace_EstimateAll>
+  <LandingZone_Workspace_EstimateMatches>Est: ~{0} / {1} tiles</LandingZone_Workspace_EstimateMatches>
+  <LandingZone_Workspace_TileEstimateTooltip>Estimated number of tiles matching Must Have/Must NOT filters.\nThis is a heuristic - actual results may vary.</LandingZone_Workspace_TileEstimateTooltip>
 
 </LanguageData>
