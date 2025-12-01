@@ -18,15 +18,17 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.CoastalLakeImportance == FilterImportance.Ignored)
+            var importance = filters.CoastalLakeImportance;
+
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.CoastalLakeImportance != FilterImportance.Critical)
-                return inputTiles;
-
-            return inputTiles.Where(id => TileIsAdjacentToLake(id));
+            return inputTiles.Where(id =>
+            {
+                bool isLakeside = TileIsAdjacentToLake(id);
+                return importance == FilterImportance.MustNotHave ? !isLakeside : isLakeside;
+            });
         }
 
         public string Describe(FilterContext context)

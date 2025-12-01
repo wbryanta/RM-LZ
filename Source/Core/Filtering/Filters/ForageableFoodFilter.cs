@@ -19,12 +19,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.ForageableFoodImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.ForageableFoodImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.ForageableFoodImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var requiredFoodDef = filters.ForageableFoodDefName;
@@ -40,7 +38,8 @@ namespace LandingZone.Core.Filtering.Filters
                 var biome = tile.PrimaryBiome;
                 if (biome == null) return false;
 
-                return TileHasForageableFood(id, biome, requiredFoodDef!);
+                bool hasFood = TileHasForageableFood(id, biome, requiredFoodDef!);
+                return importance == FilterImportance.MustNotHave ? !hasFood : hasFood;
             });
         }
 

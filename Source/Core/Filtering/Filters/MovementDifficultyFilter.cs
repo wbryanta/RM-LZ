@@ -19,12 +19,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.MovementDifficultyImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.MovementDifficultyImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.MovementDifficultyImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.MovementDifficultyRange;
@@ -37,7 +35,8 @@ namespace LandingZone.Core.Filtering.Filters
                 // Direct access to RimWorld's pre-cached movement difficulty array (O(1))
                 var planetTile = new PlanetTile(id, worldGrid.Surface);
                 var movementDiff = pathGrid.PerceivedMovementDifficultyAt(planetTile);
-                return movementDiff >= range.min && movementDiff <= range.max;
+                bool inRange = movementDiff >= range.min && movementDiff <= range.max;
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

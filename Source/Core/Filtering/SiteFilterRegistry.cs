@@ -59,12 +59,15 @@ namespace LandingZone.Core.Filtering
         /// A user-facing warning dialog is shown before search if heavy+gate filters are detected,
         /// allowing the user to choose: Proceed, Demote to Priority, or Cancel.
         /// </summary>
-        public (List<IFilterPredicate> Cheap, List<IFilterPredicate> Heavy) GetAllPredicates(GameState state)
+        /// <param name="state">Game state containing preferences</param>
+        /// <param name="overrideFilters">Optional filters to use instead of state.Preferences.GetActiveFilters() (e.g., for relaxed search)</param>
+        public (List<IFilterPredicate> Cheap, List<IFilterPredicate> Heavy) GetAllPredicates(GameState state, FilterSettings? overrideFilters = null)
         {
             var cheap = new List<IFilterPredicate>();
             var heavy = new List<IFilterPredicate>();
 
-            var filters = state.Preferences.GetActiveFilters();
+            // Use override filters if provided (e.g., for relaxed search), otherwise use active filters
+            var filters = overrideFilters ?? state.Preferences.GetActiveFilters();
 
             foreach (var filter in _filters)
             {
@@ -167,9 +170,14 @@ namespace LandingZone.Core.Filtering
                 "adjacent_biomes" => GetContainerMaxImportance(settings.AdjacentBiomes),
                 "stone" => GetContainerMaxImportance(settings.Stones),
                 "stockpile" => GetContainerMaxImportance(settings.Stockpiles),
+                "mineral_ores" => GetContainerMaxImportance(settings.MineralOres),
+                "plant_grove" => GetContainerMaxImportance(settings.PlantGrove),
+                "animal_habitat" => GetContainerMaxImportance(settings.AnimalHabitat),
 
-                // Biome filter is always MustHave if LockedBiome is set
-                "biome" => settings.LockedBiome != null ? FilterImportance.MustHave : FilterImportance.Ignored,
+                // Biome filter: check container first, fall back to legacy LockedBiome
+                "biome" => settings.Biomes.HasAnyImportance
+                    ? GetContainerMaxImportance(settings.Biomes)
+                    : (settings.LockedBiome != null ? FilterImportance.MustHave : FilterImportance.Ignored),
 
                 _ => FilterImportance.Ignored
             };

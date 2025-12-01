@@ -121,9 +121,9 @@ namespace LandingZone.Core.Diagnostics
                     if (allFilters.Any())
                     {
                         sb.AppendLine($"  Match Breakdown ({allFilters.Count} filters):");
-                        foreach (var match in allFilters.OrderByDescending(m => m.IsCritical).ThenBy(m => m.FilterName))
+                        foreach (var match in allFilters.OrderByDescending(m => m.IsPriority).ThenBy(m => m.FilterName))
                         {
-                            string prefix = match.IsCritical ? "[CRIT]" : "[PREF]";
+                            string prefix = match.IsPriority ? "[PRIO]" : "[PREF]";
                             string status = match.IsMatched ? "PASS" : "FAIL";
                             sb.AppendLine($"    {prefix} {match.FilterName}: {status} (membership={match.Membership:F3})");
                         }

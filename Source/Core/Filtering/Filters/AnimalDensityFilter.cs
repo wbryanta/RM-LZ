@@ -18,12 +18,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.AnimalDensityImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.AnimalDensityImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.AnimalDensityImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.AnimalDensityRange;
@@ -38,7 +36,8 @@ namespace LandingZone.Core.Filtering.Filters
                 if (biome == null) return false;
 
                 float animalDensity = biome.animalDensity;
-                return animalDensity >= range.min && animalDensity <= range.max;
+                bool inRange = animalDensity >= range.min && animalDensity <= range.max;
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

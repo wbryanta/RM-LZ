@@ -48,7 +48,9 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var importance = context.State.Preferences.GetActiveFilters().WaterAccessImportance;
-            if (importance != FilterImportance.Critical)
+
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var world = Find.World;
@@ -60,14 +62,13 @@ namespace LandingZone.Core.Filtering.Filters
                 var tile = world.grid[tileId];
 
                 // Check coastal access
-                if (world.CoastDirectionAt(tileId).IsValid)
-                    return true; // Has coastal access
+                bool hasCoastal = world.CoastDirectionAt(tileId).IsValid;
 
                 // Check river access
-                if (tile.Rivers != null && tile.Rivers.Count > 0)
-                    return true; // Has at least one river
+                bool hasRiver = tile?.Rivers != null && tile.Rivers.Count > 0;
 
-                return false; // No water access
+                bool hasWaterAccess = hasCoastal || hasRiver;
+                return importance == FilterImportance.MustNotHave ? !hasWaterAccess : hasWaterAccess;
             });
         }
     }

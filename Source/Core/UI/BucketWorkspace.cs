@@ -97,8 +97,15 @@ namespace LandingZone.Core.UI
             public string GetDisplayLabel()
             {
                 if (Chips.Count == 0) return "LandingZone_Workspace_OrGroup_Empty".Translate();
-                if (Chips.Count == 1) return Chips[0].Label;
-                return "LandingZone_Workspace_OrGroup_AnyOf".Translate(string.Join(" | ", Chips.Select(c => c.Label)));
+                if (Chips.Count == 1) return GetChipDisplayText(Chips[0]);
+                return "LandingZone_Workspace_OrGroup_AnyOf".Translate(string.Join(" | ", Chips.Select(c => GetChipDisplayText(c))));
+            }
+
+            private static string GetChipDisplayText(FilterChip chip)
+            {
+                if (string.IsNullOrEmpty(chip.ValueDisplay))
+                    return chip.Label;
+                return $"{chip.Label} ({chip.ValueDisplay})";
             }
         }
 
@@ -534,25 +541,39 @@ namespace LandingZone.Core.UI
             foreach (var group in groups)
             {
                 if (group.Chips.Count > 1)
-                    terms.Add($"({string.Join(" OR ", group.Chips.Select(c => c.Label))})");
+                    terms.Add($"({string.Join(" OR ", group.Chips.Select(c => GetChipDisplayText(c)))})");
                 else if (group.Chips.Count == 1)
-                    terms.Add(group.Chips[0].Label);
+                    terms.Add(GetChipDisplayText(group.Chips[0]));
             }
 
             // Add ungrouped chips
-            terms.AddRange(ungroupedChips.Select(c => c.Label));
+            terms.AddRange(ungroupedChips.Select(c => GetChipDisplayText(c)));
 
             return string.Join(" AND ", terms);
         }
 
         /// <summary>
+        /// Gets the full display text for a chip, including its value display if present.
+        /// Example: "Hilliness" + "Mtn" => "Hilliness (Mtn)"
+        /// </summary>
+        private static string GetChipDisplayText(FilterChip chip)
+        {
+            if (string.IsNullOrEmpty(chip.ValueDisplay))
+                return chip.Label;
+            return $"{chip.Label} ({chip.ValueDisplay})";
+        }
+
+        /// <summary>
         /// Syncs the workspace state to FilterSettings.
+        /// NOTE: This method is not called - actual syncing happens via:
+        /// 1. SyncSettingsFromWorkspace() in AdvancedModeUI_Workspace.cs for simple filters
+        /// 2. SyncMutatorFromWorkspace() for MapFeatures container (individual mutator chips)
+        /// 3. Popup dialogs for Rivers/Stones/etc. containers (direct FilterSettings modification)
         /// </summary>
         public void SyncToFilterSettings(FilterSettings settings)
         {
-            // This will be called when user wants to apply workspace changes
-            // For now, the existing filter system is still the source of truth
-            // This method would update FilterSettings based on workspace state
+            // Stub - kept for potential future use if workspace chip dragging is extended
+            // to support multi-item containers like Rivers, Stones, etc.
         }
 
         /// <summary>

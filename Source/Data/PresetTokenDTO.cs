@@ -139,6 +139,15 @@ namespace LandingZone.Data
         [DataMember(Name = "adjBiomes", EmitDefaultValue = false)]
         public IndividualImportanceTokenDTO? AdjacentBiomes { get; set; }
 
+        [DataMember(Name = "plantGrove", EmitDefaultValue = false)]
+        public IndividualImportanceTokenDTO? PlantGrove { get; set; }
+
+        [DataMember(Name = "animalHabitat", EmitDefaultValue = false)]
+        public IndividualImportanceTokenDTO? AnimalHabitat { get; set; }
+
+        [DataMember(Name = "mineralOres", EmitDefaultValue = false)]
+        public IndividualImportanceTokenDTO? MineralOres { get; set; }
+
         // Resource filters - graze is importance-only
         [DataMember(Name = "graze", EmitDefaultValue = false)]
         public string? Graze { get; set; }
@@ -158,11 +167,17 @@ namespace LandingZone.Data
         // Max results (lives on FilterSettings, not Preset)
         [DataMember(Name = "limit", EmitDefaultValue = false)]
         public int? MaxResults { get; set; }
+
+        // Workspace structure (v2: preserves bucket/clause/OR organization)
+        [DataMember(Name = "workspace", EmitDefaultValue = false)]
+        public WorkspaceTokenDTO? Workspace { get; set; }
     }
 
     /// <summary>
     /// Compact representation of IndividualImportanceContainer.
-    /// Format: { "op": "AND|OR", "crit": ["defName1"], "pref": ["defName2"] }
+    /// Format: { "op": "AND|OR", "must": ["defName1"], "pref": ["defName2"], ... }
+    /// v2 supports: must, mustNot, prio, pref, ign
+    /// v1 legacy: crit (maps to must on decode)
     /// </summary>
     [DataContract]
     public class IndividualImportanceTokenDTO
@@ -170,13 +185,79 @@ namespace LandingZone.Data
         [DataMember(Name = "op")]
         public string Operator { get; set; } = "AND";
 
-        [DataMember(Name = "crit", EmitDefaultValue = false)]
-        public List<string>? Critical { get; set; }
+        // v2: Full 5-state support
+        [DataMember(Name = "must", EmitDefaultValue = false)]
+        public List<string>? MustHave { get; set; }
+
+        [DataMember(Name = "mustNot", EmitDefaultValue = false)]
+        public List<string>? MustNotHave { get; set; }
+
+        [DataMember(Name = "prio", EmitDefaultValue = false)]
+        public List<string>? Priority { get; set; }
 
         [DataMember(Name = "pref", EmitDefaultValue = false)]
         public List<string>? Preferred { get; set; }
 
         [DataMember(Name = "ign", EmitDefaultValue = false)]
         public List<string>? Ignored { get; set; }
+
+        // v1 legacy compatibility (read-only on decode, maps to MustHave)
+        [DataMember(Name = "crit", EmitDefaultValue = false)]
+        public List<string>? Critical { get; set; }
+    }
+
+    /// <summary>
+    /// Token representation of a filter chip in the workspace.
+    /// </summary>
+    [DataContract]
+    public class ChipTokenDTO
+    {
+        [DataMember(Name = "id")]
+        public string Id { get; set; } = "";
+
+        [DataMember(Name = "or", EmitDefaultValue = false)]
+        public int? OrGroupId { get; set; }
+
+        [DataMember(Name = "val", EmitDefaultValue = false)]
+        public string? ValueDisplay { get; set; }
+    }
+
+    /// <summary>
+    /// Token representation of a clause (chips ANDed together).
+    /// </summary>
+    [DataContract]
+    public class ClauseTokenDTO
+    {
+        [DataMember(Name = "chips")]
+        public List<ChipTokenDTO> Chips { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Token representation of a bucket (clauses ORed together).
+    /// </summary>
+    [DataContract]
+    public class BucketTokenDTO
+    {
+        [DataMember(Name = "clauses")]
+        public List<ClauseTokenDTO> Clauses { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Token representation of the full workspace structure.
+    /// </summary>
+    [DataContract]
+    public class WorkspaceTokenDTO
+    {
+        [DataMember(Name = "must", EmitDefaultValue = false)]
+        public BucketTokenDTO? MustHave { get; set; }
+
+        [DataMember(Name = "mustNot", EmitDefaultValue = false)]
+        public BucketTokenDTO? MustNotHave { get; set; }
+
+        [DataMember(Name = "prio", EmitDefaultValue = false)]
+        public BucketTokenDTO? Priority { get; set; }
+
+        [DataMember(Name = "pref", EmitDefaultValue = false)]
+        public BucketTokenDTO? Preferred { get; set; }
     }
 }

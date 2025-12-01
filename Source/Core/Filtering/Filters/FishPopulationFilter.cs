@@ -20,12 +20,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.FishPopulationImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.FishPopulationImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.FishPopulationImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.FishPopulationRange;
@@ -39,10 +37,9 @@ namespace LandingZone.Core.Filtering.Filters
                 var biome = tile.PrimaryBiome;
                 if (biome == null) return false;
 
-                // Try to get fish population from biome's wildPlants (fish are treated as "plants" in RimWorld)
-                // or from fish-specific resources if available
                 float fishPopulation = GetFishPopulation(biome);
-                return fishPopulation >= range.min && fishPopulation <= range.max;
+                bool inRange = fishPopulation >= range.min && fishPopulation <= range.max;
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

@@ -3,23 +3,35 @@ using UnityEngine;
 namespace LandingZone.Core.Filtering
 {
     /// <summary>
-    /// Utilities for computing dynamic scoring weights in k-of-n evaluation.
+    /// Utilities for computing dynamic scoring weights.
+    ///
+    /// ARCHITECTURE NOTE (v0.4.1+):
+    /// The primary scoring model is the 5-STATE SCORING MODEL:
+    /// - MustHave/MustNotHave = Binary gates (pass/fail in Apply phase)
+    /// - Priority = Scored at 2x weight
+    /// - Preferred = Scored at 1x weight
+    /// - Mutators = Ambient bonus (10%)
+    ///
+    /// Use ComputeScoringWeights() and ComputeScoringScore() for new code.
+    ///
+    /// The legacy KAPPA-BASED methods (ComputeKappa, ComputeFinalScore) are still used
+    /// for upper-bound calculation in BitsetAggregator and as a fallback when
+    /// UseNewScoring=false in preferences.
     /// </summary>
     public static class ScoringWeights
     {
+        // ============================================================
+        // LEGACY KAPPA-BASED SCORING
+        // Used by: BitsetAggregator (upper bound calc), legacy K-OF-N fallback
+        // ============================================================
+
         /// <summary>
-        /// Computes κ (kappa): the weight given to critical filters in final score.
+        /// [LEGACY] Computes κ (kappa): weight for critical vs preferred in final score.
+        /// Used by BitsetAggregator for candidate upper bound calculation.
         /// Formula: κ = 0.5 + 0.5 · |C|^p / (|C|^p + |P|^p), where p=1 by default.
-        ///
-        /// Examples:
-        ///   - 5 critical, 2 preferred → κ ≈ 0.86 (critical-dominant)
-        ///   - 3 critical, 5 preferred → κ ≈ 0.69 (balanced)
-        ///   - 1 critical, 8 preferred → κ ≈ 0.56 (preferred-dominant)
-        ///   - 0 critical, N preferred → κ = 0 (only preferred matter)
-        ///   - N critical, 0 preferred → κ = 1 (only critical matter)
         /// </summary>
-        /// <param name="criticalCount">Number of critical filters</param>
-        /// <param name="preferredCount">Number of preferred filters</param>
+        /// <param name="criticalCount">Number of critical filters (MustHave in new model)</param>
+        /// <param name="preferredCount">Number of scoring filters (Priority + Preferred in new model)</param>
         /// <param name="exponent">Power exponent (default 1.0 for linear)</param>
         /// <returns>Critical weight κ ∈ [0, 1]</returns>
         public static float ComputeKappa(int criticalCount, int preferredCount, float exponent = 1.0f)
@@ -44,7 +56,8 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
-        /// Computes normalized critical score: S_C = matches / total.
+        /// [LEGACY] Computes normalized critical score: S_C = matches / total.
+        /// Used by legacy K-OF-N fallback path.
         /// </summary>
         public static float NormalizeCriticalScore(int matches, int total)
         {
@@ -53,7 +66,8 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
-        /// Computes normalized preferred score: S_P = matches / total.
+        /// [LEGACY] Computes normalized preferred score: S_P = matches / total.
+        /// Used by legacy K-OF-N fallback path.
         /// </summary>
         public static float NormalizePreferredScore(int matches, int total)
         {
@@ -62,7 +76,8 @@ namespace LandingZone.Core.Filtering
         }
 
         /// <summary>
-        /// Computes final combined score: S = κ·S_C + (1-κ)·S_P.
+        /// [LEGACY] Computes final combined score: S = κ·S_C + (1-κ)·S_P.
+        /// Used by BitsetAggregator for upper bound calculation and legacy K-OF-N fallback.
         /// </summary>
         public static float ComputeFinalScore(
             float criticalScore,
@@ -73,14 +88,14 @@ namespace LandingZone.Core.Filtering
         }
 
         // ============================================================
-        // MEMBERSHIP-BASED SCORING (NEW SYSTEM)
+        // MEMBERSHIP-BASED SCORING (CURRENT SYSTEM)
         // ============================================================
 
         /// <summary>
         /// Computes weighted group score from membership values.
         /// S_group = Σ(w_i·μ_i) / Σ(w_i)
         ///
-        /// Used for both critical and preferred aggregation.
+        /// Used for both Priority and Preferred aggregation in 5-state model.
         /// </summary>
         /// <param name="memberships">Per-filter membership scores [0,1]</param>
         /// <param name="weights">Per-filter weights (from ranking or importance)</param>
@@ -111,133 +126,88 @@ namespace LandingZone.Core.Filtering
             return weightSum > 0 ? weightedSum / weightSum : 0f;
         }
 
-        /// <summary>
-        /// Finds worst (minimum) membership score among criticals.
-        /// W_C = min{μ_i | i ∈ Critical}
-        ///
-        /// Used for penalty calculation - punish tiles with bad critical misses.
-        /// </summary>
-        /// <param name="criticalMemberships">Membership scores for critical filters</param>
-        /// <returns>Worst critical membership [0,1], or 1.0 if no criticals</returns>
-        public static float ComputeWorstCritical(float[] criticalMemberships)
-        {
-            if (criticalMemberships == null || criticalMemberships.Length == 0)
-                return 1f; // No criticals = perfect
-
-            float worst = 1f;
-            foreach (float mu in criticalMemberships)
-            {
-                if (mu < worst)
-                    worst = mu;
-            }
-
-            return worst;
-        }
+        // ============================================================
+        // 5-STATE SCORING MODEL (PRIMARY)
+        // ============================================================
+        // MustHave/MustNotHave = Gates only (binary pass/fail in Apply)
+        // Priority = Scored at 2x weight
+        // Preferred = Scored at 1x weight
+        // Mutators = Ambient bonus (10%)
+        // ============================================================
 
         /// <summary>
-        /// Computes penalty term based on worst critical miss.
-        /// P_C = α_pen + (1 - α_pen)·W_C^γ_pen
-        ///
-        /// - α_pen: minimum score fraction that survives (penalty floor)
-        /// - γ_pen: penalty curve sharpness (higher = harsher punishment)
-        /// - W_C: worst critical membership
-        ///
-        /// Examples (α_pen=0.1, γ_pen=2.0):
-        ///   W_C = 1.0 → P_C = 1.0 (no penalty)
-        ///   W_C = 0.7 → P_C ≈ 0.54
-        ///   W_C = 0.3 → P_C ≈ 0.18
-        ///   W_C = 0.0 → P_C = 0.1 (floor)
-        /// </summary>
-        public static float ComputePenalty(float worstCritical, float alphaPenalty = 0.1f, float gammaPenalty = 2.0f)
-        {
-            worstCritical = Mathf.Clamp01(worstCritical);
-            float powered = Mathf.Pow(worstCritical, gammaPenalty);
-            return alphaPenalty + (1f - alphaPenalty) * powered;
-        }
-
-        /// <summary>
-        /// Computes global weights for critical, preferred, and mutator groups.
+        /// Computes global weights for the 5-state scoring model.
+        /// Only Priority, Preferred, and Mutators contribute to score.
+        /// MustHave/MustNotHave are gates (binary) and don't affect scoring.
         ///
         /// Formula:
-        ///   α = critBase · n_C
-        ///   β = prefBase · n_P
-        ///   λ_C = (1 - λ_mut) · α / (α + β)
-        ///   λ_P = (1 - λ_mut) · β / (α + β)
+        ///   α = 2 · n_priority (Priority gets 2x weight)
+        ///   β = n_preferred   (Preferred gets 1x weight)
+        ///   λ_prio = (1 - λ_mut) · α / (α + β)
+        ///   λ_pref = (1 - λ_mut) · β / (α + β)
         ///
-        /// Default parameters:
-        ///   critBase = 4 (one critical = 4× one preferred)
-        ///   prefBase = 1
-        ///   λ_mut = 0.1 (10% weight reserved for mutators)
-        ///
-        /// Example (4 critical, 12 preferred):
-        ///   α = 4·4 = 16, β = 1·12 = 12
-        ///   λ_C ≈ 0.514, λ_P ≈ 0.386, λ_mut = 0.1
+        /// Example (3 Priority, 5 Preferred, λ_mut=0.1):
+        ///   α = 2·3 = 6, β = 5
+        ///   λ_prio ≈ 0.49, λ_pref ≈ 0.41, λ_mut = 0.1
         /// </summary>
-        /// <param name="criticalCount">Number of critical filters</param>
-        /// <param name="preferredCount">Number of preferred filters</param>
-        /// <param name="critBase">Per-filter importance of criticals (default 4.0)</param>
-        /// <param name="prefBase">Per-filter importance of preferreds (default 1.0)</param>
+        /// <param name="priorityCount">Number of Priority filters</param>
+        /// <param name="preferredCount">Number of Preferred filters</param>
         /// <param name="mutatorWeight">Weight reserved for mutator score (default 0.1)</param>
-        /// <returns>(λ_C, λ_P, λ_mut) where sum = 1.0</returns>
-        public static (float lambdaC, float lambdaP, float lambdaMut) ComputeGlobalWeights(
-            int criticalCount,
+        /// <returns>(λ_prio, λ_pref, λ_mut) where sum = 1.0</returns>
+        public static (float lambdaPrio, float lambdaPref, float lambdaMut) ComputeScoringWeights(
+            int priorityCount,
             int preferredCount,
-            float critBase = 4.0f,
-            float prefBase = 1.0f,
             float mutatorWeight = 0.1f)
         {
             mutatorWeight = Mathf.Clamp01(mutatorWeight);
 
             // Edge cases
-            if (criticalCount == 0 && preferredCount == 0)
-                return (0f, 0f, 1f); // Only mutators
+            if (priorityCount == 0 && preferredCount == 0)
+                return (0f, 0f, 1f); // Only mutators contribute
 
-            float alpha = critBase * criticalCount;
-            float beta = prefBase * preferredCount;
+            // Priority gets 2x weight per filter
+            float alpha = 2f * priorityCount;
+            float beta = preferredCount;
             float sum = alpha + beta;
 
             if (sum == 0)
                 return (0f, 0f, 1f); // Only mutators
 
             // Normalize and reserve space for mutators
-            float lambdaC = (1f - mutatorWeight) * alpha / sum;
-            float lambdaP = (1f - mutatorWeight) * beta / sum;
+            float lambdaPrio = (1f - mutatorWeight) * alpha / sum;
+            float lambdaPref = (1f - mutatorWeight) * beta / sum;
 
-            return (lambdaC, lambdaP, mutatorWeight);
+            return (lambdaPrio, lambdaPref, mutatorWeight);
         }
 
         /// <summary>
-        /// Computes final membership-based score using penalty term approach.
+        /// Computes final score using the 5-state model.
+        /// No penalty term - MustHave/MustNotHave are gates (handled in Apply phase).
         ///
-        /// Formula (from user-modifying-mathed-math.md):
-        ///   S_base = λ_C·S_C + λ_P·S_P + λ_mut·S_mut
-        ///   S_final = P_C · S_base
+        /// Formula:
+        ///   S_final = λ_prio·S_prio + λ_pref·S_pref + λ_mut·S_mut
         ///
         /// Where:
-        ///   S_C = weighted average critical membership
-        ///   S_P = weighted average preferred membership
+        ///   S_prio = weighted average Priority membership
+        ///   S_pref = weighted average Preferred membership
         ///   S_mut = mutator quality score
-        ///   P_C = penalty based on worst critical
         /// </summary>
-        /// <param name="criticalScore">Weighted critical membership [0,1]</param>
-        /// <param name="preferredScore">Weighted preferred membership [0,1]</param>
+        /// <param name="priorityScore">Weighted Priority membership [0,1]</param>
+        /// <param name="preferredScore">Weighted Preferred membership [0,1]</param>
         /// <param name="mutatorScore">Mutator quality score [0,1]</param>
-        /// <param name="penalty">Penalty multiplier from worst critical [0,1]</param>
-        /// <param name="lambdaC">Critical group weight</param>
-        /// <param name="lambdaP">Preferred group weight</param>
+        /// <param name="lambdaPrio">Priority group weight</param>
+        /// <param name="lambdaPref">Preferred group weight</param>
         /// <param name="lambdaMut">Mutator group weight</param>
         /// <returns>Final score [0,1]</returns>
-        public static float ComputeMembershipScore(
-            float criticalScore,
+        public static float ComputeScoringScore(
+            float priorityScore,
             float preferredScore,
             float mutatorScore,
-            float penalty,
-            float lambdaC,
-            float lambdaP,
+            float lambdaPrio,
+            float lambdaPref,
             float lambdaMut)
         {
-            float baseScore = lambdaC * criticalScore + lambdaP * preferredScore + lambdaMut * mutatorScore;
-            return penalty * baseScore;
+            return lambdaPrio * priorityScore + lambdaPref * preferredScore + lambdaMut * mutatorScore;
         }
     }
 }

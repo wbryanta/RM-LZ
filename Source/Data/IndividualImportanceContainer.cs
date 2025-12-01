@@ -194,6 +194,23 @@ namespace LandingZone.Data
         }
 
         /// <summary>
+        /// Demotes all MustHave items to Priority for relaxed search (car-builder fallback).
+        /// MustNotHave items remain unchanged.
+        /// </summary>
+        public void RelaxMustHaveToPriority()
+        {
+            var keysToUpdate = ItemImportance
+                .Where(kvp => kvp.Value == FilterImportance.MustHave)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in keysToUpdate)
+            {
+                ItemImportance[key] = FilterImportance.Priority;
+            }
+        }
+
+        /// <summary>
         /// Sets all provided items to the specified importance.
         /// </summary>
         public void SetAllTo(IEnumerable<T> items, FilterImportance importance)

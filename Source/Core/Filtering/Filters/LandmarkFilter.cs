@@ -25,14 +25,10 @@ namespace LandingZone.Core.Filtering.Filters
 
             Log.Message($"[LandingZone] LandmarkFilter.Apply: importance={importance}");
 
-            if (importance == FilterImportance.Ignored)
-                return inputTiles;
-
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (importance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
             {
-                Log.Message($"[LandingZone] LandmarkFilter: Preferred importance, passing all tiles through to scoring");
+                Log.Message($"[LandingZone] LandmarkFilter: Not a hard gate, passing all tiles through to scoring");
                 return inputTiles;
             }
 
@@ -41,7 +37,11 @@ namespace LandingZone.Core.Filtering.Filters
 
             // Build landmark tile lookup once for efficiency
             var landmarkTiles = BuildLandmarkTileLookup();
-            var result = inputList.Where(id => landmarkTiles.Contains(id)).ToList();
+            var result = inputList.Where(id =>
+            {
+                bool hasLandmark = landmarkTiles.Contains(id);
+                return importance == FilterImportance.MustNotHave ? !hasLandmark : hasLandmark;
+            }).ToList();
 
             Log.Message($"[LandingZone] LandmarkFilter: Filtered {inputList.Count} -> {result.Count} tiles");
             return result;

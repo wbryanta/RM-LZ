@@ -17,12 +17,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.AverageTemperatureImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.AverageTemperatureImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.AverageTemperatureImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.AverageTemperatureRange;
@@ -32,7 +30,8 @@ namespace LandingZone.Core.Filtering.Filters
             {
                 var tile = worldGrid[id];
                 if (tile == null) return false;
-                return tile.temperature >= range.min && tile.temperature <= range.max;
+                bool inRange = tile.temperature >= range.min && tile.temperature <= range.max;
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

@@ -251,6 +251,14 @@
   <LandingZone_DebugDump>[DEBUG] Dump</LandingZone_DebugDump>
   <LandingZone_SearchingEllipsis>Searching... {0}%</LandingZone_SearchingEllipsis>
   <LandingZone_WaitingForSearch>Once LandingZone finishes a search the ranked sites will appear here.</LandingZone_WaitingForSearch>
+
+  <!-- Car-builder fallback (relaxed search) -->
+  <LandingZone_NoMatchesTitle>No Perfect Matches Found</LandingZone_NoMatchesTitle>
+  <LandingZone_NoMatchesExplanation>Your requirements are too strict for this world. No tiles match all your MustHave filters.\n\nTry a relaxed search to find the closest alternatives.</LandingZone_NoMatchesExplanation>
+  <LandingZone_TryRelaxedSearch>Try Relaxed Search</LandingZone_TryRelaxedSearch>
+  <LandingZone_TryRelaxedSearchTooltip>Converts MustHave gates to Priority scoring.\nResults will show the best available tiles\neven if they don't meet all requirements.</LandingZone_TryRelaxedSearchTooltip>
+  <LandingZone_RelaxedSearchBanner>[RELAXED] These results may not meet all your original requirements. Low scores indicate missing MustHave filters.</LandingZone_RelaxedSearchBanner>
+
   <LandingZone_SummaryTop>Top: {0}%</LandingZone_SummaryTop>
   <LandingZone_SummaryAverage>Avg: {0}%</LandingZone_SummaryAverage>
   <LandingZone_SummaryExcellent>Excellent: {0}</LandingZone_SummaryExcellent>
@@ -341,11 +349,19 @@
   <LandingZone_DebugCriticalMisses>Critical Misses: {0}</LandingZone_DebugCriticalMisses>
   <LandingZone_DebugMatchedFilters>✓ MATCHED ({0}):</LandingZone_DebugMatchedFilters>
   <LandingZone_DebugCriticalTag>[CRITICAL]</LandingZone_DebugCriticalTag>
+  <LandingZone_DebugPriorityTag>[PRIORITY]</LandingZone_DebugPriorityTag>
   <LandingZone_DebugPreferredTag>[PREFERRED]</LandingZone_DebugPreferredTag>
   <LandingZone_DebugRangeTag>[RANGE]</LandingZone_DebugRangeTag>
   <LandingZone_DebugBooleanTag>[BOOLEAN]</LandingZone_DebugBooleanTag>
   <LandingZone_DebugMembership>Membership: {0}, Penalty: {1}</LandingZone_DebugMembership>
   <LandingZone_DebugMissedFilters>✗ MISSED ({0}):</LandingZone_DebugMissedFilters>
+
+  <!-- Relaxed Search Match Info -->
+  <LandingZone_RelaxedRequirementsSection>Original Requirements</LandingZone_RelaxedRequirementsSection>
+  <LandingZone_RelaxedMatchTooltipHeader>Requirements Met: {0}/{1}</LandingZone_RelaxedMatchTooltipHeader>
+  <LandingZone_RelaxedMatchSatisfied>Satisfied:</LandingZone_RelaxedMatchSatisfied>
+  <LandingZone_RelaxedMatchViolated>Not Met:</LandingZone_RelaxedMatchViolated>
+  <LandingZone_RelaxedMatchBlocked>(blocked)</LandingZone_RelaxedMatchBlocked>
 
   <!-- Conflict Detector -->
   <LandingZone_ConflictRiverAnd>Impossible: {0} river types with AND (tiles have max 1 river)</LandingZone_ConflictRiverAnd>
@@ -483,8 +499,13 @@
   <LandingZone_DevTools_PerfTestTesting>[LandingZone] Performance Test: Testing {0} settleable tiles</LandingZone_DevTools_PerfTestTesting>
 
   <!-- ========================================
-       Preset Library (12 Curated Presets)
+       Preset Library (15 Curated Presets)
        ======================================== -->
+
+  <!-- === Balanced Preset (NEW - Easy start) === -->
+  <LandingZone_Preset_balanced_Name>Balanced</LandingZone_Preset_balanced_Name>
+  <LandingZone_Preset_balanced_Description>Perfect for new players - year-round growing, defensible terrain, water access, trade routes. Core-friendly, enhanced with DLC.</LandingZone_Preset_balanced_Description>
+  <LandingZone_Preset_balanced_FilterSummary>Year-Round Growing | Mountains/Caves | Rivers | Roads</LandingZone_Preset_balanced_FilterSummary>
 
   <!-- === Elysian Preset === -->
   <LandingZone_Preset_elysian_Name>Elysian</LandingZone_Preset_elysian_Name>
@@ -493,9 +514,8 @@
 
   <!-- === Exotic Preset === -->
   <LandingZone_Preset_exotic_Name>Exotic</LandingZone_Preset_exotic_Name>
-  <LandingZone_Preset_exotic_Description>Chase the rarest features in RimWorld - ArcheanTrees anchor (24 tiles globally), with bonus scoring for stacking additional rare mutators.</LandingZone_Preset_exotic_Description>
-  <LandingZone_Preset_exotic_FilterSummary>ArcheanTrees | Stack Rare Features</LandingZone_Preset_exotic_FilterSummary>
-  <LandingZone_Preset_exotic_FallbackTier2>Ultra-Rares (any)</LandingZone_Preset_exotic_FallbackTier2>
+  <LandingZone_Preset_exotic_Description>Hunt for ultra-rare features - Caverns, HotSprings, Oasis, MineralRich. DLC adds ArcheanTrees and lava features. Stack rares for highest scores!</LandingZone_Preset_exotic_Description>
+  <LandingZone_Preset_exotic_FilterSummary>Ultra-Rare Features | Layered Design | Stacking Bonuses</LandingZone_Preset_exotic_FilterSummary>
 
   <!-- === SubZero Preset === -->
   <LandingZone_Preset_subzero_Name>SubZero</LandingZone_Preset_subzero_Name>
@@ -549,6 +569,16 @@
   <LandingZone_Preset_homestead_Description>Move-in ready! Find abandoned settlements and ancient structures with existing buildings to salvage.</LandingZone_Preset_homestead_Description>
   <LandingZone_Preset_homestead_FilterSummary>Ruins | Abandoned Colonies | Ancient Sites</LandingZone_Preset_homestead_FilterSummary>
 
+  <!-- === Anomaly Preset (NEW - Horror experience) === -->
+  <LandingZone_Preset_anomaly_Name>Anomaly</LandingZone_Preset_anomaly_Name>
+  <LandingZone_Preset_anomaly_Description>Horror experience - underground caves, dramatic mountains, atmospheric fog. Anomaly DLC adds lava, toxicity, and alien terrain for full terror!</LandingZone_Preset_anomaly_Description>
+  <LandingZone_Preset_anomaly_FilterSummary>Caves/Cavern | Mountains | Lava | Horror Theme</LandingZone_Preset_anomaly_FilterSummary>
+
+  <!-- === Trade Empire Preset (NEW - Coastal trade) === -->
+  <LandingZone_Preset_trade_empire_Name>Trade Empire</LandingZone_Preset_trade_empire_Name>
+  <LandingZone_Preset_trade_empire_Description>Build a trading powerhouse - coastal access for sea routes, roads for caravans, valuable resources. Natural ports boost with Geological Landforms!</LandingZone_Preset_trade_empire_Description>
+  <LandingZone_Preset_trade_empire_FilterSummary>Coastal | Roads | Luxury Ores | Natural Ports</LandingZone_Preset_trade_empire_FilterSummary>
+
   <!-- Preset Library Log Messages -->
   <LandingZone_PresetLibraryInitialized>[LandingZone] PresetLibrary initialized with {0} curated presets</LandingZone_PresetLibraryInitialized>
   <LandingZone_PresetAlreadyExists>[LandingZone] User preset '{0}' already exists</LandingZone_PresetAlreadyExists>
@@ -567,7 +597,11 @@
   <LandingZone_PresetNameOptional>Preset name (optional - leave blank to keep original):</LandingZone_PresetNameOptional>
   <LandingZone_ImportPreset>Import Preset</LandingZone_ImportPreset>
   <LandingZone_PresetImported>Imported preset: {0}</LandingZone_PresetImported>
+  <LandingZone_PresetImportedWithWarnings>Imported preset: {0} ({1} filters skipped - see log)</LandingZone_PresetImportedWithWarnings>
   <LandingZone_PresetImportFailed>Failed to import preset</LandingZone_PresetImportFailed>
+  <LandingZone_ImportValidationWarning>Warning: {0} item(s) not found in your game:</LandingZone_ImportValidationWarning>
+  <LandingZone_ImportValidationNote>These filters will be skipped. Install the required mods/DLC to enable them.</LandingZone_ImportValidationNote>
+  <LandingZone_ImportAliasInfo>{0} item(s) auto-resolved via mod compatibility:</LandingZone_ImportAliasInfo>
   <LandingZone_TokenCopied>Token copied to clipboard: {0}</LandingZone_TokenCopied>
   <LandingZone_TokenExportFailed>Failed to export token</LandingZone_TokenExportFailed>
   <LandingZone_TokenExportedTitle>Preset token for '{0}'</LandingZone_TokenExportedTitle>
@@ -589,6 +623,10 @@
   <LandingZone_Filter_Pollution>Pollution</LandingZone_Filter_Pollution>
   <LandingZone_Filter_WeatherPatterns>Weather Patterns:</LandingZone_Filter_WeatherPatterns>
   <LandingZone_Filter_DLCRequired>Requires {0} DLC (not installed)</LandingZone_Filter_DLCRequired>
+  <LandingZone_MutatorNotInWorld>'{0}' not found in this world. May be replaced by a mod.</LandingZone_MutatorNotInWorld>
+  <LandingZone_MutatorAliasResolved>'{0}' resolved to '{1}' via mod alias.</LandingZone_MutatorAliasResolved>
+  <LandingZone_StoneSource_Vanilla>Base game stone type</LandingZone_StoneSource_Vanilla>
+  <LandingZone_StoneSource_Mod>Added by {0}</LandingZone_StoneSource_Mod>
 
   <!-- Terrain & Access Group -->
   <LandingZone_Filter_TerrainAccessGroup>Terrain &amp; Access</LandingZone_Filter_TerrainAccessGroup>
@@ -698,15 +736,17 @@
   <!-- Palette -->
   <LandingZone_Workspace_PaletteHeader>Filter Palette</LandingZone_Workspace_PaletteHeader>
   <LandingZone_Workspace_PaletteHint>Click 'Add' to place a filter in a bucket</LandingZone_Workspace_PaletteHint>
+  <LandingZone_Workspace_SearchPlaceholder>Search filters...</LandingZone_Workspace_SearchPlaceholder>
   <LandingZone_Workspace_AddButton>Add...</LandingZone_Workspace_AddButton>
   <LandingZone_Workspace_RemoveTooltip>Click to remove from workspace</LandingZone_Workspace_RemoveTooltip>
   <LandingZone_Workspace_HeavyFilterWarning>Heavy Filter: This filter requires expensive calculations.\nIf set to Must Have/Must NOT, a warning will be shown before search.</LandingZone_Workspace_HeavyFilterWarning>
 
   <!-- Palette Categories -->
   <LandingZone_Workspace_Category_Climate>Climate</LandingZone_Workspace_Category_Climate>
-  <LandingZone_Workspace_Category_Geography>Geography</LandingZone_Workspace_Category_Geography>
-  <LandingZone_Workspace_Category_Resources>Resources</LandingZone_Workspace_Category_Resources>
-  <LandingZone_Workspace_Category_Features>Features</LandingZone_Workspace_Category_Features>
+  <LandingZone_Workspace_Category_Geography_Natural>Geography: Natural</LandingZone_Workspace_Category_Geography_Natural>
+  <LandingZone_Workspace_Category_Geography_Resources>Geography: Resources</LandingZone_Workspace_Category_Geography_Resources>
+  <LandingZone_Workspace_Category_Geography_Artificial>Geography: Artificial</LandingZone_Workspace_Category_Geography_Artificial>
+  <LandingZone_Workspace_Category_Mod_Filters>Mod Filters</LandingZone_Workspace_Category_Mod_Filters>
 
   <!-- Bucket Labels -->
   <LandingZone_Workspace_Bucket_MustHave>Must Have</LandingZone_Workspace_Bucket_MustHave>
@@ -758,6 +798,8 @@
   <!-- OR Groups -->
   <LandingZone_Workspace_OrGroup_Tooltip>OR Group: Any of these filters will match\nClick to break apart</LandingZone_Workspace_OrGroup_Tooltip>
   <LandingZone_Workspace_OrGroup_DragTooltip>OR Group: Any filter inside matches\nDrag to move entire group | Right-click to ungroup</LandingZone_Workspace_OrGroup_DragTooltip>
+  <LandingZone_Workspace_ClickToUngroup>Click to ungroup back to individual filters</LandingZone_Workspace_ClickToUngroup>
+  <LandingZone_Workspace_AndClickTooltip>Click to select both adjacent filters for OR grouping</LandingZone_Workspace_AndClickTooltip>
   <LandingZone_Workspace_OrGroup_AnyOf>Any of: {0}</LandingZone_Workspace_OrGroup_AnyOf>
   <LandingZone_Workspace_OrGroup_Empty>(empty)</LandingZone_Workspace_OrGroup_Empty>
 
@@ -785,5 +827,70 @@
   <LandingZone_Workspace_EstimateAll>Est: ~{0} tiles (all)</LandingZone_Workspace_EstimateAll>
   <LandingZone_Workspace_EstimateMatches>Est: ~{0} / {1} tiles</LandingZone_Workspace_EstimateMatches>
   <LandingZone_Workspace_TileEstimateTooltip>Estimated number of tiles matching Must Have/Must NOT filters.\nThis is a heuristic - actual results may vary.</LandingZone_Workspace_TileEstimateTooltip>
+
+  <!-- Range Editor -->
+  <LandingZone_Workspace_EditRange>Click to edit range values</LandingZone_Workspace_EditRange>
+
+  <!-- Container Popup -->
+  <LandingZone_Workspace_EditContainer>Click to select options</LandingZone_Workspace_EditContainer>
+  <LandingZone_Workspace_ContainerSelectAll>Select All</LandingZone_Workspace_ContainerSelectAll>
+  <LandingZone_Workspace_ContainerClear>Clear</LandingZone_Workspace_ContainerClear>
+  <LandingZone_Workspace_ContainerAnyMatch>Any Match (OR)</LandingZone_Workspace_ContainerAnyMatch>
+  <LandingZone_Workspace_ContainerAllMatch>All Must Match (AND)</LandingZone_Workspace_ContainerAllMatch>
+  <LandingZone_Workspace_ContainerClose>Close</LandingZone_Workspace_ContainerClose>
+
+  <!-- Filter Tooltips - Info Icon -->
+  <LandingZone_Workspace_ClickForDetails>Click for more details</LandingZone_Workspace_ClickForDetails>
+
+  <!-- Filter Tooltips - Brief (hover) -->
+  <LandingZone_Tooltip_Biomes>Filter by biome type - select allowed biomes</LandingZone_Tooltip_Biomes>
+  <LandingZone_Tooltip_Rivers>World tile has river crossing - select types</LandingZone_Tooltip_Rivers>
+  <LandingZone_Tooltip_Roads>World tile has road connection - select types</LandingZone_Tooltip_Roads>
+  <LandingZone_Tooltip_River>Map feature: River terrain generates</LandingZone_Tooltip_River>
+  <LandingZone_Tooltip_WaterAccess>Any water source (ocean, lake, or river)</LandingZone_Tooltip_WaterAccess>
+  <LandingZone_Tooltip_Coastal>Tile borders ocean</LandingZone_Tooltip_Coastal>
+  <LandingZone_Tooltip_CoastalLake>Tile borders lake</LandingZone_Tooltip_CoastalLake>
+  <LandingZone_Tooltip_Hilliness>Terrain elevation type - select allowed</LandingZone_Tooltip_Hilliness>
+  <LandingZone_Tooltip_Caves>Map feature: Underground cave system</LandingZone_Tooltip_Caves>
+  <LandingZone_Tooltip_Mountain>Map feature: Mountainous terrain</LandingZone_Tooltip_Mountain>
+  <LandingZone_Tooltip_Elevation>Tile height in meters above sea level</LandingZone_Tooltip_Elevation>
+  <LandingZone_Tooltip_Swampiness>How marshy/wet the terrain is</LandingZone_Tooltip_Swampiness>
+  <LandingZone_Tooltip_MoveDifficulty>Terrain traversal penalty multiplier</LandingZone_Tooltip_MoveDifficulty>
+  <LandingZone_Tooltip_Mutator>Geological Landforms map feature</LandingZone_Tooltip_Mutator>
+
+  <!-- Filter Tooltips - Detailed (info popup) -->
+  <LandingZone_TooltipDetail_Biomes>Biomes filters world tiles by ecosystem type. Select one or more biomes to limit your search.\n\nBiomes determine available resources, animals, plants, temperature ranges, and overall survival difficulty.</LandingZone_TooltipDetail_Biomes>
+  <LandingZone_TooltipDetail_Rivers>Rivers filters world tiles by which river TYPES cross them (Creek, Stream, River, Huge River).\n\nUse the popup to select specific river types. This is different from the "River" map feature which affects terrain generation.</LandingZone_TooltipDetail_Rivers>
+  <LandingZone_TooltipDetail_Roads>Roads filters world tiles by road connections (Dirt Path, Dirt Road, Stone Road, Ancient Asphalt Road/Highway).\n\nTiles with roads provide faster caravan travel and may indicate nearby settlements or trade routes.</LandingZone_TooltipDetail_Roads>
+  <LandingZone_TooltipDetail_River>The River map feature (from Geological Landforms) creates river terrain when you land on the tile.\n\nThis is different from "Rivers" which filters by world map river crossings.</LandingZone_TooltipDetail_River>
+  <LandingZone_TooltipDetail_WaterAccess>Water Access is a convenience filter that matches tiles with ANY water source:\n- Ocean coastline\n- Lake coastline\n- River crossing\n\nRedundant if Rivers or Coastal is also selected.</LandingZone_TooltipDetail_WaterAccess>
+  <LandingZone_TooltipDetail_Coastal>Ocean Coastal filters for tiles that border ocean water. Good for fishing, naval travel, and coastal defenses.</LandingZone_TooltipDetail_Coastal>
+  <LandingZone_TooltipDetail_CoastalLake>Lake Coastal filters for tiles that border a lake. Provides freshwater access without ocean exposure.</LandingZone_TooltipDetail_CoastalLake>
+  <LandingZone_TooltipDetail_Hilliness>Hilliness determines the terrain elevation:\n- Flat: Open plains\n- Small Hills: Gentle rolling terrain\n- Large Hills: Significant elevation changes\n- Mountainous: Steep cliffs and mountains</LandingZone_TooltipDetail_Hilliness>
+  <LandingZone_TooltipDetail_Caves>Caves map feature (from Geological Landforms) generates underground cave systems when you land.\n\nGood for defensible positions and mining.</LandingZone_TooltipDetail_Caves>
+  <LandingZone_TooltipDetail_Mountain>Mountain map feature (from Geological Landforms) generates mountainous terrain.\n\nProvides natural defenses and mining opportunities.</LandingZone_TooltipDetail_Mountain>
+
+  <!-- Climate/Weather Filter Tooltips -->
+  <LandingZone_Tooltip_TemperatureAverage>Year-round average temperature.\n\nAffects colonist comfort, crop growth, and energy needs. Most crops need temps between 0-50°C.</LandingZone_Tooltip_TemperatureAverage>
+  <LandingZone_Tooltip_TemperatureMinimum>Coldest temperature reached during winter.\n\nCritical for survival planning - extreme cold requires heating and warm clothing.</LandingZone_Tooltip_TemperatureMinimum>
+  <LandingZone_Tooltip_TemperatureMaximum>Hottest temperature reached during summer.\n\nExtreme heat causes heatstroke and affects mood. May require cooling systems.</LandingZone_Tooltip_TemperatureMaximum>
+  <LandingZone_Tooltip_Rainfall>Annual precipitation in millimeters.\n\nAffects plant growth, puddle formation, and weather patterns. Desert &lt;600mm, temperate 1000-2000mm.</LandingZone_Tooltip_Rainfall>
+  <LandingZone_Tooltip_GrowingDays>Days per year with temperatures suitable for crop growth (10-42°C).\n\n60 = year-round growing, 30 = limited season, 0 = no outdoor farming possible.</LandingZone_Tooltip_GrowingDays>
+  <LandingZone_Tooltip_Pollution>Environmental pollution level (0-1).\n\nHigher values mean toxic terrain, tainted resources, and health hazards. Biotech DLC feature.</LandingZone_Tooltip_Pollution>
+
+  <!-- Terrain Filter Tooltips -->
+  <LandingZone_Tooltip_Elevation>Tile height above sea level (0-3100m).\n\nHigher elevation = colder temperatures. Mountains require 1000m+ elevation.</LandingZone_Tooltip_Elevation>
+  <LandingZone_Tooltip_MovementDifficulty>Terrain penalty for movement (1.0 = normal).\n\nHigher values slow caravans and raiders. Swamps/mountains have higher difficulty.</LandingZone_Tooltip_MovementDifficulty>
+  <LandingZone_Tooltip_Swampiness>How marshy/boggy the terrain is (0-1).\n\nHigh swampiness means more puddles, difficult terrain, and disease risk.</LandingZone_Tooltip_Swampiness>
+
+  <!-- Resource Filter Tooltips -->
+  <LandingZone_Tooltip_Forageability>How much food can be foraged from the land (0-1).\n\nHigher = more berries, roots, and edible plants for early survival.</LandingZone_Tooltip_Forageability>
+  <LandingZone_Tooltip_Grazeable>Whether animals can graze outdoors without hay/kibble.\n\nRequires sufficient plant growth - not available in deserts or ice sheets.</LandingZone_Tooltip_Grazeable>
+  <LandingZone_Tooltip_AnimalDensity>Wildlife density multiplier.\n\nHigher = more hunting opportunities and animal attacks. Deserts are low, forests are high.</LandingZone_Tooltip_AnimalDensity>
+  <LandingZone_Tooltip_PlantDensity>Vegetation density (0-1.3).\n\nAffects wood availability, foraging, and wildfire spread.</LandingZone_Tooltip_PlantDensity>
+  <LandingZone_Tooltip_FishPopulation>Fish spawn rate for fishing (0-900).\n\nRequires water access. Higher = more fishing opportunities. Ocean/large rivers are best.</LandingZone_Tooltip_FishPopulation>
+
+  <!-- Special Filter Tooltips -->
+  <LandingZone_Tooltip_Landmark>World map landmark features (ruins, structures).\n\nProvides interesting exploration opportunities and potential loot.</LandingZone_Tooltip_Landmark>
 
 </LanguageData>

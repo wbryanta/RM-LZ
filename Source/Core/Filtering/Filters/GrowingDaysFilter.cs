@@ -18,12 +18,11 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.GrowingDaysImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.GrowingDaysImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.GrowingDaysImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            // Priority/Preferred are handled in scoring phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.GrowingDaysRange;
@@ -31,7 +30,11 @@ namespace LandingZone.Core.Filtering.Filters
             return inputTiles.Where(id =>
             {
                 var extended = context.TileCache.GetOrCompute(id);
-                return extended.GrowingDays >= range.min && extended.GrowingDays <= range.max;
+                bool inRange = extended.GrowingDays >= range.min && extended.GrowingDays <= range.max;
+
+                // MustHave: tile must be in range
+                // MustNotHave: tile must NOT be in range (exclude tiles that match)
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

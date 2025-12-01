@@ -20,12 +20,8 @@ namespace LandingZone.Core.Filtering.Filters
             var filters = context.Filters;
             var importance = filters.FeatureImportance;
 
-            if (importance == FilterImportance.Ignored)
-                return inputTiles;
-
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (importance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var requiredFeatureDefName = filters.RequiredFeatureDefName;
@@ -35,17 +31,17 @@ namespace LandingZone.Core.Filtering.Filters
 
             return inputTiles.Where(id =>
             {
-                if (!tileFeatureMap.TryGetValue(id, out var featureDefName))
-                    return false;
+                bool hasFeature = tileFeatureMap.TryGetValue(id, out var featureDefName);
 
                 // If specific feature required, check for exact match
                 if (!string.IsNullOrEmpty(requiredFeatureDefName))
                 {
-                    return featureDefName == requiredFeatureDefName;
+                    bool matches = hasFeature && featureDefName == requiredFeatureDefName;
+                    return importance == FilterImportance.MustNotHave ? !matches : matches;
                 }
 
-                // If no specific feature required, just require ANY feature
-                return true;
+                // If no specific feature required, check for ANY feature
+                return importance == FilterImportance.MustNotHave ? !hasFeature : hasFeature;
             });
         }
 

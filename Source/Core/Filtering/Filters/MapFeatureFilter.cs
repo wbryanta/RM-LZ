@@ -18,6 +18,150 @@ namespace LandingZone.Core.Filtering.Filters
         public string Id => "map_features";
         public FilterHeaviness Heaviness => FilterHeaviness.Medium;
 
+        #region Runtime Mutator Cache and Alias Resolution
+
+        /// <summary>
+        /// Cache of mutators that actually exist in the current world.
+        /// Rebuilt when world seed changes.
+        /// </summary>
+        private static HashSet<string> _runtimeMutatorCache = new HashSet<string>();
+        private static string? _cachedWorldSeed;
+
+        /// <summary>
+        /// Known aliases for mutators that mods replace.
+        /// Key = vanilla/common name, Value = array of possible runtime names (checked in order).
+        /// </summary>
+        private static readonly Dictionary<string, string[]> MutatorAliases = new Dictionary<string, string[]>
+        {
+            // Geological Landforms replacements
+            { "River", new[] { "GL_River", "River" } },
+            { "RiverConfluence", new[] { "GL_RiverConfluence", "RiverConfluence" } },
+            { "RiverDelta", new[] { "GL_RiverDelta", "RiverDelta" } },
+            { "RiverIsland", new[] { "GL_RiverIsland", "RiverIsland" } },
+            { "Headwater", new[] { "GL_RiverSource", "Headwater" } },
+            // Add reverse mappings so GL_ names also resolve
+            { "GL_River", new[] { "GL_River", "River" } },
+            { "GL_RiverConfluence", new[] { "GL_RiverConfluence", "RiverConfluence" } },
+            { "GL_RiverDelta", new[] { "GL_RiverDelta", "RiverDelta" } },
+            { "GL_RiverIsland", new[] { "GL_RiverIsland", "RiverIsland" } },
+            { "GL_RiverSource", new[] { "GL_RiverSource", "Headwater" } },
+        };
+
+        /// <summary>
+        /// List of mutators that were requested but couldn't be resolved in the current world.
+        /// Used to show warnings to the user.
+        /// </summary>
+        public static List<string> UnresolvedMutators { get; private set; } = new List<string>();
+
+        /// <summary>
+        /// Ensures the runtime mutator cache is up to date for the current world.
+        /// </summary>
+        private static void EnsureRuntimeCacheValid()
+        {
+            var world = Find.World;
+            var currentSeed = world?.info?.seedString ?? string.Empty;
+
+            if (_cachedWorldSeed == currentSeed && _runtimeMutatorCache.Count > 0)
+                return; // Cache is valid
+
+            // Rebuild cache
+            _runtimeMutatorCache.Clear();
+            _cachedWorldSeed = currentSeed;
+
+            if (world?.grid == null)
+                return;
+
+            // Scan ALL tiles to catch rare mutators (not just a sample)
+            int tileCount = world.grid.TilesCount;
+            for (int i = 0; i < tileCount; i++)
+            {
+                var features = GetTileMapFeatures(i);
+                foreach (var feature in features)
+                {
+                    _runtimeMutatorCache.Add(feature);
+                }
+            }
+
+            if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
+                LandingZoneLogger.LogStandard($"[LandingZone] Runtime mutator cache rebuilt: {_runtimeMutatorCache.Count} mutators found in world '{currentSeed}'");
+        }
+
+        /// <summary>
+        /// Checks if a mutator exists in the current world's runtime cache.
+        /// </summary>
+        public static bool IsRuntimeMutator(string defName)
+        {
+            EnsureRuntimeCacheValid();
+            return _runtimeMutatorCache.Contains(defName);
+        }
+
+        /// <summary>
+        /// Resolves a requested mutator name to one that exists in the current world.
+        /// Uses alias mapping to handle mod replacements (e.g., River → GL_River).
+        /// Returns null if no match found.
+        /// </summary>
+        public static string? ResolveToRuntimeMutator(string requested)
+        {
+            EnsureRuntimeCacheValid();
+
+            // Direct match?
+            if (_runtimeMutatorCache.Contains(requested))
+                return requested;
+
+            // Check aliases
+            if (MutatorAliases.TryGetValue(requested, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    if (_runtimeMutatorCache.Contains(alias))
+                    {
+                        if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
+                            LandingZoneLogger.LogVerbose($"[LandingZone] Mutator alias resolved: '{requested}' → '{alias}'");
+                        return alias;
+                    }
+                }
+            }
+
+            // No match found
+            return null;
+        }
+
+        /// <summary>
+        /// Checks if a tile has a specific mutator, using alias resolution.
+        /// </summary>
+        public static bool TileHasMutatorWithAlias(int tileId, string requestedMutator)
+        {
+            var tileFeatures = GetTileMapFeatures(tileId);
+
+            // Direct match?
+            if (tileFeatures.Contains(requestedMutator))
+                return true;
+
+            // Check aliases
+            if (MutatorAliases.TryGetValue(requestedMutator, out var aliases))
+            {
+                foreach (var alias in aliases)
+                {
+                    if (tileFeatures.Contains(alias))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets all runtime mutators (what actually exists in the current world).
+        /// This is the authoritative source for UI pickers.
+        /// </summary>
+        public static IEnumerable<string> GetRuntimeMutators()
+        {
+            EnsureRuntimeCacheValid();
+            return _runtimeMutatorCache.OrderBy(f => f == "Caves" ? "0" : f);
+        }
+
+        #endregion
+
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
@@ -31,31 +175,84 @@ namespace LandingZone.Core.Filtering.Filters
                 return inputTiles;
             }
 
-            // If no Critical features, pass all tiles through (Preferred handled by scoring)
-            if (!mapFeatures.HasCritical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!mapFeatures.HasHardGates)
             {
                 if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
-                    LandingZoneLogger.LogVerbose("[LandingZone] MapFeatureFilter.Apply: No critical features, passing all tiles");
+                    LandingZoneLogger.LogVerbose("[LandingZone] MapFeatureFilter.Apply: No hard gate features, passing all tiles");
                 return inputTiles;
+            }
+
+            // Pre-resolve MustHave items to their runtime equivalents (handles mod aliasing)
+            var mustHaveFeats = mapFeatures.GetMustHaveItems().ToList();
+            var mustNotHaveFeats = mapFeatures.GetMustNotHaveItems().ToList();
+
+            // Track unresolved mutators for warning
+            UnresolvedMutators.Clear();
+            var resolvedMustHave = new List<string>();
+            foreach (var feat in mustHaveFeats)
+            {
+                var resolved = ResolveToRuntimeMutator(feat);
+                if (resolved != null)
+                {
+                    resolvedMustHave.Add(resolved);
+                }
+                else
+                {
+                    UnresolvedMutators.Add(feat);
+                    if (Prefs.DevMode)
+                        LandingZoneLogger.LogWarning($"[LandingZone] MapFeatureFilter: MustHave mutator '{feat}' not found in world (no known aliases). Skipping.");
+                }
+            }
+
+            var resolvedMustNotHave = new List<string>();
+            foreach (var feat in mustNotHaveFeats)
+            {
+                var resolved = ResolveToRuntimeMutator(feat);
+                if (resolved != null)
+                {
+                    resolvedMustNotHave.Add(resolved);
+                }
+                else
+                {
+                    UnresolvedMutators.Add(feat);
+                    if (Prefs.DevMode)
+                        LandingZoneLogger.LogWarning($"[LandingZone] MapFeatureFilter: MustNotHave mutator '{feat}' not found in world (no known aliases). Skipping.");
+                }
             }
 
             if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
             {
-                var criticalFeats = mapFeatures.GetCriticalItems().ToList();
-                LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: Filtering for critical features: {string.Join(", ", criticalFeats)}");
+                LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: Original MustHave=[{string.Join(", ", mustHaveFeats)}], MustNotHave=[{string.Join(", ", mustNotHaveFeats)}]");
+                LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: Resolved MustHave=[{string.Join(", ", resolvedMustHave)}], MustNotHave=[{string.Join(", ", resolvedMustNotHave)}]");
+                if (UnresolvedMutators.Count > 0)
+                    LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: Unresolved=[{string.Join(", ", UnresolvedMutators)}]");
             }
 
-            // Filter for tiles that meet Critical requirements
-            // Tiles must have ALL Critical features
+            // If all MustHave items were unresolved, pass all tiles (don't filter on nothing)
+            if (resolvedMustHave.Count == 0 && mustHaveFeats.Count > 0)
+            {
+                if (Prefs.DevMode)
+                    LandingZoneLogger.LogWarning($"[LandingZone] MapFeatureFilter.Apply: All MustHave mutators unresolved, skipping filter (would return 0 tiles otherwise)");
+                return inputTiles;
+            }
+
+            // Filter for tiles that meet resolved requirements
             int rejectionCount = 0;
             var result = inputTiles.Where(id =>
             {
                 var tileFeatures = GetTileMapFeatures(id).ToList();
-                bool meets = mapFeatures.MeetsCriticalRequirements(tileFeatures);
+
+                // Check resolved MustHave (using AND/OR operator from container)
+                bool meetsMustHave = MeetsResolvedMustHave(tileFeatures, resolvedMustHave, mapFeatures.Operator);
+
+                // Check resolved MustNotHave (always AND - ALL exclusions must be satisfied)
+                bool meetsMustNotHave = !resolvedMustNotHave.Any(excl => tileFeatures.Contains(excl));
+
+                bool meets = meetsMustHave && meetsMustNotHave;
 
                 if (Prefs.DevMode && LandingZoneLogger.IsVerbose && !meets && rejectionCount < 5)
                 {
-                    // Log first 5 rejections for debugging
                     LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter: Tile {id} REJECTED - has features: [{string.Join(", ", tileFeatures)}]");
                     rejectionCount++;
                 }
@@ -66,7 +263,7 @@ namespace LandingZone.Core.Filtering.Filters
             if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
                 LandingZoneLogger.LogStandard($"[LandingZone] MapFeatureFilter.Apply: Filtered {inputTiles.Count()} → {result.Count} tiles");
 
-            // Diagnostic: Log first 20 passing tiles and their features (helps debug Exotic/rare feature presets)
+            // Diagnostic: Log first 20 passing tiles and their features
             if (Prefs.DevMode && LandingZoneLogger.IsVerbose && result.Count > 0)
             {
                 LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Apply: First {System.Math.Min(20, result.Count)} passing tiles:");
@@ -79,6 +276,26 @@ namespace LandingZone.Core.Filtering.Filters
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Checks if tile features meet resolved MustHave requirements, respecting AND/OR operator.
+        /// </summary>
+        private static bool MeetsResolvedMustHave(List<string> tileFeatures, List<string> resolvedMustHave, ImportanceOperator op)
+        {
+            if (resolvedMustHave.Count == 0)
+                return true; // No requirements = pass
+
+            if (op == ImportanceOperator.OR)
+            {
+                // OR: At least one must be present
+                return resolvedMustHave.Any(req => tileFeatures.Contains(req));
+            }
+            else
+            {
+                // AND: All must be present
+                return resolvedMustHave.All(req => tileFeatures.Contains(req));
+            }
         }
 
         public string Describe(FilterContext context)
@@ -187,17 +404,29 @@ namespace LandingZone.Core.Filtering.Filters
         }
 
         /// <summary>
-        /// Gets all available map feature types from DefDatabase.
-        /// Returns ALL 83+ mutators available in the game, regardless of whether they appear in current world.
-        /// This ensures rare mutators (like MineralRich, AncientWarehouse) are always available in UI.
+        /// Gets all available map feature types for UI display.
+        /// CHANGED: Now prioritizes runtime world scan (what actually exists) over DefDatabase.
+        /// This fixes the issue where mods replace vanilla mutators (e.g., River → GL_River).
         /// </summary>
         public static IEnumerable<string> GetAllMapFeatureTypes()
         {
-            var featureTypes = new HashSet<string>();
+            // PRIMARY SOURCE: Runtime mutators (what actually exists in the current world)
+            // This is authoritative - if a mutator doesn't exist here, selecting it won't find any tiles
+            EnsureRuntimeCacheValid();
 
+            if (_runtimeMutatorCache.Count > 0)
+            {
+                if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
+                    LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Using {_runtimeMutatorCache.Count} runtime mutators from world scan");
+
+                // Sort with Caves first (most commonly used), then alphabetically
+                return _runtimeMutatorCache.OrderBy(f => f == "Caves" ? "0" : f);
+            }
+
+            // FALLBACK: DefDatabase (only if no world is loaded yet)
+            var featureTypes = new HashSet<string>();
             try
             {
-                // Get all WorldTileDef definitions from DefDatabase (canonical source)
                 var worldTileDefType = GenTypes.GetTypeInAnyAssembly("RimWorld.Planet.WorldTileDef");
                 if (worldTileDefType != null)
                 {
@@ -227,7 +456,7 @@ namespace LandingZone.Core.Filtering.Filters
                             }
 
                             if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
-                                LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Loaded {featureTypes.Count} mutators from DefDatabase");
+                                LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Fallback to DefDatabase - {featureTypes.Count} mutators (world not yet loaded)");
                         }
                     }
                 }
@@ -235,32 +464,7 @@ namespace LandingZone.Core.Filtering.Filters
             catch (System.Exception ex)
             {
                 if (Prefs.DevMode)
-                    LandingZoneLogger.LogError($"[LandingZone] GetAllMapFeatureTypes: DefDatabase query failed: {ex.Message}. Falling back to world scan.");
-            }
-
-            // Fallback: If DefDatabase query failed or returned nothing, sample the world grid
-            if (featureTypes.Count == 0)
-            {
-                var world = Find.World;
-                if (world?.grid != null)
-                {
-                    int sampleSize = System.Math.Min(5000, world.grid.TilesCount); // Increased from 1000 to catch more rare mutators
-                    for (int i = 0; i < sampleSize; i++)
-                    {
-                        var features = GetTileMapFeatures(i);
-                        foreach (var feature in features)
-                        {
-                            featureTypes.Add(feature);
-                        }
-                    }
-
-                    if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
-                        LandingZoneLogger.LogStandard($"[LandingZone] GetAllMapFeatureTypes: Fallback world scan captured {featureTypes.Count} mutators");
-                }
-                else if (Prefs.DevMode && LandingZoneLogger.IsStandardOrVerbose)
-                {
-                    LandingZoneLogger.LogWarning("[LandingZone] GetAllMapFeatureTypes: World grid unavailable; returning empty feature list");
-                }
+                    LandingZoneLogger.LogError($"[LandingZone] GetAllMapFeatureTypes: DefDatabase query failed: {ex.Message}");
             }
 
             // Sort with Caves first (most commonly used), then alphabetically
@@ -391,6 +595,126 @@ namespace LandingZone.Core.Filtering.Filters
             return null; // Core or couldn't determine
         }
 
+        /// <summary>
+        /// Source type for a mutator - Core (vanilla), DLC, or Mod
+        /// </summary>
+        public enum MutatorSourceType { Core, DLC, Mod }
+
+        /// <summary>
+        /// Information about where a mutator comes from.
+        /// </summary>
+        public readonly struct MutatorSourceInfo
+        {
+            public MutatorSourceInfo(MutatorSourceType type, string sourceName)
+            {
+                Type = type;
+                SourceName = sourceName;
+            }
+
+            public MutatorSourceType Type { get; }
+            public string SourceName { get; }
+
+            /// <summary>
+            /// Returns badge text like "[DLC]", "[MOD]", or empty for Core.
+            /// </summary>
+            public string BadgeText => Type switch
+            {
+                MutatorSourceType.DLC => "[DLC]",
+                MutatorSourceType.Mod => "[MOD]",
+                _ => ""
+            };
+
+            /// <summary>
+            /// Returns tooltip text describing the source.
+            /// </summary>
+            public string TooltipText => Type switch
+            {
+                MutatorSourceType.DLC => $"Requires {SourceName} DLC",
+                MutatorSourceType.Mod => $"Added by {SourceName} mod",
+                _ => "Base game content"
+            };
+        }
+
+        // Known DLC package IDs (case-insensitive matching)
+        private static readonly HashSet<string> KnownDLCKeywords = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "Royalty", "Ideology", "Biotech", "Anomaly", "Odyssey"
+        };
+
+        /// <summary>
+        /// Gets detailed source information for a mutator (Core, DLC, or Mod).
+        /// </summary>
+        public static MutatorSourceInfo GetMutatorSource(string defName)
+        {
+            if (string.IsNullOrEmpty(defName))
+                return new MutatorSourceInfo(MutatorSourceType.Core, "Core");
+
+            try
+            {
+                var defDatabaseType = typeof(DefDatabase<>);
+                var worldTileDefType = GenTypes.GetTypeInAnyAssembly("RimWorld.Planet.WorldTileDef");
+
+                if (worldTileDefType != null)
+                {
+                    var specificDefDatabase = defDatabaseType.MakeGenericType(worldTileDefType);
+                    var getNamedMethod = specificDefDatabase.GetMethod("GetNamedSilentFail");
+
+                    if (getNamedMethod != null)
+                    {
+                        var mutatorDef = getNamedMethod.Invoke(null, new object[] { defName });
+
+                        if (mutatorDef != null)
+                        {
+                            var modContentPackProp = mutatorDef.GetType().GetProperty("modContentPack");
+                            if (modContentPackProp != null)
+                            {
+                                var modContentPack = modContentPackProp.GetValue(mutatorDef);
+                                if (modContentPack != null)
+                                {
+                                    // Get PackageId
+                                    var packageIdProp = modContentPack.GetType().GetProperty("PackageId");
+                                    var nameProp = modContentPack.GetType().GetProperty("Name");
+
+                                    string? packageId = packageIdProp?.GetValue(modContentPack)?.ToString();
+                                    string? modName = nameProp?.GetValue(modContentPack)?.ToString();
+
+                                    if (!string.IsNullOrEmpty(packageId))
+                                    {
+                                        // Check if it's a known DLC
+                                        foreach (var dlcKeyword in KnownDLCKeywords)
+                                        {
+                                            if (packageId!.IndexOf(dlcKeyword, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                                            {
+                                                return new MutatorSourceInfo(MutatorSourceType.DLC, dlcKeyword);
+                                            }
+                                        }
+
+                                        // Check if it's Core
+                                        if (packageId!.IndexOf("ludeon.rimworld", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                                            !packageId.Contains("."))
+                                        {
+                                            return new MutatorSourceInfo(MutatorSourceType.Core, "Core");
+                                        }
+
+                                        // It's a mod - use friendly name if available
+                                        string displayName = !string.IsNullOrEmpty(modName) ? modName! : packageId!;
+                                        return new MutatorSourceInfo(MutatorSourceType.Mod, displayName);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                if (Prefs.DevMode && LandingZoneLogger.IsVerbose)
+                    LandingZoneLogger.LogVerbose($"[LandingZone] GetMutatorSource({defName}): {ex.Message}");
+            }
+
+            return new MutatorSourceInfo(MutatorSourceType.Core, "Core");
+        }
+
         public float Membership(int tileId, FilterContext context)
         {
             var mapFeatures = context.Filters.MapFeatures;
@@ -400,20 +724,19 @@ namespace LandingZone.Core.Filtering.Filters
                 return 0.0f;
 
             var tileFeatures = GetTileMapFeatures(tileId).ToList();
-            if (!tileFeatures.Any())
-                return 0.0f; // No features on this tile
 
             if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
             {
                 // Debug logging for first 10 tiles
                 var criticals = mapFeatures.GetCriticalItems().ToList();
+                var priorities = mapFeatures.GetPriorityItems().ToList();
                 var preferreds = mapFeatures.GetPreferredItems().ToList();
                 LandingZoneLogger.LogVerbose($"[LandingZone] MapFeatureFilter.Membership(tile={tileId}):");
-                LandingZoneLogger.LogVerbose($"  User configured: Critical=[{string.Join(", ", criticals)}], Preferred=[{string.Join(", ", preferreds)}], Operator={mapFeatures.Operator}");
+                LandingZoneLogger.LogVerbose($"  User configured: Critical=[{string.Join(", ", criticals)}], Priority=[{string.Join(", ", priorities)}], Preferred=[{string.Join(", ", preferreds)}], Operator={mapFeatures.Operator}");
                 LandingZoneLogger.LogVerbose($"  Tile has: [{string.Join(", ", tileFeatures)}]");
             }
 
-            // Align with Apply phase: prioritize Critical requirements
+            // Align with Apply phase: prioritize Critical (MustHave) requirements
             if (mapFeatures.HasCritical)
             {
                 // Use GetCriticalSatisfaction to respect AND/OR operator
@@ -425,21 +748,19 @@ namespace LandingZone.Core.Filtering.Filters
                 return satisfaction;
             }
 
-            // No Critical features, check Preferred (partial membership based on matches)
-            if (mapFeatures.HasPreferred)
+            // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
+            if (mapFeatures.HasPriority || mapFeatures.HasPreferred)
             {
-                int preferredMatches = mapFeatures.CountPreferredMatches(tileFeatures);
-                int preferredTotal = mapFeatures.CountByImportance(FilterImportance.Preferred);
-
-                if (preferredTotal == 0)
-                    return 0.0f;
-
-                float preferredFraction = (float)preferredMatches / preferredTotal;
+                float score = mapFeatures.GetScoringScore(tileFeatures);
+                // Normalize to [0,1] range based on maximum possible score
+                int maxScore = mapFeatures.CountByImportance(FilterImportance.Priority) * 2
+                             + mapFeatures.CountByImportance(FilterImportance.Preferred);
+                float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
 
                 if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
-                    LandingZoneLogger.LogVerbose($"  → Preferred: {preferredMatches}/{preferredTotal} = {preferredFraction:F2}");
+                    LandingZoneLogger.LogVerbose($"  → Priority+Preferred score: {score:F2}, maxScore={maxScore}, membership={membership:F2}");
 
-                return preferredFraction;
+                return membership;
             }
 
             if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)

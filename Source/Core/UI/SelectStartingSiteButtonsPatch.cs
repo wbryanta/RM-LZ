@@ -192,23 +192,7 @@ namespace LandingZone.Core.UI
             var searchButtonRect = new Rect(leftNavRect.xMax + innerGap, rect.y, searchButtonWidth, rect.height);
 
             // Search button (green when active, shows current mode context)
-            // Priority: ActivePreset > GuidedBuilder > Simple/Advanced mode
-            string modeLabel;
-            var activePreset = LandingZoneContext.State?.Preferences?.ActivePreset;
-            if (activePreset != null)
-            {
-                modeLabel = activePreset.Name; // e.g., "Elysian", "Desert Oasis"
-            }
-            else
-            {
-                var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
-                modeLabel = currentMode switch
-                {
-                    UIMode.GuidedBuilder => "Guided",
-                    UIMode.Advanced => "Advanced",
-                    _ => "Simple"
-                };
-            }
+            string modeLabel = LandingZoneRibbonHelpers.GetModeLabel();
             string searchLabel = $"Search Landing Zones ({modeLabel})";
 
             var prevColor = GUI.color;
@@ -224,52 +208,16 @@ namespace LandingZone.Core.UI
             TooltipHandler.TipRegion(searchButtonRect, "LandingZone_SearchTooltip".Translate(modeLabel));
 
             // Filters button (opens preferences/filters window)
-            if (Widgets.ButtonText(filtersRect, "LandingZone_FiltersButton".Translate()))
-            {
-                TogglePreferencesWindow();
-            }
-            TooltipHandler.TipRegion(filtersRect, "LandingZone_FiltersTooltip".Translate());
+            LandingZoneRibbonHelpers.DrawFiltersButton(filtersRect);
 
             // Dev button (Dev Mode only)
             if (Prefs.DevMode)
             {
-                var devPrevColor = GUI.color;
-                GUI.color = new Color(1f, 0.7f, 0.7f); // Pinkish to indicate dev-only
-                if (Widgets.ButtonText(devRect, "LandingZone_DevButton".Translate()))
-                {
-                    Find.WindowStack.Add(new DevToolsWindow());
-                }
-                GUI.color = devPrevColor;
-                TooltipHandler.TipRegion(devRect, "LandingZone_DevTooltip".Translate());
+                LandingZoneRibbonHelpers.DrawDevButton(devRect);
             }
 
             // Top (XX) button - opens results window
-            bool hasResults = LandingZoneContext.HasMatches;
-            int maxResults = LandingZoneContext.State?.Preferences?.GetActiveFilters()?.MaxResults ?? 20;
-            string topLabel = $"Top ({maxResults})";
-
-            var topPrevEnabled = GUI.enabled;
-            var topPrevColor = GUI.color;
-
-            // Grey out when no results
-            GUI.enabled = hasResults;
-            if (!hasResults)
-            {
-                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-            }
-
-            if (Widgets.ButtonText(topButtonRect, topLabel))
-            {
-                LandingZoneResultsController.Toggle();
-            }
-
-            GUI.enabled = topPrevEnabled;
-            GUI.color = topPrevColor;
-
-            string tooltip = hasResults
-                ? $"View top {maxResults} matches"
-                : "No matches yet - run a search first";
-            TooltipHandler.TipRegion(topButtonRect, tooltip);
+            LandingZoneRibbonHelpers.DrawTopButton(topButtonRect);
 
             // Navigation arrows
             DrawMatchNavigation(leftNavRect, rightNavRect);
@@ -355,129 +303,16 @@ namespace LandingZone.Core.UI
             // Draw Stop button when evaluating (if enabled)
             if (showStopButton)
             {
-                DrawStopButton(stopButtonRect);
+                LandingZoneRibbonHelpers.DrawStopButton(stopButtonRect);
             }
 
             // Draw bookmark toggle icon
-            DrawBookmarkIcon(bookmarkIconRect);
+            LandingZoneRibbonHelpers.DrawBookmarkIcon(bookmarkIconRect);
 
             // Draw bookmark manager icon
-            DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+            LandingZoneRibbonHelpers.DrawBookmarkManagerIcon(bookmarkMgrIconRect);
         }
 
-        private static void DrawStopButton(Rect rect)
-        {
-            var prevColor = GUI.color;
-            var prevFont = Text.Font;
-
-            // Dark red color
-            GUI.color = new Color(0.7f, 0.15f, 0.15f);
-            Text.Font = GameFont.Tiny;
-
-            if (Widgets.ButtonText(rect, "LandingZone_StopButton".Translate(), drawBackground: true, doMouseoverSound: true, active: true))
-            {
-                LandingZoneContext.CancelEvaluation();
-                SoundDefOf.Click.PlayOneShotOnCamera();
-            }
-
-            GUI.color = prevColor;
-            Text.Font = prevFont;
-
-            TooltipHandler.TipRegion(rect, "LandingZone_CancelSearchTooltip".Translate());
-        }
-
-        private static void DrawBookmarkIcon(Rect rect)
-        {
-            int selectedTile = Find.WorldInterface.SelectedTile;
-            bool hasTileSelected = selectedTile >= 0 && selectedTile < Find.WorldGrid.TilesCount;
-
-            var manager = BookmarkManager.Get();
-            bool isBookmarked = hasTileSelected && manager != null && manager.IsBookmarked(selectedTile);
-
-            var prevEnabled = GUI.enabled;
-            var prevColor = GUI.color;
-
-            GUI.enabled = hasTileSelected && manager != null;
-
-            // Icon: ★ (filled star) when bookmarked (green), ☆ (empty star) when not (white)
-            if (isBookmarked)
-            {
-                GUI.color = new Color(0.4f, 1f, 0.4f); // Bright green
-            }
-            else if (!GUI.enabled)
-            {
-                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Dimmed
-            }
-            else
-            {
-                GUI.color = Color.white;
-            }
-
-            Text.Font = GameFont.Medium;
-            Text.Anchor = TextAnchor.MiddleCenter;
-            string icon = isBookmarked ? "★" : "☆";
-
-            if (Widgets.ButtonText(rect, icon, drawBackground: false))
-            {
-                if (manager != null && hasTileSelected)
-                {
-                    manager.ToggleBookmark(selectedTile);
-                    SoundDefOf.Click.PlayOneShotOnCamera();
-                }
-            }
-
-            Text.Anchor = TextAnchor.UpperLeft;
-            Text.Font = GameFont.Small;
-            GUI.enabled = prevEnabled;
-            GUI.color = prevColor;
-
-            string tooltip = hasTileSelected
-                ? (isBookmarked ? "Remove bookmark from this tile" : "Bookmark this tile for later reference")
-                : "Select a tile to bookmark it";
-            TooltipHandler.TipRegion(rect, tooltip);
-        }
-
-        private static void DrawBookmarkManagerIcon(Rect rect)
-        {
-            var manager = BookmarkManager.Get();
-            int bookmarkCount = manager?.Bookmarks?.Count ?? 0;
-
-            var prevEnabled = GUI.enabled;
-            var prevColor = GUI.color;
-
-            // Always enable button, but tooltip shows different message
-            GUI.enabled = true;
-
-            // Dim icon when no bookmarks
-            if (bookmarkCount == 0)
-            {
-                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-            }
-            else
-            {
-                GUI.color = Color.white;
-            }
-
-            Text.Font = GameFont.Medium;
-            Text.Anchor = TextAnchor.MiddleCenter;
-
-            // Use ≡ (triple bar) icon for manager
-            if (Widgets.ButtonText(rect, "≡", drawBackground: false))
-            {
-                Find.WindowStack.Add(new BookmarkManagerWindow());
-                SoundDefOf.Click.PlayOneShotOnCamera();
-            }
-
-            Text.Anchor = TextAnchor.UpperLeft;
-            Text.Font = GameFont.Small;
-            GUI.enabled = prevEnabled;
-            GUI.color = prevColor;
-
-            string tooltip = bookmarkCount > 0
-                ? $"View and manage {bookmarkCount} bookmarked tiles"
-                : "Open bookmark manager (no bookmarks yet)";
-            TooltipHandler.TipRegion(rect, tooltip);
-        }
 
         private static void DrawMatchNavigation(Rect leftRect, Rect rightRect)
         {
@@ -511,19 +346,6 @@ namespace LandingZone.Core.UI
             if (Widgets.ButtonText(rect, "WorldFactionsTab".Translate()))
             {
                 Find.WindowStack.Add(new Dialog_FactionDuringLanding());
-            }
-        }
-
-        private static void TogglePreferencesWindow()
-        {
-            var existing = Find.WindowStack.WindowOfType<LandingZonePreferencesWindow>();
-            if (existing != null)
-            {
-                existing.Close();
-            }
-            else
-            {
-                Find.WindowStack.Add(new LandingZonePreferencesWindow());
             }
         }
 

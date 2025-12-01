@@ -60,6 +60,199 @@ namespace LandingZone.Core
         public static IReadOnlyList<TileScore> LatestResults { get; private set; } = System.Array.Empty<TileScore>();
         public static float EvaluationProgress { get; private set; }
 
+        /// <summary>
+        /// True if the last evaluation returned 0 results (gates blocked all tiles).
+        /// User can choose to run a relaxed search.
+        /// </summary>
+        public static bool LastSearchWasEmpty { get; private set; }
+
+        /// <summary>
+        /// True if the current results are from a relaxed search (MustHave demoted to Priority).
+        /// </summary>
+        public static bool IsRelaxedSearchResult { get; private set; }
+
+        /// <summary>
+        /// Original MustHave/MustNotHave requirements captured before relaxed search.
+        /// Used to show which requirements each tile satisfies in the results.
+        /// </summary>
+        public static List<Data.OriginalRequirement>? OriginalRequirements { get; private set; }
+
+        /// <summary>
+        /// Cache of relaxed match info per tile (computed on demand).
+        /// Key is tile ID, value is the match analysis.
+        /// </summary>
+        private static Dictionary<int, Data.RelaxedMatchInfo> _relaxedMatchCache = new Dictionary<int, Data.RelaxedMatchInfo>();
+
+        /// <summary>
+        /// Gets relaxed match info for a specific tile.
+        /// Returns null if not a relaxed search or if requirements can't be evaluated.
+        /// </summary>
+        public static Data.RelaxedMatchInfo? GetRelaxedMatchInfo(int tileId)
+        {
+            if (!IsRelaxedSearchResult || OriginalRequirements == null || OriginalRequirements.Count == 0)
+                return null;
+
+            if (_relaxedMatchCache.TryGetValue(tileId, out var cached))
+                return cached;
+
+            // Compute and cache
+            var matchInfo = EvaluateTileAgainstOriginalRequirements(tileId);
+            _relaxedMatchCache[tileId] = matchInfo;
+            return matchInfo;
+        }
+
+        /// <summary>
+        /// Evaluates a tile against the original requirements to determine which are satisfied.
+        /// </summary>
+        private static Data.RelaxedMatchInfo EvaluateTileAgainstOriginalRequirements(int tileId)
+        {
+            var requirements = OriginalRequirements ?? new List<Data.OriginalRequirement>();
+            var matchInfo = new Data.RelaxedMatchInfo(tileId, requirements);
+
+            foreach (var req in requirements)
+            {
+                bool tileHasFeature = CheckTileHasFeature(tileId, req.FilterId);
+
+                // For MustHave: tile should HAVE the feature
+                // For MustNotHave: tile should NOT HAVE the feature
+                bool satisfied = req.IsMustNotHave ? !tileHasFeature : tileHasFeature;
+
+                if (satisfied)
+                    matchInfo.SatisfiedRequirements.Add(req);
+                else
+                    matchInfo.ViolatedRequirements.Add(req);
+            }
+
+            return matchInfo;
+        }
+
+        /// <summary>
+        /// Checks if a tile has a specific feature based on filter ID.
+        /// </summary>
+        private static bool CheckTileHasFeature(int tileId, string filterId)
+        {
+            var worldGrid = Find.WorldGrid;
+            if (worldGrid == null) return false;
+
+            var tile = worldGrid[tileId];
+            if (tile == null) return false;
+
+            // Handle container items (format: "type:itemName")
+            if (filterId.Contains(":"))
+            {
+                var parts = filterId.Split(':');
+                var filterType = parts[0];
+                var itemName = parts[1];
+
+                return filterType switch
+                {
+                    "river" => CheckTileHasRiver(tileId, itemName),
+                    "road" => CheckTileHasRoad(tileId, itemName),
+                    "stone" => CheckTileHasStone(tileId, itemName),
+                    "feature" => CheckTileHasMapFeature(tileId, itemName),
+                    "grove" => CheckTileHasPlantGrove(tileId, itemName),
+                    "habitat" => CheckTileHasAnimalHabitat(tileId, itemName),
+                    "ore" => CheckTileHasOre(tileId, itemName),
+                    "stockpile" => CheckTileHasStockpile(tileId, itemName),
+                    "adjacent" => CheckTileHasAdjacentBiome(tileId, itemName),
+                    _ => false
+                };
+            }
+
+            // Handle single-value filters
+            return CheckSingleValueFilter(tileId, filterId);
+        }
+
+        private static bool CheckTileHasRiver(int tileId, string riverName)
+        {
+            var tile = Find.WorldGrid[tileId];
+            var rivers = tile?.Rivers;
+            if (rivers == null) return false;
+            return rivers.Any(r => r.river?.defName == riverName || r.river?.label == riverName);
+        }
+
+        private static bool CheckTileHasRoad(int tileId, string roadName)
+        {
+            var tile = Find.WorldGrid[tileId];
+            var roads = tile?.Roads;
+            if (roads == null) return false;
+            return roads.Any(r => r.road?.defName == roadName || r.road?.label == roadName);
+        }
+
+        private static bool CheckTileHasStone(int tileId, string stoneName)
+        {
+            var stones = Find.World?.NaturalRockTypesIn(tileId);
+            if (stones == null) return false;
+            return stones.Any(s => s.defName == stoneName || s.label == stoneName);
+        }
+
+        private static bool CheckTileHasMapFeature(int tileId, string featureName)
+        {
+            // Use MapFeatureFilter to get tile's mutators/features
+            var features = Filtering.Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
+            return features.Contains(featureName);
+        }
+
+        private static bool CheckTileHasPlantGrove(int tileId, string groveName)
+        {
+            // Plant groves are stored as mutators
+            var features = Filtering.Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
+            return features.Contains(groveName);
+        }
+
+        private static bool CheckTileHasAnimalHabitat(int tileId, string habitatName)
+        {
+            // Animal habitats are stored as mutators
+            var features = Filtering.Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
+            return features.Contains(habitatName);
+        }
+
+        private static bool CheckTileHasOre(int tileId, string oreName)
+        {
+            if (State?.MineralStockpileCache != null)
+            {
+                var ores = State.MineralStockpileCache.GetMineralTypes(tileId);
+                return ores?.Contains(oreName) ?? false;
+            }
+            return false;
+        }
+
+        private static bool CheckTileHasStockpile(int tileId, string stockpileType)
+        {
+            if (State?.MineralStockpileCache != null)
+            {
+                var stockpiles = State.MineralStockpileCache.GetStockpileTypes(tileId);
+                return stockpiles?.Contains(stockpileType) ?? false;
+            }
+            return false;
+        }
+
+        private static bool CheckTileHasAdjacentBiome(int tileId, string biomeName)
+        {
+            // For adjacent biomes, we'd need to check neighbor tiles
+            // This is a simplified check - actual implementation would iterate neighbors
+            return false; // TODO: Implement proper neighbor biome check
+        }
+
+        private static bool CheckSingleValueFilter(int tileId, string filterId)
+        {
+            // For single-value filters, we need to check if tile matches the filter criteria
+            // The actual range/threshold values are in the original FilterSettings
+            // For relaxed search badge display, we'll consider the filter "matched" if
+            // the tile would have passed the MustHave gate (which we know it didn't, hence relaxed)
+            // This is a simplification - we show it as "violated" for single-value MustHave requirements
+
+            // For MustHave filters that were relaxed, the tile likely doesn't meet the requirement
+            // Return false for most single-value filters in relaxed context
+            var tile = Find.WorldGrid[tileId];
+            return filterId switch
+            {
+                "coastal" => tile?.PrimaryBiome?.impassable == false && Find.World.CoastDirectionAt(tileId).IsValid,
+                "water_access" => Find.World.CoastDirectionAt(tileId).IsValid || (tile?.Rivers?.Any() ?? false),
+                _ => false // Most single-value requirements were violated (that's why we relaxed)
+            };
+        }
+
         public static bool RefreshWorldCache(bool force = false)
         {
             if (State == null)
@@ -139,33 +332,12 @@ namespace LandingZone.Core
         }
 
         /// <summary>
-        /// Requests evaluation with heavy filter warning check.
-        /// If heavy filters are set to hard gate importance, shows a warning dialog first.
+        /// Requests evaluation (heavy filter warning removed - users understand the tradeoffs).
         /// </summary>
         public static void RequestEvaluationWithWarning(EvaluationRequestSource source, bool focusOnComplete)
         {
-            if (Filters == null || State == null)
-                return;
-
-            var filters = State.Preferences.GetActiveFilters();
-            var heavyGates = Filters.Registry.GetHeavyGateFilters(filters);
-
-            if (heavyGates.Count > 0)
-            {
-                // Show warning dialog - let user choose action
-                var dialog = new UI.Dialog_HeavyFilterWarning(
-                    heavyGates,
-                    filters,
-                    onProceed: () => RequestEvaluation(source, focusOnComplete),
-                    onCancel: null
-                );
-                Find.WindowStack.Add(dialog);
-            }
-            else
-            {
-                // No heavy+gate filters, proceed directly
-                RequestEvaluation(source, focusOnComplete);
-            }
+            // Heavy filter warning dialog removed per user feedback - proceed directly
+            RequestEvaluation(source, focusOnComplete);
         }
 
         public static bool RequestEvaluation(EvaluationRequestSource source, bool focusOnComplete)
@@ -209,6 +381,15 @@ namespace LandingZone.Core
             LatestResults = System.Array.Empty<TileScore>();
             LastEvaluationCount = 0;
             EvaluationProgress = 0f;
+
+            // Reset relaxed search flag unless this is a relaxed search
+            if (source != EvaluationRequestSource.RelaxedSearch)
+            {
+                IsRelaxedSearchResult = false;
+                OriginalRequirements = null;
+                _relaxedMatchCache.Clear();
+            }
+
             LogMessage("Best site search started.");
 
             // Immediately kick the job once to start scoring phase
@@ -231,6 +412,91 @@ namespace LandingZone.Core
                 EvaluationProgress = 0f;
                 CurrentPhaseDescription = "";
             }
+        }
+
+        /// <summary>
+        /// Requests a relaxed search that demotes MustHave gates to Priority.
+        /// Use when a normal search returns 0 results.
+        /// Results will show [RELAXED] badge to indicate they violate original requirements.
+        /// IMPORTANT: This method creates a COPY of filters and relaxes the copy.
+        /// The user's original filter settings are NEVER mutated.
+        /// </summary>
+        public static bool RequestRelaxedSearch(bool focusOnComplete)
+        {
+            if (Filters == null || State == null)
+                return false;
+
+            // Clone the user's filters and relax the COPY - never mutate user's settings
+            var originalFilters = State.Preferences.GetActiveFilters();
+
+            // Capture original requirements BEFORE relaxing (for [X/Y] badge display)
+            OriginalRequirements = originalFilters.GetOriginalRequirements();
+            _relaxedMatchCache.Clear(); // Clear cache for new search
+
+            var relaxedFilters = originalFilters.Clone();
+            relaxedFilters.RelaxMustHaveGates();
+
+            IsRelaxedSearchResult = true;
+            LogMessage($"Starting relaxed search (MustHave demoted to Priority on temporary copy). Tracking {OriginalRequirements.Count} original requirements...");
+
+            // Pass the relaxed copy to evaluation - original filters untouched
+            return RequestEvaluationWithFilters(EvaluationRequestSource.RelaxedSearch, focusOnComplete, relaxedFilters);
+        }
+
+        /// <summary>
+        /// Internal method to request evaluation with explicit filter settings.
+        /// Used by RequestRelaxedSearch to avoid mutating user preferences.
+        /// </summary>
+        private static bool RequestEvaluationWithFilters(EvaluationRequestSource source, bool focusOnComplete, Data.FilterSettings overrideFilters)
+        {
+            if (Filters == null || State == null)
+                return false;
+
+            // Diagnostic: Log evaluation request start
+            string contextType = Current.ProgramState == ProgramState.Playing ? "in-game" : "world-gen";
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
+            {
+                Log.Message($"[LZ][DIAG] RequestEvaluationWithFilters START: source={source}, context={contextType}, focus={focusOnComplete}, usingOverride=true, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+            }
+
+            EnsureEvaluationComponent();
+            EnsureCacheReady();
+            if (_activeJob != null)
+            {
+                _focusAfterEvaluation |= focusOnComplete;
+                LogMessage($"Search already running; queueing focus={focusOnComplete} (source {source}).");
+                return true;
+            }
+
+            try
+            {
+                // Pass override filters to CreateJob - these will be used instead of State.Preferences
+                _activeJob = Filters.CreateJob(State, overrideFilters);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Error($"[LandingZone] Failed to start evaluation: {ex}");
+                if (DevDiagnostics.PhaseADiagnosticsEnabled)
+                {
+                    Log.Error($"[LZ][DIAG] RequestEvaluationWithFilters FAILED: {ex.Message}");
+                }
+                _activeJob = null;
+                return false;
+            }
+
+            _focusAfterEvaluation = focusOnComplete;
+            IsEvaluating = true;
+            LatestResults = System.Array.Empty<TileScore>();
+            LastEvaluationCount = 0;
+            EvaluationProgress = 0f;
+
+            // Don't reset relaxed search flag - caller handles this
+            LogMessage("Best site search started (with override filters).");
+
+            // Immediately kick the job once to start scoring phase
+            StepEvaluation();
+
+            return true;
         }
 
         internal static void StepEvaluation()
@@ -287,6 +553,9 @@ namespace LandingZone.Core
             LandingZoneLogger.LogStandard(
                 $"[LandingZone] Search complete: preset={presetLabel}, mode={modeLabel}, results={list.Count}, best={(list.Count > 0 ? list[0].Score.ToString("F2") : "n/a")}, duration_ms={job.ElapsedMs:F0}"
             );
+            // Track empty results for car-builder fallback UI
+            LastSearchWasEmpty = list.Count == 0;
+
             if (list.Count > 0)
             {
                 _currentMatchIndex = Mathf.Clamp(_currentMatchIndex, 0, list.Count - 1);

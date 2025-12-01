@@ -83,6 +83,9 @@ namespace LandingZone.Core.Filtering
             _registry.Register(new Filters.ForageableFoodFilter());
             _registry.Register(new Filters.StoneFilter());
             _registry.Register(new Filters.StockpileFilter());
+            _registry.Register(new Filters.MineralOresFilter());
+            _registry.Register(new Filters.PlantGroveFilter());
+            _registry.Register(new Filters.AnimalHabitatFilter());
 
             // World features and landmarks (1.6+)
             _registry.Register(new Filters.WorldFeatureFilter());
@@ -91,9 +94,9 @@ namespace LandingZone.Core.Filtering
             _registry.Register(new Filters.AdjacentBiomesFilter());
         }
 
-        public FilterEvaluationJob CreateJob(GameState state)
+        public FilterEvaluationJob CreateJob(GameState state, FilterSettings? overrideFilters = null)
         {
-            return new FilterEvaluationJob(this, state);
+            return new FilterEvaluationJob(this, state, overrideFilters);
         }
 
         /// <summary>
@@ -477,13 +480,14 @@ namespace LandingZone.Core.Filtering
             private float[] _priorityWeights; // Not readonly - updated when fallback tiers activate
             private float[] _preferredWeights; // Not readonly - updated when fallback tiers activate
 
-            internal FilterEvaluationJob(FilterService owner, GameState state)
+            internal FilterEvaluationJob(FilterService owner, GameState state, FilterSettings? overrideFilters = null)
             {
                 _owner = owner;
                 _state = state;
                 var preset = state.Preferences.ActivePreset;
                 _preset = preset; // Store preset for fallback logic
-                var filters = state.Preferences.GetActiveFilters();
+                // Use override filters if provided (e.g., for relaxed search), otherwise use active filters
+                var filters = overrideFilters ?? state.Preferences.GetActiveFilters();
                 _strictness = filters.CriticalStrictness;
 
                 // Apply preset's minimum strictness override if set
@@ -527,7 +531,7 @@ namespace LandingZone.Core.Filtering
                 LogActiveFiltersSummary(filters);
 
                 // STAGE A: Cheap aggregate gate (synchronous - fast enough)
-                var (cheapPredicates, heavyPredicates) = owner._registry.GetAllPredicates(state);
+                var (cheapPredicates, heavyPredicates) = owner._registry.GetAllPredicates(state, overrideFilters);
 
                 // Partition heavy predicates by importance
                 // Note: MustNotHave heavy predicates are auto-demoted to Priority in GetAllPredicates
@@ -544,7 +548,7 @@ namespace LandingZone.Core.Filtering
                 _totalPreferred = cheapPreferred + _heavyPreferred.Count;
                 int totalScoring = _totalPriority + _totalPreferred;
                 _kappa = ScoringWeights.ComputeKappa(_totalMustHave, totalScoring);
-                _context = new FilterContext(state, owner._tileCache);
+                _context = new FilterContext(state, owner._tileCache, overrideFilters);
 
                 // Eager-build MineralStockpileCache if StoneFilter is active (prevents lazy build during tile evaluation)
                 if (filters.Stones.HasAnyImportance)
@@ -983,30 +987,25 @@ namespace LandingZone.Core.Filtering
                     if (_best.Count >= _maxResults && candidate.UpperBound <= _minInHeap)
                         continue;
 
-                    float critScore, prefScore, penalty, finalScore;
+                    float prioScore, prefScore, finalScore;
                     MatchBreakdownV2? detailedBreakdown = null;
 
                     // Check feature flag for scoring system
                     if (_state.Preferences.Options.UseNewScoring)
                     {
-                        // NEW: Membership-based scoring
-                        (critScore, prefScore, penalty, finalScore, detailedBreakdown) = ComputeMembershipScoreForTile(candidate.TileId);
+                        // NEW: 5-state scoring (MustHave/MustNotHave are gates, Priority/Preferred are scored)
+                        (prioScore, prefScore, finalScore, detailedBreakdown) = ComputeMembershipScoreForTile(candidate.TileId);
 
-                        // Strictness check: critical score must meet threshold
-                        if (critScore < _currentStrictness)
-                        {
-                            LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] Failed strictness check " +
-                                           $"(critScore={critScore:F2} < {_currentStrictness:F2}, penalty={penalty:F2})");
-                            continue;
-                        }
+                        // Note: No strictness check needed - gates already passed in Apply phase
+                        // Priority/Preferred are soft scoring, not gates
 
-                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [MEMBERSHIP] critScore={critScore:F2}, " +
-                                       $"prefScore={prefScore:F2}, penalty={penalty:F2}, finalScore={finalScore:F2}");
+                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [5-STATE] prioScore={prioScore:F2}, " +
+                                       $"prefScore={prefScore:F2}, finalScore={finalScore:F2}");
                     }
                     else
                     {
                         // OLD: k-of-n binary scoring (legacy path)
-                        // Note: MustHave = Critical in the new model
+                        // Note: This path is deprecated and will be removed in a future version
                         int mustHaveHeavyMatches = CountMatches(_heavyMustHave, candidate.TileId);
                         int priorityHeavyMatches = CountMatches(_heavyPriority, candidate.TileId);
                         int preferredHeavyMatches = CountMatches(_heavyPreferred, candidate.TileId);
@@ -1015,21 +1014,21 @@ namespace LandingZone.Core.Filtering
                         int totalScoringMatches = candidate.PrefCheapMatches + priorityHeavyMatches + preferredHeavyMatches;
 
                         int totalScoring = _totalPriority + _totalPreferred;
-                        critScore = ScoringWeights.NormalizeCriticalScore(totalMustHaveMatches, _totalMustHave);
+                        float legacyCritScore = ScoringWeights.NormalizeCriticalScore(totalMustHaveMatches, _totalMustHave);
                         prefScore = ScoringWeights.NormalizePreferredScore(totalScoringMatches, totalScoring);
 
                         // Strictness check
-                        if (critScore < _currentStrictness)
+                        if (legacyCritScore < _currentStrictness)
                         {
                             LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
-                                           $"(mustHave {totalMustHaveMatches}/{_totalMustHave} = {critScore:F2} < {_currentStrictness:F2})");
+                                           $"(mustHave {totalMustHaveMatches}/{_totalMustHave} = {legacyCritScore:F2} < {_currentStrictness:F2})");
                             continue;
                         }
 
-                        finalScore = ScoringWeights.ComputeFinalScore(critScore, prefScore, _kappa);
-                        penalty = 1.0f; // No penalty in k-of-n
+                        finalScore = ScoringWeights.ComputeFinalScore(legacyCritScore, prefScore, _kappa);
+                        prioScore = legacyCritScore; // Map legacy critical to priority for compatibility
 
-                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={critScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
+                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={legacyCritScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
                     }
 
                     // Simplified breakdown for now
@@ -1143,18 +1142,16 @@ namespace LandingZone.Core.Filtering
             }
 
             /// <summary>
-            /// Computes membership-based score for a tile using continuous fuzzy logic.
-            /// Returns tuple: (critScore, prefScore, penalty, finalScore, detailedBreakdown)
+            /// Computes membership-based score for a tile using the 5-state model:
+            /// - MustHave/MustNotHave: Gates only (binary pass/fail in Apply phase, NOT scored)
+            /// - Priority: Scored at 2x weight
+            /// - Preferred: Scored at 1x weight
+            /// - Mutators: Ambient bonus (10%)
+            ///
+            /// Formula: S_final = λ_prio·S_prio + λ_pref·S_pref + λ_mut·S_mut
             /// </summary>
-            private (float critScore, float prefScore, float penalty, float finalScore, MatchBreakdownV2 breakdown) ComputeMembershipScoreForTile(int tileId)
+            private (float prioScore, float prefScore, float finalScore, MatchBreakdownV2 breakdown) ComputeMembershipScoreForTile(int tileId)
             {
-                // Collect membership scores for MustHave filters (hard gates in Apply, also contribute to score)
-                float[] mustHaveMemberships = new float[_mustHaveFilters.Count];
-                for (int i = 0; i < _mustHaveFilters.Count; i++)
-                {
-                    mustHaveMemberships[i] = _mustHaveFilters[i].Membership(tileId, _context);
-                }
-
                 // Collect membership scores for Priority filters (2x weight)
                 float[] priorityMemberships = new float[_priorityFilters.Count];
                 for (int i = 0; i < _priorityFilters.Count; i++)
@@ -1169,44 +1166,22 @@ namespace LandingZone.Core.Filtering
                     preferredMemberships[i] = _preferredFilters[i].Membership(tileId, _context);
                 }
 
-                // Compute MustHave score (for strictness check and penalty)
-                float critScore = ScoringWeights.ComputeGroupScore(mustHaveMemberships, _mustHaveWeights);
-
-                // Compute scoring score: Priority (2x) + Preferred (1x) combined
-                // Build combined arrays for backward compatibility with ScoringWeights
-                int totalScoringFilters = _priorityFilters.Count + _preferredFilters.Count;
-                float[] combinedScoringMemberships = new float[totalScoringFilters];
-                float[] combinedScoringWeights = new float[totalScoringFilters];
-                int idx = 0;
+                // Compute Priority score (2x weight per filter)
+                float[] priorityWeightsDoubled = new float[_priorityFilters.Count];
                 for (int i = 0; i < _priorityFilters.Count; i++)
                 {
-                    combinedScoringMemberships[idx] = priorityMemberships[i];
-                    combinedScoringWeights[idx] = _priorityWeights[i] * 2f; // Priority gets 2x weight
-                    idx++;
+                    priorityWeightsDoubled[i] = _priorityWeights[i] * 2f;
                 }
-                for (int i = 0; i < _preferredFilters.Count; i++)
-                {
-                    combinedScoringMemberships[idx] = preferredMemberships[i];
-                    combinedScoringWeights[idx] = _preferredWeights[i]; // Preferred gets 1x weight
-                    idx++;
-                }
-                float prefScore = ScoringWeights.ComputeGroupScore(combinedScoringMemberships, combinedScoringWeights);
+                float prioScore = ScoringWeights.ComputeGroupScore(priorityMemberships, priorityWeightsDoubled);
 
-                // Compute worst MustHave for penalty
-                float worstCrit = ScoringWeights.ComputeWorstCritical(mustHaveMemberships);
+                // Compute Preferred score (1x weight per filter)
+                float prefScore = ScoringWeights.ComputeGroupScore(preferredMemberships, _preferredWeights);
 
-                // Default penalty parameters (will be exposed in mod settings later)
-                const float alphaPen = 0.1f;  // 10% floor
-                const float gammaPen = 2.0f;  // Quadratic punishment
-                float penalty = ScoringWeights.ComputePenalty(worstCrit, alphaPen, gammaPen);
-
-                // Compute global weights from mod settings
-                var (critBase, prefBase, mutatorWeight) = LandingZoneSettings.GetWeightValues();
-                var (lambdaC, lambdaP, lambdaMut) = ScoringWeights.ComputeGlobalWeights(
-                    _mustHaveFilters.Count,
-                    totalScoringFilters,
-                    critBase,
-                    prefBase,
+                // Compute global weights: Priority vs Preferred vs Mutators
+                var (_, _, mutatorWeight) = LandingZoneSettings.GetWeightValues();
+                var (lambdaPrio, lambdaPref, lambdaMut) = ScoringWeights.ComputeScoringWeights(
+                    _priorityFilters.Count,
+                    _preferredFilters.Count,
                     mutatorWeight
                 );
 
@@ -1215,73 +1190,46 @@ namespace LandingZone.Core.Filtering
                 var activePreset = _context.State.Preferences.ActivePreset;
                 float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators, 0.25f, activePreset);
 
-                // Compute final membership score
-                float finalScore = ScoringWeights.ComputeMembershipScore(
-                    critScore,
+                // Compute final score: S = λ_prio·S_prio + λ_pref·S_pref + λ_mut·S_mut
+                // No penalty term - gates are binary (handled in Apply phase)
+                float finalScore = ScoringWeights.ComputeScoringScore(
+                    prioScore,
                     prefScore,
                     mutatorScore,
-                    penalty,
-                    lambdaC,
-                    lambdaP,
+                    lambdaPrio,
+                    lambdaPref,
                     lambdaMut
                 );
 
                 // Build detailed breakdown
                 var breakdown = BuildDetailedBreakdown(
                     tileId,
-                    mustHaveMemberships,
                     priorityMemberships,
                     preferredMemberships,
-                    critScore,
+                    prioScore,
                     prefScore,
                     mutatorScore,
-                    penalty,
                     finalScore
                 );
 
-                return (critScore, prefScore, penalty, finalScore, breakdown);
+                return (prioScore, prefScore, finalScore, breakdown);
             }
 
             /// <summary>
             /// Builds detailed breakdown with per-filter match info and mutator contributions.
+            /// Note: MustHave/MustNotHave are gates (not scored), so they don't appear in breakdown.
             /// </summary>
             private MatchBreakdownV2 BuildDetailedBreakdown(
                 int tileId,
-                float[] mustHaveMemberships,
                 float[] priorityMemberships,
                 float[] preferredMemberships,
-                float critScore,
+                float prioScore,
                 float prefScore,
                 float mutatorScore,
-                float penalty,
                 float finalScore)
             {
                 var matched = new List<FilterMatchInfo>();
                 var missed = new List<FilterMatchInfo>();
-
-                // Process MustHave filters (hard gates, highest importance)
-                for (int i = 0; i < _mustHaveFilters.Count; i++)
-                {
-                    var filter = _mustHaveFilters[i];
-                    float membership = mustHaveMemberships[i];
-                    bool isMatched = membership >= 0.9f; // Match threshold
-                    bool isRangeFilter = IsRangeFilter(filter);
-                    float filterPenalty = isMatched ? 0f : (1f - membership) * (1f - membership);
-
-                    var info = new FilterMatchInfo(
-                        filter.Id,
-                        FilterImportance.MustHave,
-                        membership,
-                        isMatched,
-                        isRangeFilter,
-                        filterPenalty
-                    );
-
-                    if (isMatched)
-                        matched.Add(info);
-                    else
-                        missed.Add(info);
-                }
 
                 // Process Priority filters (2x weight scoring)
                 for (int i = 0; i < _priorityFilters.Count; i++)
@@ -1441,10 +1389,10 @@ namespace LandingZone.Core.Filtering
                     matched,
                     missed,
                     mutatorContributions,
-                    critScore,
+                    prioScore,    // Was critScore - now Priority score
                     prefScore,
                     mutatorScore,
-                    penalty,
+                    1.0f,         // No penalty - gates are binary (pass/fail in Apply)
                     finalScore
                 );
             }

@@ -18,12 +18,10 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.PollutionImportance == FilterImportance.Ignored)
-                return inputTiles;
+            var importance = filters.PollutionImportance;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.PollutionImportance != FilterImportance.Critical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var range = filters.PollutionRange;
@@ -33,7 +31,8 @@ namespace LandingZone.Core.Filtering.Filters
             {
                 var tile = worldGrid[id];
                 if (tile == null) return false;
-                return tile.pollution >= range.min && tile.pollution <= range.max;
+                bool inRange = tile.pollution >= range.min && tile.pollution <= range.max;
+                return importance == FilterImportance.MustNotHave ? !inRange : inRange;
             });
         }
 

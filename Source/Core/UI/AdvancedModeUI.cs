@@ -28,12 +28,19 @@ namespace LandingZone.Core.UI
         private static Vector2 _scrollPosition = Vector2.zero;
         private static Vector2 _rightPanelScrollPosition = Vector2.zero;
         private static float _cachedLivePreviewContentHeight = 1200f; // Cache measured content height
+        private static float _cachedFilterContentHeight = 3000f; // Cache measured filter content height (starts large)
         private static Vector2 _mapFeaturesScrollPosition = Vector2.zero;
         private static List<FilterConflict> _activeConflicts = new List<FilterConflict>();
 
         // Workspace mode toggle
-        // Default to Classic view until workspace mode has full filter coverage
-        private static bool _useWorkspaceMode = false;
+        // Default to Bucket view (Workspace mode) - the primary Advanced UI
+        private static bool _useWorkspaceMode = true;
+
+        /// <summary>
+        /// Gets whether workspace (bucket) mode is active.
+        /// Used by parent window to determine scroll behavior.
+        /// </summary>
+        public static bool IsWorkspaceMode => _useWorkspaceMode;
 
         /// <summary>
         /// Tab categories for Advanced mode (Tier 3).
@@ -261,69 +268,29 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Shows warning dialog and switches to workspace mode if user confirms.
+        /// Switches to workspace mode directly.
+        /// Container filters (Rivers, Roads, Stones, etc.) can't be edited in Workspace mode,
+        /// but they still function correctly in search. Users can toggle between modes freely.
         /// </summary>
         private static void TrySwitchToWorkspace(FilterSettings filters)
         {
-            var (hiddenCount, hiddenNames) = CountHiddenActiveFilters(filters);
-
-            if (hiddenCount > 0)
-            {
-                // Show warning dialog
-                string filterList = string.Join(", ", hiddenNames);
-                string message = "LandingZone_Workspace_LimitedWarning".Translate(hiddenCount, filterList);
-
-                Find.WindowStack.Add(new Dialog_MessageBox(
-                    message,
-                    "LandingZone_Workspace_SwitchAnyway".Translate(),
-                    () =>
-                    {
-                        _useWorkspaceMode = true;
-                        ResetWorkspace();
-                    },
-                    "LandingZone_Cancel".Translate(),
-                    null,
-                    null,
-                    false,
-                    null,
-                    null
-                ));
-            }
-            else
-            {
-                // No hidden filters - switch directly
-                _useWorkspaceMode = true;
-                ResetWorkspace();
-            }
+            // Switch directly without warning - users can toggle between modes freely
+            // Container filters configured in Classic mode remain active in Workspace mode
+            _useWorkspaceMode = true;
+            ResetWorkspace();
         }
 
         /// <summary>
-        /// Called after a preset or import is applied to ensure hidden filters are visible.
-        /// If currently in Workspace mode and the filters include hidden container filters,
-        /// auto-switches to Classic view and shows a message.
+        /// Called after a preset or import is applied.
+        /// Previously auto-switched to Classic if containers were present, but this was disruptive.
+        /// Container filters work correctly in Workspace mode (they're just not editable there).
+        /// Users can switch to Classic mode manually if they need to edit containers.
         /// </summary>
         /// <param name="filters">The filters that were just applied.</param>
         public static void EnsureHiddenFiltersVisible(FilterSettings filters)
         {
-            // Only relevant if currently in Workspace mode
-            if (!_useWorkspaceMode)
-                return;
-
-            var (hiddenCount, hiddenNames) = CountHiddenActiveFilters(filters);
-
-            if (hiddenCount > 0)
-            {
-                // Auto-switch to Classic view to make hidden filters visible
-                _useWorkspaceMode = false;
-                ResetWorkspace();
-
-                string filterList = string.Join(", ", hiddenNames);
-                Messages.Message(
-                    "LandingZone_Workspace_SwitchedToClassic".Translate(hiddenCount, filterList),
-                    MessageTypeDefOf.NeutralEvent,
-                    false
-                );
-            }
+            // No longer auto-switches - users can toggle between modes freely
+            // Container filters configured elsewhere remain active in Workspace mode
         }
 
         /// <summary>
@@ -392,9 +359,15 @@ namespace LandingZone.Core.UI
             Rect leftColumn = new Rect(inRect.x, inRect.y, leftColumnWidth, inRect.height);
             Rect rightColumn = new Rect(inRect.x + leftColumnWidth + ColumnGap, inRect.y, RightPanelWidth, inRect.height);
 
-            // LEFT COLUMN: Tabs, Search, Filters
-            var listing = new Listing_Standard { ColumnWidth = leftColumn.width };
-            listing.Begin(leftColumn);
+            // LEFT COLUMN: Tabs, Search, Filters (with scroll view)
+            // Fixed header area for tabs and search
+            const float headerHeight = TabHeight + 12f + 2f + 10f + SearchBoxHeight + 8f + 2f + 10f; // tabs + gaps + search + gaps
+            var headerRect = new Rect(leftColumn.x, leftColumn.y, leftColumn.width, headerHeight);
+            var scrollableRect = new Rect(leftColumn.x, leftColumn.y + headerHeight, leftColumn.width, leftColumn.height - headerHeight);
+
+            // Draw header (tabs + search) - fixed, not scrolled
+            var headerListing = new Listing_Standard { ColumnWidth = headerRect.width };
+            headerListing.Begin(headerRect);
 
             // Show general conflicts (not filter-specific) at the top
             var generalConflicts = _activeConflicts.Where(c => c.FilterId == "general").ToList();
@@ -402,30 +375,45 @@ namespace LandingZone.Core.UI
             {
                 foreach (var conflict in generalConflicts)
                 {
-                    UIHelpers.DrawConflictWarning(listing, conflict);
+                    UIHelpers.DrawConflictWarning(headerListing, conflict);
                 }
-                listing.Gap(8f);
+                headerListing.Gap(8f);
             }
 
             // Tab navigation (Tier 3)
-            var tabRect = listing.GetRect(TabHeight);
+            var tabRect = headerListing.GetRect(TabHeight);
             DrawTabs(tabRect, preferences.GetActiveFilters());
-            listing.Gap(12f);
-            listing.GapLine(); // Visual separator after tabs
-            listing.Gap(10f);
+            headerListing.Gap(12f);
+            headerListing.GapLine(); // Visual separator after tabs
+            headerListing.Gap(10f);
 
             // Search box for filtering visible controls
-            var searchRect = listing.GetRect(SearchBoxHeight);
+            var searchRect = headerListing.GetRect(SearchBoxHeight);
             DrawSearchBox(searchRect);
-            listing.Gap(8f);
-            listing.GapLine(); // Visual separator after search
-            listing.Gap(10f);
+            headerListing.Gap(8f);
+            headerListing.GapLine(); // Visual separator after search
+            headerListing.Gap(10f);
+
+            headerListing.End();
+
+            // Scrollable filter content - use cached height from previous frame
+            var groups = GetFilterGroupsForTab(_selectedTab);
+            float viewHeight = Mathf.Max(_cachedFilterContentHeight, scrollableRect.height);
+            var viewRect = new Rect(0f, 0f, scrollableRect.width - 16f, viewHeight);
+
+            Widgets.BeginScrollView(scrollableRect, ref _scrollPosition, viewRect);
+
+            var listing = new Listing_Standard { ColumnWidth = viewRect.width };
+            listing.Begin(viewRect);
 
             // Grouped filters (collapsible sections) - filtered by selected tab
-            var groups = GetFilterGroupsForTab(_selectedTab);
             DrawFilterGroups(listing, groups, preferences);
 
+            // Cache actual content height for next frame (dynamic sizing)
+            _cachedFilterContentHeight = listing.CurHeight + 50f;
+
             listing.End();
+            Widgets.EndScrollView();
 
             // RIGHT COLUMN: Live Preview Panel (Tier 3)
             DrawLivePreviewPanel(rightColumn, preferences);

@@ -20,15 +20,17 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            if (filters.GrazeImportance == FilterImportance.Ignored)
+            var importance = filters.GrazeImportance;
+
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
-            // K-of-N architecture: Apply() only filters for Critical.
-            // Preferred is handled by scoring phase.
-            if (filters.GrazeImportance != FilterImportance.Critical)
-                return inputTiles;
-
-            return inputTiles.Where(id => TileCanGrazeNow(id));
+            return inputTiles.Where(id =>
+            {
+                bool canGraze = TileCanGrazeNow(id);
+                return importance == FilterImportance.MustNotHave ? !canGraze : canGraze;
+            });
         }
 
         public string Describe(FilterContext context)

@@ -414,9 +414,23 @@ namespace LandingZone.Core.UI
             // Use new AdvancedModeUI renderer
             var preferences = LandingZoneContext.State?.Preferences ?? new UserPreferences();
 
-            // Calculate height needed for content + buttons
-            var buttonAreaHeight = 80f;
-            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1800f + buttonAreaHeight);
+            // Workspace mode: NO outer scroll - workspace handles its own scrolling for left/right panels
+            if (AdvancedModeUI.IsWorkspaceMode)
+            {
+                // Reserve space for buttons at bottom
+                float buttonAreaHeight = 44f;
+                var workspaceRect = new Rect(contentRect.x, contentRect.y, contentRect.width, contentRect.height - buttonAreaHeight);
+                AdvancedModeUI.DrawContent(workspaceRect, preferences);
+
+                // Draw compact buttons below workspace
+                var buttonsRect = new Rect(contentRect.x, contentRect.yMax - buttonAreaHeight + 4f, contentRect.width, buttonAreaHeight - 4f);
+                DrawWorkspaceButtons(buttonsRect, preferences);
+                return;
+            }
+
+            // Classic mode: Keep existing outer scroll behavior
+            var classicButtonAreaHeight = 80f;
+            var viewRect = new Rect(0f, 0f, contentRect.width - ScrollbarWidth, 1800f + classicButtonAreaHeight);
 
             Widgets.BeginScrollView(contentRect, ref _scrollPos, viewRect);
 
@@ -433,43 +447,34 @@ namespace LandingZone.Core.UI
             listing.Gap(20f);
             listing.GapLine();
 
-            // Control buttons
+            // Auto-save hint (Reset/Copy buttons removed - Simple mode deprecated)
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             listing.Label("LandingZone_ChangesSavedAutomatically".Translate());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
-            listing.Gap(4f);
-
-            if (listing.ButtonText("LandingZone_ResetToDefaults".Translate()))
-            {
-                preferences.ResetActiveFilters();
-                Messages.Message("LandingZone_FiltersReset".Translate(), MessageTypeDefOf.NeutralEvent, false);
-            }
-
-            listing.Gap(8f);
-
-            // Import/Export between modes
-            var currentUIMode = preferences.Options.PreferencesUIMode;
-            if (currentUIMode == UIMode.Simple)
-            {
-                if (listing.ButtonText("LandingZone_CopyToAdvanced".Translate()))
-                {
-                    preferences.CopySimpleToAdvanced();
-                    Messages.Message("LandingZone_CopiedToAdvanced".Translate(), MessageTypeDefOf.NeutralEvent, false);
-                }
-            }
-            else
-            {
-                if (listing.ButtonText("LandingZone_CopyToSimple".Translate()))
-                {
-                    preferences.CopyAdvancedToSimple();
-                    Messages.Message("LandingZone_CopiedToSimple".Translate(), MessageTypeDefOf.NeutralEvent, false);
-                }
-            }
 
             listing.End();
             Widgets.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws workspace info hints (not in scroll view).
+        /// Reset/Copy buttons removed - Reset redundant (Clear All exists), Simple mode deprecated.
+        /// </summary>
+        private void DrawWorkspaceButtons(Rect rect, UserPreferences preferences)
+        {
+            float buttonHeight = 28f;
+
+            // Auto-save hint
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.6f, 0.6f, 0.6f);
+            Text.Anchor = TextAnchor.MiddleRight;
+            var hintRect = new Rect(rect.xMax - 200f, rect.y, 196f, buttonHeight);
+            Widgets.Label(hintRect, "LandingZone_ChangesSavedAutomatically".Translate());
+            Text.Anchor = TextAnchor.UpperLeft;
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
         }
     }
 }

@@ -7,6 +7,10 @@ namespace LandingZone.Core
         Preferences,
         ShowBestSites,
         ResultsWindow,
-        Manual
+        Manual,
+        /// <summary>
+        /// Relaxed search: MustHave gates are demoted to Priority for car-builder fallback.
+        /// </summary>
+        RelaxedSearch
     }
 }

@@ -23,6 +23,7 @@ namespace LandingZone.Core.UI
         private Dictionary<int, bool> _matchedExpanded = new Dictionary<int, bool>();
         private Dictionary<int, bool> _missedExpanded = new Dictionary<int, bool>();
         private Dictionary<int, bool> _modifiersExpanded = new Dictionary<int, bool>();
+        private Dictionary<int, bool> _relaxedReqExpanded = new Dictionary<int, bool>();
 
         private enum SortMode
         {
@@ -237,15 +238,36 @@ namespace LandingZone.Core.UI
             var allMatches = LandingZoneContext.LatestResults;
             if (allMatches.Count == 0)
             {
-                var label = LandingZoneContext.IsEvaluating
-                    ? "LandingZone_SearchingProgress".Translate((LandingZoneContext.EvaluationProgress * 100f).ToString("F0"))
-                    : "LandingZone_WaitingForSearch".Translate();
-                Widgets.Label(rect.ContractedBy(6f), label);
+                if (LandingZoneContext.IsEvaluating)
+                {
+                    var label = "LandingZone_SearchingProgress".Translate((LandingZoneContext.EvaluationProgress * 100f).ToString("F0"));
+                    Widgets.Label(rect.ContractedBy(6f), label);
+                }
+                else if (LandingZoneContext.LastSearchWasEmpty && LandingZoneContext.LastEvaluationCount == 0)
+                {
+                    // Car-builder fallback: Search completed with 0 results
+                    DrawNoMatchesFallback(rect);
+                }
+                else
+                {
+                    var label = "LandingZone_WaitingForSearch".Translate();
+                    Widgets.Label(rect.ContractedBy(6f), label);
+                }
                 return;
             }
 
             // Apply filtering and sorting
             var matches = GetFilteredAndSortedMatches(allMatches);
+
+            float bannerHeight = 0f;
+
+            // Show relaxed search banner if applicable
+            if (LandingZoneContext.IsRelaxedSearchResult)
+            {
+                bannerHeight = DrawRelaxedSearchBanner(new Rect(rect.x, rect.y, rect.width, 30f));
+            }
+
+            var listRect = new Rect(rect.x, rect.y + bannerHeight, rect.width, rect.height - bannerHeight);
 
             // Calculate dynamic card heights
             var cardHeights = new float[matches.Count];
@@ -256,8 +278,8 @@ namespace LandingZone.Core.UI
                 totalHeight += cardHeights[i] + 4f; // +4 for spacing
             }
 
-            var viewRect = new Rect(0f, 0f, rect.width - 16f, totalHeight);
-            Widgets.BeginScrollView(rect, ref _scroll, viewRect);
+            var viewRect = new Rect(0f, 0f, listRect.width - 16f, totalHeight);
+            Widgets.BeginScrollView(listRect, ref _scroll, viewRect);
             float curY = 0f;
             for (int i = 0; i < matches.Count; i++)
             {
@@ -266,6 +288,62 @@ namespace LandingZone.Core.UI
                 curY += cardHeights[i] + 4f;
             }
             Widgets.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws the car-builder fallback UI when no results found.
+        /// </summary>
+        private void DrawNoMatchesFallback(Rect rect)
+        {
+            var innerRect = rect.ContractedBy(8f);
+            float curY = innerRect.y;
+
+            var prevFont = Text.Font;
+
+            // Title
+            Text.Font = GameFont.Medium;
+            var titleRect = new Rect(innerRect.x, curY, innerRect.width, 30f);
+            Widgets.Label(titleRect, "LandingZone_NoMatchesTitle".Translate());
+            curY += 34f;
+
+            // Explanation
+            Text.Font = GameFont.Small;
+            var explainRect = new Rect(innerRect.x, curY, innerRect.width, 60f);
+            Widgets.Label(explainRect, "LandingZone_NoMatchesExplanation".Translate());
+            curY += 64f;
+
+            // Relaxed Search button
+            var buttonRect = new Rect(innerRect.x, curY, 200f, 30f);
+            if (Widgets.ButtonText(buttonRect, "LandingZone_TryRelaxedSearch".Translate()))
+            {
+                LandingZoneContext.RequestRelaxedSearch(focusOnComplete: true);
+            }
+            TooltipHandler.TipRegion(buttonRect, "LandingZone_TryRelaxedSearchTooltip".Translate());
+
+            Text.Font = prevFont;
+        }
+
+        /// <summary>
+        /// Draws a banner indicating results are from relaxed search.
+        /// Returns the height used.
+        /// </summary>
+        private float DrawRelaxedSearchBanner(Rect rect)
+        {
+            var prevColor = GUI.color;
+            GUI.color = new Color(1f, 0.9f, 0.6f); // Warm yellow/orange
+
+            Widgets.DrawBoxSolid(rect, new Color(0.3f, 0.25f, 0.1f, 0.5f));
+
+            var prevFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+
+            var labelRect = rect.ContractedBy(4f);
+            Widgets.Label(labelRect, "LandingZone_RelaxedSearchBanner".Translate());
+
+            Text.Font = prevFont;
+            GUI.color = prevColor;
+
+            return rect.height + 4f;
         }
 
         private List<TileScore> GetFilteredAndSortedMatches(IReadOnlyList<TileScore> allMatches)
@@ -607,6 +685,21 @@ namespace LandingZone.Core.UI
                 }
             }
 
+            // Relaxed requirements section (only if this is a relaxed search result)
+            var relaxedMatch = LandingZoneContext.GetRelaxedMatchInfo(score.TileId);
+            if (relaxedMatch != null && relaxedMatch.TotalCount > 0)
+            {
+                bool relaxedExpanded = _relaxedReqExpanded.ContainsKey(score.TileId)
+                    ? _relaxedReqExpanded[score.TileId]
+                    : true; // Default: expanded for relaxed requirements
+
+                height += 20f; // Section header
+                if (relaxedExpanded)
+                {
+                    height += relaxedMatch.TotalCount * 18f; // 18f per requirement
+                }
+            }
+
             return Math.Max(MinRowHeight, height);
         }
 
@@ -721,18 +814,32 @@ namespace LandingZone.Core.UI
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // Line 3: Biome name with rarity badge
-            var biomeRect = new Rect(rect.x + leftPad, rect.y + 50f, rect.width - leftPad - rightPad - 60f, 16f);
+            // Line 3: Biome name with badges
+            float badgesWidth = 0f;
+
+            // Calculate badge widths first (right to left: rarity, then relaxed match)
+            var (probability, rarity) = RarityCalculator.ComputeTileRarity(score.TileId);
+            bool showRarityBadge = rarity >= TileRarity.Rare;
+            if (showRarityBadge) badgesWidth += 62f; // 58 + 4 spacing
+
+            // Check for relaxed search match info
+            var relaxedMatchOrNull = LandingZoneContext.GetRelaxedMatchInfo(score.TileId);
+            bool showRelaxedBadge = relaxedMatchOrNull != null && relaxedMatchOrNull.TotalCount > 0;
+            if (showRelaxedBadge) badgesWidth += 50f; // badge width + spacing
+
+            var biomeRect = new Rect(rect.x + leftPad, rect.y + 50f, rect.width - leftPad - rightPad - badgesWidth, 16f);
             Text.Font = GameFont.Tiny;
             Widgets.Label(biomeRect, biomeLabel);
 
-            // Rarity badge (right side of biome line)
-            var (probability, rarity) = RarityCalculator.ComputeTileRarity(score.TileId);
-            if (rarity >= TileRarity.Rare) // Only show badge for Rare and above
+            float badgeX = rect.xMax - rightPad;
+
+            // Rarity badge (rightmost)
+            if (showRarityBadge)
             {
-                var rarityBadgeRect = new Rect(rect.xMax - 58f - rightPad, rect.y + 48f, 58f, 18f);
+                badgeX -= 58f;
+                var rarityBadgeRect = new Rect(badgeX, rect.y + 48f, 58f, 18f);
                 var rarityColor = rarity.ToColor();
-                var rarityLabel = rarity.ToBadgeLabel();  // Use compact label to prevent wrapping
+                var rarityLabel = rarity.ToBadgeLabel();
 
                 Widgets.DrawBoxSolid(rarityBadgeRect, rarityColor * 0.6f);
                 Widgets.DrawBox(rarityBadgeRect);
@@ -743,6 +850,52 @@ namespace LandingZone.Core.UI
                 Widgets.Label(rarityBadgeRect, rarityLabel);
                 GUI.color = Color.white;
                 Text.Anchor = TextAnchor.UpperLeft;
+
+                badgeX -= 4f; // spacing
+            }
+
+            // Relaxed search match badge (to the left of rarity)
+            if (showRelaxedBadge && relaxedMatchOrNull != null)
+            {
+                var relaxedMatch = relaxedMatchOrNull; // Non-null within this block
+                badgeX -= 46f;
+                var relaxedBadgeRect = new Rect(badgeX, rect.y + 48f, 46f, 18f);
+
+                // Color based on satisfaction: green if all met, yellow/orange for partial, red if none
+                Color badgeColor;
+                if (relaxedMatch.SatisfiedCount == relaxedMatch.TotalCount)
+                    badgeColor = new Color(0.3f, 0.7f, 0.3f); // Green - all satisfied
+                else if (relaxedMatch.SatisfiedCount > 0)
+                    badgeColor = new Color(0.8f, 0.6f, 0.2f); // Orange - partial
+                else
+                    badgeColor = new Color(0.7f, 0.3f, 0.3f); // Red - none satisfied
+
+                Widgets.DrawBoxSolid(relaxedBadgeRect, badgeColor * 0.7f);
+                Widgets.DrawBox(relaxedBadgeRect);
+
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = Color.white;
+                Widgets.Label(relaxedBadgeRect, relaxedMatch.BadgeText);
+                GUI.color = Color.white;
+                Text.Anchor = TextAnchor.UpperLeft;
+
+                // Tooltip showing which requirements are satisfied/violated
+                var tooltipBuilder = new System.Text.StringBuilder();
+                tooltipBuilder.AppendLine("LandingZone_RelaxedMatchTooltipHeader".Translate(relaxedMatch.SatisfiedCount, relaxedMatch.TotalCount));
+                if (relaxedMatch.SatisfiedRequirements.Count > 0)
+                {
+                    tooltipBuilder.AppendLine("\n" + "LandingZone_RelaxedMatchSatisfied".Translate());
+                    foreach (var req in relaxedMatch.SatisfiedRequirements)
+                        tooltipBuilder.AppendLine($"  ✓ {req.DisplayName}");
+                }
+                if (relaxedMatch.ViolatedRequirements.Count > 0)
+                {
+                    tooltipBuilder.AppendLine("\n" + "LandingZone_RelaxedMatchViolated".Translate());
+                    foreach (var req in relaxedMatch.ViolatedRequirements)
+                        tooltipBuilder.AppendLine($"  ✗ {req.DisplayName}" + (req.IsMustNotHave ? " " + "LandingZone_RelaxedMatchBlocked".Translate() : ""));
+                }
+                TooltipHandler.TipRegion(relaxedBadgeRect, tooltipBuilder.ToString().TrimEnd());
             }
 
             float curY = rect.y + 70f;
@@ -753,10 +906,16 @@ namespace LandingZone.Core.UI
                 var breakdown = score.BreakdownV2.Value;
                 var contentRect = new Rect(rect.x, curY, rect.width, rect.height - (curY - rect.y));
 
-                // Draw three sections: Matched, Missed, Modifiers (all collapsible)
+                // Draw sections: Matched, Missed, Modifiers, and Relaxed Requirements (all collapsible)
                 DrawMatchedSection(contentRect, breakdown.MatchedFilters, score.TileId, ref curY);
                 DrawMissedSection(contentRect, breakdown.MissedFilters, score.TileId, ref curY);
                 DrawModifiersSection(contentRect, breakdown.Mutators, breakdown.MutatorScore, score.TileId, ref curY);
+
+                // Draw relaxed requirements section if this is a relaxed search
+                if (relaxedMatchOrNull != null && relaxedMatchOrNull.TotalCount > 0)
+                {
+                    DrawRelaxedRequirementsSection(contentRect, relaxedMatchOrNull, ref curY);
+                }
             }
             else
             {
@@ -1147,14 +1306,14 @@ namespace LandingZone.Core.UI
 
             // List matched filters in two-column layout
             Text.Font = GameFont.Tiny;
-            var criticals = matchedFilters.Where(f => f.IsCritical).ToList();
-            var preferred = matchedFilters.Where(f => !f.IsCritical).ToList();
+            var priorities = matchedFilters.Where(f => f.IsPriority).ToList();
+            var preferred = matchedFilters.Where(f => !f.IsPriority).ToList();
 
-            // Combine criticals and preferred into single list
+            // Combine priorities and preferred into single list
             var allMatched = new List<string>();
 
-            // Criticals first (show ⚡ indicator)
-            foreach (var filter in criticals)
+            // Priorities first (show ⚡ indicator)
+            foreach (var filter in priorities)
             {
                 string name = FormatFilterDisplayName(filter.FilterName, tileId);
                 if (filter.IsRangeFilter && filter.Membership < 1.0f)
@@ -1226,8 +1385,8 @@ namespace LandingZone.Core.UI
 
             Text.Font = GameFont.Tiny;
 
-            // Sort: Criticals first, then by penalty magnitude
-            var sorted = missedFilters.OrderByDescending(f => f.IsCritical).ThenByDescending(f => f.Penalty).ToList();
+            // Sort: Priority first, then by penalty magnitude
+            var sorted = missedFilters.OrderByDescending(f => f.IsPriority).ThenByDescending(f => f.Penalty).ToList();
 
             foreach (var missed in sorted)
             {
@@ -1235,10 +1394,10 @@ namespace LandingZone.Core.UI
                 string icon = "";
                 string tags = "";
 
-                if (missed.IsCritical)
+                if (missed.IsPriority)
                 {
-                    icon = "⚠ "; // Warning icon for critical misses
-                    tags = " [CRITICAL]";
+                    icon = "⚠ "; // Warning icon for priority misses
+                    tags = " [PRIORITY]";
                 }
                 else if (missed.IsNearMiss)
                 {
@@ -1248,8 +1407,8 @@ namespace LandingZone.Core.UI
                 string line = $"{icon}{displayName}{tags} (-{missed.Penalty:F2})";
 
                 // Color code by severity
-                if (missed.IsCritical)
-                    GUI.color = new Color(1.0f, 0.27f, 0.27f); // Bright red for critical
+                if (missed.IsPriority)
+                    GUI.color = new Color(1.0f, 0.27f, 0.27f); // Bright red for priority
                 else if (missed.IsNearMiss)
                     GUI.color = new Color(1.0f, 0.8f, 0.4f); // Orange for near miss
                 else
@@ -1315,6 +1474,58 @@ namespace LandingZone.Core.UI
 
                 GUI.color = Color.white;
             }
+        }
+
+        /// <summary>
+        /// Draws the "Original Requirements" section showing which MustHave/MustNotHave requirements
+        /// the tile satisfies or violates from the original search (before relaxation).
+        /// Only shown for relaxed search results.
+        /// </summary>
+        private void DrawRelaxedRequirementsSection(Rect rect, Data.RelaxedMatchInfo matchInfo, ref float curY)
+        {
+            if (matchInfo.TotalCount == 0) return;
+
+            // Get or initialize expanded state (default: expanded)
+            if (!_relaxedReqExpanded.ContainsKey(matchInfo.TileId))
+                _relaxedReqExpanded[matchInfo.TileId] = true;
+
+            bool isExpanded = _relaxedReqExpanded[matchInfo.TileId];
+
+            // Section header (clickable) - orange/yellow color for "requirements"
+            var headerRect = new Rect(rect.x, curY, rect.width, 18f);
+            var headerColor = new Color(1.0f, 0.7f, 0.2f); // Orange/amber
+            string headerLabel = "LandingZone_RelaxedRequirementsSection".Translate();
+            if (DrawClickableSectionHeader(headerRect, headerLabel, headerColor, matchInfo.TotalCount, isExpanded))
+            {
+                _relaxedReqExpanded[matchInfo.TileId] = !isExpanded;
+            }
+            curY += 20f;
+
+            // Only draw content if expanded
+            if (!isExpanded) return;
+
+            Text.Font = GameFont.Tiny;
+
+            // Draw satisfied requirements first (green checkmark)
+            foreach (var req in matchInfo.SatisfiedRequirements)
+            {
+                GUI.color = new Color(0.3f, 0.9f, 0.3f); // Bright green
+                var lineRect = new Rect(rect.x + 12f, curY, rect.width - 16f, 16f);
+                Widgets.Label(lineRect, $"✓ {req.DisplayName}");
+                curY += 18f;
+            }
+
+            // Draw violated requirements (red X)
+            foreach (var req in matchInfo.ViolatedRequirements)
+            {
+                GUI.color = new Color(1.0f, 0.3f, 0.3f); // Bright red
+                var lineRect = new Rect(rect.x + 12f, curY, rect.width - 16f, 16f);
+                string suffix = req.IsMustNotHave ? " " + "LandingZone_RelaxedMatchBlocked".Translate() : "";
+                Widgets.Label(lineRect, $"✗ {req.DisplayName}{suffix}");
+                curY += 18f;
+            }
+
+            GUI.color = Color.white;
         }
 
         /// <summary>
@@ -1401,9 +1612,9 @@ namespace LandingZone.Core.UI
                         sb.AppendLine("\n  " + "LandingZone_DebugMatchedFilters".Translate(breakdown.MatchedFilters.Count));
                         foreach (var filter in breakdown.MatchedFilters)
                         {
-                            string criticalTag = filter.IsCritical ? " " + "LandingZone_DebugCriticalTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
+                            string priorityTag = filter.IsPriority ? " " + "LandingZone_DebugPriorityTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
                             string rangeTag = filter.IsRangeFilter ? " " + "LandingZone_DebugRangeTag".Translate() : " " + "LandingZone_DebugBooleanTag".Translate();
-                            sb.AppendLine($"    - {filter.FilterName}{criticalTag}{rangeTag}");
+                            sb.AppendLine($"    - {filter.FilterName}{priorityTag}{rangeTag}");
                             sb.AppendLine("      " + "LandingZone_DebugMembership".Translate(filter.Membership.ToString("F4"), filter.Penalty.ToString("F4")));
                         }
                     }
@@ -1414,10 +1625,10 @@ namespace LandingZone.Core.UI
                         sb.AppendLine("\n  " + "LandingZone_DebugMissedFilters".Translate(breakdown.MissedFilters.Count));
                         foreach (var filter in breakdown.MissedFilters)
                         {
-                            string criticalTag = filter.IsCritical ? " " + "LandingZone_DebugCriticalTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
+                            string priorityTag = filter.IsPriority ? " " + "LandingZone_DebugPriorityTag".Translate() : " " + "LandingZone_DebugPreferredTag".Translate();
                             string rangeTag = filter.IsRangeFilter ? " " + "LandingZone_DebugRangeTag".Translate() : " " + "LandingZone_DebugBooleanTag".Translate();
                             string nearMissTag = filter.IsNearMiss ? "LandingZone_NearMissTag".Translate() : "";
-                            sb.AppendLine($"    - {filter.FilterName}{criticalTag}{rangeTag}{nearMissTag}");
+                            sb.AppendLine($"    - {filter.FilterName}{priorityTag}{rangeTag}{nearMissTag}");
                             sb.AppendLine("      " + "LandingZone_DebugMembership".Translate(filter.Membership.ToString("F4"), filter.Penalty.ToString("F4")));
                         }
                     }

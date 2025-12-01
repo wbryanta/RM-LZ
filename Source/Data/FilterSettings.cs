@@ -87,7 +87,8 @@ namespace LandingZone.Data
         public FilterImportance WaterAccessImportance { get; set; } = FilterImportance.Ignored;
 
         // Rivers (individual importance per river type)
-        public IndividualImportanceContainer<string> Rivers { get; set; } = new IndividualImportanceContainer<string>();
+        // Default to OR operator since a tile can only have one river; AND makes no sense
+        public IndividualImportanceContainer<string> Rivers { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
 
         // Roads (individual importance per road type)
         public IndividualImportanceContainer<string> Roads { get; set; } = new IndividualImportanceContainer<string>();
@@ -98,6 +99,18 @@ namespace LandingZone.Data
 
         // Stockpiles (individual importance per stockpile type: Weapons, Medicine, Components, etc.)
         public IndividualImportanceContainer<string> Stockpiles { get; set; } = new IndividualImportanceContainer<string>();
+
+        // Plant Grove (individual importance per plant species: Ambrosia, Healroot, etc.)
+        // Default to OR operator since tiles typically have one grove type
+        public IndividualImportanceContainer<string> PlantGrove { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
+
+        // Animal Habitat (individual importance per animal species: Thrumbo, Megasloth, etc.)
+        // Default to OR operator since tiles typically have one flagship animal
+        public IndividualImportanceContainer<string> AnimalHabitat { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
+
+        // Mineral Rich ores (individual importance per ore type: Steel, Plasteel, Uranium, etc.)
+        // Default to OR operator since wanting any of the specified ores is typical
+        public IndividualImportanceContainer<string> MineralOres { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
 
         // Stone count filter ("any X stone types") - alternative mode
         public FloatRange StoneCountRange { get; set; } = new FloatRange(2f, 3f);
@@ -113,7 +126,11 @@ namespace LandingZone.Data
 
         // === WORLD & FEATURES FILTERS ===
 
-        // Biome lock
+        // Biomes (individual importance per biome type)
+        // Default to OR operator since a tile can only have one biome; AND makes no sense
+        public IndividualImportanceContainer<string> Biomes { get; set; } = new IndividualImportanceContainer<string> { Operator = ImportanceOperator.OR };
+
+        // Biome lock (legacy single selection - deprecated, use Biomes container instead)
         public BiomeDef? LockedBiome { get; set; }
 
         // Map features (individual importance per feature: Caves, Ruins, MixedBiome, etc.)
@@ -221,6 +238,7 @@ namespace LandingZone.Data
             AllowedHilliness.Add(Hilliness.Mountainous);
 
             // World & Features
+            Biomes.Reset();
             LockedBiome = null;
 
             MapFeatures.Reset();
@@ -274,6 +292,10 @@ namespace LandingZone.Data
             Roads.Reset();
             Stones.Reset();
             Stockpiles.Reset();
+            PlantGrove.Reset();
+            AnimalHabitat.Reset();
+            MineralOres.Reset();
+            Biomes.Reset();
             MapFeatures.Reset();
             AdjacentBiomes.Reset();
 
@@ -297,36 +319,257 @@ namespace LandingZone.Data
         }
 
         /// <summary>
+        /// Demotes all MustHave gates to Priority for relaxed search.
+        /// MustNotHave gates remain unchanged (they exclude unwanted tiles).
+        /// This allows the car-builder fallback pattern to show closest matches
+        /// that don't meet all requirements.
+        /// </summary>
+        public void RelaxMustHaveGates()
+        {
+            // Demote single-value MustHave filters to Priority
+            if (AverageTemperatureImportance == FilterImportance.MustHave)
+                AverageTemperatureImportance = FilterImportance.Priority;
+            if (MinimumTemperatureImportance == FilterImportance.MustHave)
+                MinimumTemperatureImportance = FilterImportance.Priority;
+            if (MaximumTemperatureImportance == FilterImportance.MustHave)
+                MaximumTemperatureImportance = FilterImportance.Priority;
+            if (GrowingDaysImportance == FilterImportance.MustHave)
+                GrowingDaysImportance = FilterImportance.Priority;
+            if (PollutionImportance == FilterImportance.MustHave)
+                PollutionImportance = FilterImportance.Priority;
+            if (ForageImportance == FilterImportance.MustHave)
+                ForageImportance = FilterImportance.Priority;
+            if (ForageableFoodImportance == FilterImportance.MustHave)
+                ForageableFoodImportance = FilterImportance.Priority;
+            if (ElevationImportance == FilterImportance.MustHave)
+                ElevationImportance = FilterImportance.Priority;
+            if (SwampinessImportance == FilterImportance.MustHave)
+                SwampinessImportance = FilterImportance.Priority;
+            if (GrazeImportance == FilterImportance.MustHave)
+                GrazeImportance = FilterImportance.Priority;
+            if (AnimalDensityImportance == FilterImportance.MustHave)
+                AnimalDensityImportance = FilterImportance.Priority;
+            if (FishPopulationImportance == FilterImportance.MustHave)
+                FishPopulationImportance = FilterImportance.Priority;
+            if (PlantDensityImportance == FilterImportance.MustHave)
+                PlantDensityImportance = FilterImportance.Priority;
+            if (MovementDifficultyImportance == FilterImportance.MustHave)
+                MovementDifficultyImportance = FilterImportance.Priority;
+            if (CoastalImportance == FilterImportance.MustHave)
+                CoastalImportance = FilterImportance.Priority;
+            if (CoastalLakeImportance == FilterImportance.MustHave)
+                CoastalLakeImportance = FilterImportance.Priority;
+            if (WaterAccessImportance == FilterImportance.MustHave)
+                WaterAccessImportance = FilterImportance.Priority;
+            if (FeatureImportance == FilterImportance.MustHave)
+                FeatureImportance = FilterImportance.Priority;
+            if (LandmarkImportance == FilterImportance.MustHave)
+                LandmarkImportance = FilterImportance.Priority;
+
+            // Demote MustHave items in container filters to Priority
+            Rivers.RelaxMustHaveToPriority();
+            Roads.RelaxMustHaveToPriority();
+            Stones.RelaxMustHaveToPriority();
+            Stockpiles.RelaxMustHaveToPriority();
+            PlantGrove.RelaxMustHaveToPriority();
+            AnimalHabitat.RelaxMustHaveToPriority();
+            MineralOres.RelaxMustHaveToPriority();
+            Biomes.RelaxMustHaveToPriority();
+            MapFeatures.RelaxMustHaveToPriority();
+            AdjacentBiomes.RelaxMustHaveToPriority();
+        }
+
+        /// <summary>
+        /// Extracts all MustHave and MustNotHave requirements from the current filter settings.
+        /// Used to snapshot original requirements before relaxed search.
+        /// </summary>
+        public List<OriginalRequirement> GetOriginalRequirements()
+        {
+            var requirements = new List<OriginalRequirement>();
+
+            // Single-value filters - check for MustHave or MustNotHave
+            void AddIfGate(FilterImportance importance, string filterId, string displayName)
+            {
+                if (importance == FilterImportance.MustHave)
+                    requirements.Add(new OriginalRequirement(filterId, displayName, isMustNotHave: false));
+                else if (importance == FilterImportance.MustNotHave)
+                    requirements.Add(new OriginalRequirement(filterId, displayName, isMustNotHave: true));
+            }
+
+            AddIfGate(AverageTemperatureImportance, "avg_temp", "LandingZone_FilterAverageTemperature".Translate());
+            AddIfGate(MinimumTemperatureImportance, "min_temp", "LandingZone_FilterMinimumTemperature".Translate());
+            AddIfGate(MaximumTemperatureImportance, "max_temp", "LandingZone_FilterMaximumTemperature".Translate());
+            AddIfGate(GrowingDaysImportance, "growing_days", "LandingZone_FilterGrowingDays".Translate());
+            AddIfGate(PollutionImportance, "pollution", "LandingZone_FilterPollution".Translate());
+            AddIfGate(ForageImportance, "forage", "LandingZone_FilterForageability".Translate());
+            AddIfGate(ForageableFoodImportance, "forageable_food", "LandingZone_FilterForageableFood".Translate());
+            AddIfGate(ElevationImportance, "elevation", "LandingZone_FilterElevation".Translate());
+            AddIfGate(SwampinessImportance, "swampiness", "LandingZone_FilterSwampiness".Translate());
+            AddIfGate(GrazeImportance, "graze", "LandingZone_FilterGrazeability".Translate());
+            AddIfGate(AnimalDensityImportance, "animal_density", "LandingZone_FilterAnimalDensity".Translate());
+            AddIfGate(FishPopulationImportance, "fish_population", "LandingZone_FilterFishPopulation".Translate());
+            AddIfGate(PlantDensityImportance, "plant_density", "LandingZone_FilterPlantDensity".Translate());
+            AddIfGate(MovementDifficultyImportance, "movement", "LandingZone_FilterMovementDifficulty".Translate());
+            AddIfGate(CoastalImportance, "coastal", "LandingZone_FilterCoastal".Translate());
+            AddIfGate(CoastalLakeImportance, "coastal_lake", "LandingZone_FilterCoastalLake".Translate());
+            AddIfGate(WaterAccessImportance, "water_access", "LandingZone_FilterWaterAccess".Translate());
+            AddIfGate(FeatureImportance, "feature", "LandingZone_FilterFeature".Translate());
+            AddIfGate(LandmarkImportance, "landmark", "LandingZone_FilterLandmark".Translate());
+
+            // Container filters - extract individual MustHave/MustNotHave items
+            foreach (var item in Rivers.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"river:{item}", item, isMustNotHave: false));
+            foreach (var item in Rivers.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"river:{item}", item, isMustNotHave: true));
+
+            foreach (var item in Roads.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"road:{item}", item, isMustNotHave: false));
+            foreach (var item in Roads.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"road:{item}", item, isMustNotHave: true));
+
+            foreach (var item in Stones.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"stone:{item}", item, isMustNotHave: false));
+            foreach (var item in Stones.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"stone:{item}", item, isMustNotHave: true));
+
+            foreach (var item in MapFeatures.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"feature:{item}", item, isMustNotHave: false));
+            foreach (var item in MapFeatures.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"feature:{item}", item, isMustNotHave: true));
+
+            foreach (var item in PlantGrove.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"grove:{item}", item, isMustNotHave: false));
+            foreach (var item in PlantGrove.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"grove:{item}", item, isMustNotHave: true));
+
+            foreach (var item in AnimalHabitat.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"habitat:{item}", item, isMustNotHave: false));
+            foreach (var item in AnimalHabitat.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"habitat:{item}", item, isMustNotHave: true));
+
+            foreach (var item in MineralOres.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"ore:{item}", item, isMustNotHave: false));
+            foreach (var item in MineralOres.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"ore:{item}", item, isMustNotHave: true));
+
+            foreach (var item in Stockpiles.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"stockpile:{item}", item, isMustNotHave: false));
+            foreach (var item in Stockpiles.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"stockpile:{item}", item, isMustNotHave: true));
+
+            foreach (var item in AdjacentBiomes.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"adjacent:{item}", item, isMustNotHave: false));
+            foreach (var item in AdjacentBiomes.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"adjacent:{item}", item, isMustNotHave: true));
+
+            foreach (var item in Biomes.GetMustHaveItems())
+                requirements.Add(new OriginalRequirement($"biome:{item}", item, isMustNotHave: false));
+            foreach (var item in Biomes.GetMustNotHaveItems())
+                requirements.Add(new OriginalRequirement($"biome:{item}", item, isMustNotHave: true));
+
+            return requirements;
+        }
+
+        /// <summary>
+        /// Creates a deep copy of these filter settings.
+        /// Used by relaxed search to avoid mutating user's original filters.
+        /// </summary>
+        public FilterSettings Clone()
+        {
+            var clone = new FilterSettings();
+            clone.CopyFrom(this);
+            return clone;
+        }
+
+        /// <summary>
         /// Copies all filter settings from another FilterSettings instance.
-        /// Uses reflection to copy all public properties.
+        /// Performs deep copy of containers and collections.
         /// </summary>
         public void CopyFrom(FilterSettings source)
         {
             if (source == null) return;
 
-            var properties = typeof(FilterSettings).GetProperties(
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            // Climate & Environment
+            AverageTemperatureRange = source.AverageTemperatureRange;
+            MinimumTemperatureRange = source.MinimumTemperatureRange;
+            MaximumTemperatureRange = source.MaximumTemperatureRange;
+            AverageTemperatureImportance = source.AverageTemperatureImportance;
+            MinimumTemperatureImportance = source.MinimumTemperatureImportance;
+            MaximumTemperatureImportance = source.MaximumTemperatureImportance;
 
-            foreach (var prop in properties)
-            {
-                if (prop.CanWrite && prop.CanRead)
-                {
-                    var value = prop.GetValue(source);
+            RainfallRange = source.RainfallRange;
+            RainfallImportance = source.RainfallImportance;
 
-                    // Deep copy for IndividualImportanceContainer properties
-                    if (value != null && prop.PropertyType.IsGenericType &&
-                        prop.PropertyType.GetGenericTypeDefinition() == typeof(IndividualImportanceContainer<>))
-                    {
-                        var cloneMethod = prop.PropertyType.GetMethod("Clone");
-                        if (cloneMethod != null)
-                        {
-                            value = cloneMethod.Invoke(value, null);
-                        }
-                    }
+            GrowingDaysRange = source.GrowingDaysRange;
+            GrowingDaysImportance = source.GrowingDaysImportance;
 
-                    prop.SetValue(this, value);
-                }
-            }
+            PollutionRange = source.PollutionRange;
+            PollutionImportance = source.PollutionImportance;
+
+            ForageabilityRange = source.ForageabilityRange;
+            ForageImportance = source.ForageImportance;
+
+            ForageableFoodDefName = source.ForageableFoodDefName;
+            ForageableFoodImportance = source.ForageableFoodImportance;
+
+            ElevationRange = source.ElevationRange;
+            ElevationImportance = source.ElevationImportance;
+
+            SwampinessRange = source.SwampinessRange;
+            SwampinessImportance = source.SwampinessImportance;
+
+            GrazeImportance = source.GrazeImportance;
+
+            AnimalDensityRange = source.AnimalDensityRange;
+            AnimalDensityImportance = source.AnimalDensityImportance;
+
+            FishPopulationRange = source.FishPopulationRange;
+            FishPopulationImportance = source.FishPopulationImportance;
+
+            PlantDensityRange = source.PlantDensityRange;
+            PlantDensityImportance = source.PlantDensityImportance;
+
+            // Terrain & Geography
+            MovementDifficultyRange = source.MovementDifficultyRange;
+            MovementDifficultyImportance = source.MovementDifficultyImportance;
+
+            CoastalImportance = source.CoastalImportance;
+            CoastalLakeImportance = source.CoastalLakeImportance;
+            WaterAccessImportance = source.WaterAccessImportance;
+
+            // Deep copy containers
+            Rivers = source.Rivers.Clone();
+            Roads = source.Roads.Clone();
+            Stones = source.Stones.Clone();
+            Stockpiles = source.Stockpiles.Clone();
+            PlantGrove = source.PlantGrove.Clone();
+            AnimalHabitat = source.AnimalHabitat.Clone();
+            MineralOres = source.MineralOres.Clone();
+            Biomes = source.Biomes.Clone();
+            MapFeatures = source.MapFeatures.Clone();
+            AdjacentBiomes = source.AdjacentBiomes.Clone();
+
+            StoneCountRange = source.StoneCountRange;
+            UseStoneCount = source.UseStoneCount;
+
+            // Deep copy hilliness set
+            AllowedHilliness.Clear();
+            foreach (var h in source.AllowedHilliness)
+                AllowedHilliness.Add(h);
+
+            // World & Features
+            LockedBiome = source.LockedBiome;
+
+            RequiredFeatureDefName = source.RequiredFeatureDefName;
+            FeatureImportance = source.FeatureImportance;
+
+            LandmarkImportance = source.LandmarkImportance;
+
+            // Results Control
+            MaxResults = source.MaxResults;
+
+            // Advanced Matching
+            CriticalStrictness = source.CriticalStrictness;
         }
 
         /// <summary>
@@ -463,6 +706,18 @@ namespace LandingZone.Data
             var stockpiles = Stockpiles;
             Scribe_Deep.Look(ref stockpiles, "stockpiles");
 
+            // Plant Grove (1 property - IndividualImportanceContainer)
+            var plantGrove = PlantGrove;
+            Scribe_Deep.Look(ref plantGrove, "plantGrove");
+
+            // Animal Habitat (1 property - IndividualImportanceContainer)
+            var animalHabitat = AnimalHabitat;
+            Scribe_Deep.Look(ref animalHabitat, "animalHabitat");
+
+            // Mineral Ores (1 property - IndividualImportanceContainer)
+            var mineralOres = MineralOres;
+            Scribe_Deep.Look(ref mineralOres, "mineralOres");
+
             // Stone count (2 properties)
             var stoneCountRange = StoneCountRange;
             var useStoneCount = UseStoneCount;
@@ -479,9 +734,13 @@ namespace LandingZone.Data
 
             Scribe_Collections.Look(ref hillinessListForSave, "allowedHilliness", LookMode.Value);
 
-            // === WORLD & FEATURES FILTERS (8 properties) ===
+            // === WORLD & FEATURES FILTERS (9 properties) ===
 
-            // Locked biome (1 property - Def reference)
+            // Biomes (1 property - IndividualImportanceContainer)
+            var biomes = Biomes;
+            Scribe_Deep.Look(ref biomes, "biomes");
+
+            // Locked biome (1 property - Def reference) - legacy, deprecated
             var lockedBiome = LockedBiome;
             Scribe_Defs.Look(ref lockedBiome, "lockedBiome");
 
@@ -572,6 +831,9 @@ namespace LandingZone.Data
                 Roads = roads ?? new IndividualImportanceContainer<string>();
                 Stones = stones ?? new IndividualImportanceContainer<string>();
                 Stockpiles = stockpiles ?? new IndividualImportanceContainer<string>();
+                PlantGrove = plantGrove ?? new IndividualImportanceContainer<string>();
+                AnimalHabitat = animalHabitat ?? new IndividualImportanceContainer<string>();
+                MineralOres = mineralOres ?? new IndividualImportanceContainer<string>();
 
                 StoneCountRange = stoneCountRange;
                 UseStoneCount = useStoneCount;
@@ -591,8 +853,9 @@ namespace LandingZone.Data
                     AllowedHilliness.Add(Hilliness.Mountainous);
                 }
 
-                // World & Features (8 properties)
-                LockedBiome = lockedBiome;  // Can be null
+                // World & Features (9 properties)
+                Biomes = biomes ?? new IndividualImportanceContainer<string>();
+                LockedBiome = lockedBiome;  // Can be null (legacy)
 
                 MapFeatures = mapFeatures ?? new IndividualImportanceContainer<string>();
                 AdjacentBiomes = adjacentBiomes ?? new IndividualImportanceContainer<string>();

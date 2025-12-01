@@ -18,12 +18,30 @@ namespace LandingZone.Core.UI
     /// </summary>
     public static class DefaultModeUI
     {
-        private const float PresetCardWidth = 160f;  // +33% from 120f
-        private const float PresetCardHeight = 93f;  // +33% from 70f
-        private const float PresetCardSpacing = 8f;
+        private const float PresetCardWidth = 160f;  // Wider to fit badges + title
+        private const float PresetCardHeight = 110f; // Taller for badges row + content
+        private const float PresetCardSpacing = 8f;  // More breathing room
 
         // Quick Tweaks panel state
         private static bool _quickTweaksCollapsed = true;
+
+        // DLC feature sets for badge detection
+        private static readonly HashSet<string> AnomalyFeatures = new()
+        {
+            "LavaCaves", "LavaFlow", "LavaCrater", "InsectMegahive",
+            "AncientInfestedSettlement", "TerraformingScar", "ToxicLake",
+            "AncientSmokeVent", "AncientToxVent", "AncientHeatVent"
+        };
+
+        private static readonly HashSet<string> BiotechFeatures = new()
+        {
+            "ArcheanTrees", "Pollution_Increased"
+        };
+
+        private static readonly HashSet<string> AnomalyBiomes = new()
+        {
+            "Glowforest", "Scarlands", "LavaField"
+        };
 
         /// <summary>
         /// Renders the Default mode UI (preset cards + key filters).
@@ -65,9 +83,9 @@ namespace LandingZone.Core.UI
             var curatedPresets = PresetLibrary.GetCurated();
             var userPresets = PresetLibrary.GetUserPresets();
 
-            const int columns = 4;
+            const int columns = 5;
 
-            // Draw curated presets in 4-column grid
+            // Draw curated presets in 5-column grid (15 presets = 3 rows)
             int curatedRows = (curatedPresets.Count + columns - 1) / columns; // Ceiling division
             for (int row = 0; row < curatedRows; row++)
             {
@@ -84,7 +102,7 @@ namespace LandingZone.Core.UI
                 }
             }
 
-            // Draw user presets section (up to 4 slots)
+            // Draw user presets section (5-column grid, same as curated)
             listing.Gap(16f);
             listing.GapLine(); // Visual separator between curated and user presets
             listing.Gap(10f);
@@ -92,14 +110,29 @@ namespace LandingZone.Core.UI
             listing.Label("LandingZone_MyPresets".Translate());
             Text.Font = GameFont.Small;
 
-            Rect userRowRect = listing.GetRect(PresetCardHeight + PresetCardSpacing);
-            int userCount = Math.Min(userPresets.Count, 4); // Cap at 4 user presets
-
-            for (int i = 0; i < userCount; i++)
+            // Draw user presets in 5-column grid (same layout as curated presets)
+            if (userPresets.Count > 0)
             {
-                float cardX = userRowRect.x + i * (PresetCardWidth + PresetCardSpacing);
-                Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
-                DrawPresetCard(cardRect, userPresets[i], filters, preferences);
+                int userRows = (userPresets.Count + columns - 1) / columns; // Ceiling division
+                for (int row = 0; row < userRows; row++)
+                {
+                    Rect userRowRect = listing.GetRect(PresetCardHeight + PresetCardSpacing);
+
+                    for (int col = 0; col < columns; col++)
+                    {
+                        int index = row * columns + col;
+                        if (index >= userPresets.Count) break;
+
+                        float cardX = userRowRect.x + col * (PresetCardWidth + PresetCardSpacing);
+                        Rect cardRect = new Rect(cardX, userRowRect.y, PresetCardWidth, PresetCardHeight);
+                        DrawPresetCard(cardRect, userPresets[index], filters, preferences);
+                    }
+                }
+            }
+            else
+            {
+                // Empty state: show placeholder for no user presets
+                listing.GetRect(PresetCardHeight + PresetCardSpacing); // Reserve space for consistency
             }
 
             // Community Presets section
@@ -194,7 +227,8 @@ namespace LandingZone.Core.UI
             {
                 listing.Gap(8f);
 
-                // Result Count slider
+                // Result Count slider (only quick tweak in Preset Hub)
+                // Temperature and Biome moved to Advanced mode for full control
                 listing.Label("LandingZone_ResultLimit".Translate(filters.MaxResults));
                 Rect resultSliderRect = listing.GetRect(30f);
                 int resultCount = (int)Widgets.HorizontalSlider(
@@ -208,69 +242,6 @@ namespace LandingZone.Core.UI
                     $"{FilterSettings.MaxResultsLimit}"
                 );
                 filters.MaxResults = resultCount;
-                listing.Gap(8f);
-
-                // Temperature range slider (simplified - show center point with ±5°C implied width)
-                var tempMode = Prefs.TemperatureMode;
-                string tempUnit = tempMode == TemperatureDisplayMode.Fahrenheit ? "°F"
-                                : tempMode == TemperatureDisplayMode.Kelvin ? "K"
-                                : "°C";
-
-                float tempCenter = (filters.AverageTemperatureRange.min + filters.AverageTemperatureRange.max) / 2f;
-                float displayCenter = GenTemperature.CelsiusTo(tempCenter, tempMode);
-
-                // Slider range in display unit
-                float sliderMin = GenTemperature.CelsiusTo(-60f, tempMode);
-                float sliderMax = GenTemperature.CelsiusTo(60f, tempMode);
-
-                listing.Label("LandingZone_TemperatureCenter".Translate(displayCenter.ToString("F0"), tempUnit));
-                Rect tempSliderRect = listing.GetRect(30f);
-                float newDisplayCenter = Widgets.HorizontalSlider(
-                    tempSliderRect,
-                    displayCenter,
-                    sliderMin,
-                    sliderMax,
-                    true,
-                    $"{displayCenter:F0}{tempUnit}",
-                    $"{sliderMin:F0}{tempUnit}",
-                    $"{sliderMax:F0}{tempUnit}"
-                );
-
-                // Convert back to Celsius and update range (maintain ~10°C width)
-                float newTempCenter = ConvertToCelsius(newDisplayCenter, tempMode);
-                float halfWidth = 5f; // ±5°C = 10°C total range
-                filters.AverageTemperatureRange = new FloatRange(newTempCenter - halfWidth, newTempCenter + halfWidth);
-
-                listing.Gap(8f);
-
-                // Biome lock dropdown
-                listing.Label("LandingZone_BiomeLock".Translate(filters.LockedBiome?.LabelCap ?? "LandingZone_Any".Translate()));
-                if (listing.ButtonText(filters.LockedBiome?.LabelCap ?? "LandingZone_AnyBiome".Translate()))
-                {
-                    var biomeOptions = new System.Collections.Generic.List<FloatMenuOption>();
-
-                    // "Any" option (clear lock)
-                    biomeOptions.Add(new FloatMenuOption("LandingZone_AnyBiome".Translate(), () => {
-                        filters.LockedBiome = null;
-                    }));
-
-                    // All available biomes
-                    var orderedBiomes = DefDatabase<BiomeDef>.AllDefsListForReading
-                        .OrderBy(b =>
-                        {
-                            var resolved = b.LabelCap.Resolve();
-                            return string.IsNullOrEmpty(resolved) ? b.defName : resolved;
-                        })
-                        .ThenBy(b => b.defName);
-                    foreach (var biome in orderedBiomes)
-                    {
-                        biomeOptions.Add(new FloatMenuOption(biome.LabelCap, () => {
-                            filters.LockedBiome = biome;
-                        }));
-                    }
-
-                    Find.WindowStack.Add(new FloatMenu(biomeOptions));
-                }
             }
         }
 
@@ -310,41 +281,50 @@ namespace LandingZone.Core.UI
                 Widgets.DrawBox(rect);
             }
 
-            // Card content
+            // Card content with proper layout
             Rect contentRect = rect.ContractedBy(6f);
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // Modification badge (top-left corner) - shows when active preset is tweaked
-            if (isModified)
+            // === ROW 1: Badge row (DLC badges left, rarity badge right) ===
+            float badgeRowY = rect.y + 4f;
+            float badgeRowHeight = 16f;
+
+            // DLC badges (top-left)
+            var dlcBadges = GetPresetDLCBadges(preset);
+            if (dlcBadges.Count > 0)
             {
-                Rect modBadgeRect = new Rect(rect.x + 4f, rect.y + 4f, 16f, 16f);
-                Color yellowWarning = new Color(1f, 0.9f, 0.3f);
-                GUI.color = yellowWarning;
-                // Draw triangle pointing right (▶ shape to indicate "modified from")
-                Widgets.DrawBoxSolid(modBadgeRect, yellowWarning * 0.3f);
+                float badgeX = rect.x + 4f;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(modBadgeRect, "✎"); // Pencil icon to indicate edit
-                GUI.color = Color.white;
+
+                foreach (var badge in dlcBadges)
+                {
+                    float badgeWidth = Text.CalcSize(badge).x + 4f;
+                    Rect dlcBadgeRect = new Rect(badgeX, badgeRowY, badgeWidth, 14f);
+
+                    // Color based on DLC type
+                    Color badgeColor = badge.Contains("Anomaly") ? new Color(0.7f, 0.3f, 0.5f)
+                                     : badge.Contains("Biotech") ? new Color(0.3f, 0.6f, 0.4f)
+                                     : new Color(0.4f, 0.5f, 0.7f);
+
+                    Widgets.DrawBoxSolid(dlcBadgeRect, badgeColor * 0.6f);
+                    GUI.color = Color.white;
+                    Widgets.Label(dlcBadgeRect, badge);
+                    badgeX += badgeWidth + 2f;
+                }
                 Text.Font = GameFont.Small;
                 Text.Anchor = TextAnchor.UpperLeft;
-
-                // Tooltip for modification badge
-                if (Mouse.IsOver(modBadgeRect))
-                {
-                    TooltipHandler.TipRegion(modBadgeRect, "LandingZone_ModifiedFromPreset".Translate(preset.Name));
-                }
             }
 
-            // Rarity badge (top-right corner)
+            // Rarity badge (top-right, same row as DLC badges)
             if (preset.TargetRarity.HasValue)
             {
                 var rarity = preset.TargetRarity.Value;
                 var badgeColor = rarity.ToColor();
-                var badgeLabel = rarity.ToBadgeLabel();  // Use compact label to prevent wrapping
+                var badgeLabel = rarity.ToBadgeLabel();
 
-                Rect badgeRect = new Rect(rect.xMax - 42f, rect.y + 4f, 38f, 16f);
+                Rect badgeRect = new Rect(rect.xMax - 42f, badgeRowY, 38f, 14f);
                 Widgets.DrawBoxSolid(badgeRect, badgeColor * 0.7f);
                 Widgets.DrawBox(badgeRect);
 
@@ -357,13 +337,38 @@ namespace LandingZone.Core.UI
                 Text.Anchor = TextAnchor.UpperLeft;
             }
 
-            // Title
-            Rect titleRect = new Rect(contentRect.x, contentRect.y, contentRect.width - 40f, 20f);
+            // === ROW 2: Title (below badges) ===
+            float titleY = badgeRowY + badgeRowHeight + 2f;
+            Rect titleRect = new Rect(contentRect.x, titleY, contentRect.width, 20f);
             Widgets.Label(titleRect, preset.Name);
 
-            // Description (truncated to fit)
+            // Modification indicator (small icon next to title if modified)
+            if (isModified)
+            {
+                Text.Font = GameFont.Tiny;
+                float titleWidth = Text.CalcSize(preset.Name).x;
+                Text.Font = GameFont.Small;
+                Rect modBadgeRect = new Rect(contentRect.x + titleWidth + 4f, titleY + 2f, 14f, 14f);
+                Color yellowWarning = new Color(1f, 0.9f, 0.3f);
+                GUI.color = yellowWarning;
+                Widgets.DrawBoxSolid(modBadgeRect, yellowWarning * 0.3f);
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(modBadgeRect, "✎");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.UpperLeft;
+
+                if (Mouse.IsOver(modBadgeRect))
+                {
+                    TooltipHandler.TipRegion(modBadgeRect, "LandingZone_ModifiedFromPreset".Translate(preset.Name));
+                }
+            }
+
+            // === ROW 3: Description (below title) ===
+            float descY = titleY + 20f;
             Text.Font = GameFont.Tiny;
-            Rect descRect = new Rect(contentRect.x, contentRect.y + 22f, contentRect.width, 30f);
+            Rect descRect = new Rect(contentRect.x, descY, contentRect.width, 36f);
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             Widgets.Label(descRect, preset.Description);
             GUI.color = Color.white;
@@ -474,25 +479,53 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Converts temperature from display mode back to Celsius for storage.
+        /// Gets DLC badges for a preset based on its filter configurations.
+        /// Badges indicate when a preset benefits from specific DLC content.
         /// </summary>
-        private static float ConvertToCelsius(float displayValue, TemperatureDisplayMode mode)
+        private static List<string> GetPresetDLCBadges(Preset preset)
         {
-            if (mode == TemperatureDisplayMode.Fahrenheit)
+            var badges = new List<string>();
+
+            // Check map features for DLC-specific content
+            var mapFeatures = preset.Filters.MapFeatures.ItemImportance.Keys;
+
+            // Anomaly features - volcanic horror, lava, toxicity
+            if (mapFeatures.Any(f => AnomalyFeatures.Contains(f)))
             {
-                // F to C: (F - 32) / 1.8
-                return (displayValue - 32f) / 1.8f;
+                badges.Add("Anomaly");
             }
-            else if (mode == TemperatureDisplayMode.Kelvin)
+
+            // Biotech features - archean trees, pollution
+            if (mapFeatures.Any(f => BiotechFeatures.Contains(f)))
             {
-                // K to C: K - 273.15
-                return displayValue - 273.15f;
+                badges.Add("Biotech");
             }
-            else
+
+            // Check locked biome for DLC biomes
+            if (preset.Filters.LockedBiome != null)
             {
-                // Already Celsius
-                return displayValue;
+                var biomeName = preset.Filters.LockedBiome.defName;
+                if (AnomalyBiomes.Contains(biomeName) && !badges.Contains("Anomaly"))
+                {
+                    badges.Add("Anomaly");
+                }
             }
+
+            // Check mutator quality overrides - if preset boosts DLC-specific mutators
+            if (preset.MutatorQualityOverrides != null)
+            {
+                var overrideKeys = preset.MutatorQualityOverrides.Keys;
+                if (overrideKeys.Any(k => AnomalyFeatures.Contains(k)) && !badges.Contains("Anomaly"))
+                {
+                    badges.Add("Anomaly");
+                }
+                if (overrideKeys.Any(k => BiotechFeatures.Contains(k)) && !badges.Contains("Biotech"))
+                {
+                    badges.Add("Biotech");
+                }
+            }
+
+            return badges;
         }
     }
 }

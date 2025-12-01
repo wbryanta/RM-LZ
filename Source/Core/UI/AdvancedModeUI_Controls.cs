@@ -40,7 +40,8 @@ namespace LandingZone.Core.UI
             float min,
             float max,
             string unit = "",
-            string? filterId = null)
+            string? filterId = null,
+            string? tooltip = null)
         {
             return new FilterControl(
                 label,
@@ -49,13 +50,20 @@ namespace LandingZone.Core.UI
                     var range = rangeGetter(filters);
                     var importance = importanceGetter(filters);
 
-                    listing.Label($"{label}: {range.min:F1}{unit} to {range.max:F1}{unit}");
+                    // Label with tooltip
+                    var labelRect = listing.GetRect(22f);
+                    Widgets.Label(labelRect, $"{label}: {range.min:F1}{unit} to {range.max:F1}{unit}");
+                    if (!string.IsNullOrEmpty(tooltip))
+                    {
+                        TooltipHandler.TipRegion(labelRect, tooltip);
+                    }
+
                     var rangeRect = listing.GetRect(30f);
                     Widgets.FloatRange(rangeRect, rangeRect.GetHashCode(), ref range, min, max);
                     rangeSetter(filters, range);
 
                     var importanceVal = importance;
-                    UIHelpers.DrawImportanceSelector(listing.GetRect(30f), $"{label} Importance", ref importanceVal);
+                    UIHelpers.DrawImportanceSelector(listing.GetRect(30f), $"{label} Importance", ref importanceVal, tooltip);
                     importanceSetter(filters, importanceVal);
 
                     // Live selectivity feedback (Tier 3)
@@ -76,14 +84,15 @@ namespace LandingZone.Core.UI
             string label,
             Func<FilterSettings, FilterImportance> importanceGetter,
             Action<FilterSettings, FilterImportance> importanceSetter,
-            string? filterId = null)
+            string? filterId = null,
+            string? tooltip = null)
         {
             return new FilterControl(
                 label,
                 (listing, filters) =>
                 {
                     var importance = importanceGetter(filters);
-                    UIHelpers.DrawImportanceSelector(listing.GetRect(30f), label, ref importance);
+                    UIHelpers.DrawImportanceSelector(listing.GetRect(30f), label, ref importance, tooltip);
                     importanceSetter(filters, importance);
 
                     // Live selectivity feedback (Tier 3)
@@ -128,7 +137,8 @@ namespace LandingZone.Core.UI
                     f => f.AverageTemperatureImportance,
                     (f, v) => f.AverageTemperatureImportance = v,
                     -60f, 60f, "°C",
-                    "average_temperature"
+                    "average_temperature",
+                    "LandingZone_Tooltip_TemperatureAverage".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_TemperatureMinimum".Translate(),
@@ -137,7 +147,8 @@ namespace LandingZone.Core.UI
                     f => f.MinimumTemperatureImportance,
                     (f, v) => f.MinimumTemperatureImportance = v,
                     -60f, 40f, "°C",
-                    "minimum_temperature"
+                    "minimum_temperature",
+                    "LandingZone_Tooltip_TemperatureMinimum".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_TemperatureMaximum".Translate(),
@@ -146,7 +157,8 @@ namespace LandingZone.Core.UI
                     f => f.MaximumTemperatureImportance,
                     (f, v) => f.MaximumTemperatureImportance = v,
                     0f, 60f, "°C",
-                    "maximum_temperature"
+                    "maximum_temperature",
+                    "LandingZone_Tooltip_TemperatureMaximum".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_Rainfall".Translate(),
@@ -155,7 +167,8 @@ namespace LandingZone.Core.UI
                     f => f.RainfallImportance,
                     (f, v) => f.RainfallImportance = v,
                     0f, 5300f, " mm/year",
-                    "rainfall"
+                    "rainfall",
+                    "LandingZone_Tooltip_Rainfall".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_GrowingDays".Translate(),
@@ -164,7 +177,8 @@ namespace LandingZone.Core.UI
                     f => f.GrowingDaysImportance,
                     (f, v) => f.GrowingDaysImportance = v,
                     0f, 60f, " days/year",
-                    "growing_days"
+                    "growing_days",
+                    "LandingZone_Tooltip_GrowingDays".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_Pollution".Translate(),
@@ -172,8 +186,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.PollutionRange = v,
                     f => f.PollutionImportance,
                     (f, v) => f.PollutionImportance = v,
-                    0f, 1f
-                    // No filter ID - pollution may not have dedicated predicate
+                    0f, 1f,
+                    "", // unit
+                    null, // No filter ID
+                    "LandingZone_Tooltip_Pollution".Translate()
                 ),
                 new FilterControl(
                     "LandingZone_Filter_WeatherPatterns".Translate(),
@@ -187,12 +203,11 @@ namespace LandingZone.Core.UI
                             var importance = filters.MapFeatures.GetImportance(mutator);
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            // Check DLC requirement
-                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
-                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
+                            // Check DLC and runtime availability (with tooltip for source info)
+                            GetMutatorAvailability(mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip);
+                            string displayLabel = friendlyLabel + labelSuffix;
 
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, tooltip, isEnabled, warningText);
 
                             if (isEnabled)
                             {
@@ -230,12 +245,16 @@ namespace LandingZone.Core.UI
                     "Hilliness",
                     (listing, filters) =>
                     {
-                        // Show status: filtering vs allowing all
+                        // Show status: filtering vs allowing all - with info icon
                         bool isFiltering = filters.AllowedHilliness.Count < 4;
                         string statusText = isFiltering
                             ? "LandingZone_Filter_HillinessFiltering".Translate(filters.AllowedHilliness.Count)
                             : "LandingZone_Filter_HillinessAllAllowed".Translate();
-                        listing.Label(statusText);
+
+                        var labelRect = listing.GetRect(22f);
+                        var infoIconRect = new Rect(labelRect.xMax - 20f, labelRect.y + 2f, 18f, 18f);
+                        Widgets.Label(new Rect(labelRect.x, labelRect.y, labelRect.width - 24f, labelRect.height), statusText);
+                        UIHelpers.DrawTooltipIcon(infoIconRect, "LandingZone_TooltipDetail_Hilliness".Translate());
 
                         var rect = listing.GetRect(30f);
                         DrawHillinessToggles(rect, filters);
@@ -246,13 +265,15 @@ namespace LandingZone.Core.UI
                     "LandingZone_Filter_CoastalOcean".Translate(),
                     f => f.CoastalImportance,
                     (f, v) => f.CoastalImportance = v,
-                    "coastal"
+                    "coastal",
+                    "LandingZone_TooltipDetail_Coastal".Translate()
                 ),
                 ImportanceOnlyControl(
                     "LandingZone_Filter_CoastalLake".Translate(),
                     f => f.CoastalLakeImportance,
                     (f, v) => f.CoastalLakeImportance = v,
-                    "coastal_lake"
+                    "coastal_lake",
+                    "LandingZone_TooltipDetail_CoastalLake".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_Elevation".Translate(),
@@ -260,7 +281,9 @@ namespace LandingZone.Core.UI
                     (f, v) => f.ElevationRange = v,
                     f => f.ElevationImportance,
                     (f, v) => f.ElevationImportance = v,
-                    0f, 3100f, " m"
+                    0f, 3100f, " m",
+                    null, // No filter ID
+                    "LandingZone_Tooltip_Elevation".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_MovementDifficulty".Translate(),
@@ -268,7 +291,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.MovementDifficultyRange = v,
                     f => f.MovementDifficultyImportance,
                     (f, v) => f.MovementDifficultyImportance = v,
-                    0f, 2f
+                    0f, 2f,
+                    "×", // unit (multiplier)
+                    null, // No filter ID
+                    "LandingZone_Tooltip_MovementDifficulty".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_Swampiness".Translate(),
@@ -276,7 +302,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.SwampinessRange = v,
                     f => f.SwampinessImportance,
                     (f, v) => f.SwampinessImportance = v,
-                    0f, 1.2f
+                    0f, 1.2f,
+                    "", // unit
+                    null, // No filter ID
+                    "LandingZone_Tooltip_Swampiness".Translate()
                 ),
                 new FilterControl(
                     "Geographic Features",
@@ -290,12 +319,11 @@ namespace LandingZone.Core.UI
                             var importance = filters.MapFeatures.GetImportance(mutator);
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            // Check DLC requirement
-                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
-                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
+                            // Check DLC and runtime availability (with tooltip for source info)
+                            GetMutatorAvailability(mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip);
+                            string displayLabel = friendlyLabel + labelSuffix;
 
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, tooltip, isEnabled, warningText);
 
                             if (isEnabled)
                             {
@@ -315,7 +343,11 @@ namespace LandingZone.Core.UI
                     "Rivers",
                     (listing, filters) =>
                     {
-                        listing.Label("LandingZone_Filter_Rivers".Translate());
+                        // Label with info icon for detailed tooltip
+                        var labelRect = listing.GetRect(22f);
+                        var infoIconRect = new Rect(labelRect.xMax - 20f, labelRect.y + 2f, 18f, 18f);
+                        Widgets.Label(new Rect(labelRect.x, labelRect.y, labelRect.width - 24f, labelRect.height), "LandingZone_Filter_Rivers".Translate());
+                        UIHelpers.DrawTooltipIcon(infoIconRect, "LandingZone_TooltipDetail_Rivers".Translate());
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.Rivers.HasCritical)
@@ -365,14 +397,15 @@ namespace LandingZone.Core.UI
                     f => f.ForageImportance,
                     (f, v) => f.ForageImportance = v,
                     0f, 1f,
-                    "",
-                    "forageable_food"
+                    "forageable_food",
+                    "LandingZone_Tooltip_Forageability".Translate()
                 ),
                 ImportanceOnlyControl(
                     "LandingZone_Filter_Grazeable".Translate(),
                     f => f.GrazeImportance,
                     (f, v) => f.GrazeImportance = v,
-                    "graze"
+                    "graze",
+                    "LandingZone_Tooltip_Grazeable".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_AnimalDensity".Translate(),
@@ -380,7 +413,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.AnimalDensityRange = v,
                     f => f.AnimalDensityImportance,
                     (f, v) => f.AnimalDensityImportance = v,
-                    0f, 6.5f
+                    0f, 6.5f,
+                    "", // unit
+                    null, // No filter ID
+                    "LandingZone_Tooltip_AnimalDensity".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_FishPopulation".Translate(),
@@ -388,7 +424,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.FishPopulationRange = v,
                     f => f.FishPopulationImportance,
                     (f, v) => f.FishPopulationImportance = v,
-                    0f, 900f
+                    0f, 900f,
+                    "", // unit
+                    null, // No filter ID
+                    "LandingZone_Tooltip_FishPopulation".Translate()
                 ),
                 FloatRangeControl(
                     "LandingZone_Filter_PlantDensity".Translate(),
@@ -396,7 +435,10 @@ namespace LandingZone.Core.UI
                     (f, v) => f.PlantDensityRange = v,
                     f => f.PlantDensityImportance,
                     (f, v) => f.PlantDensityImportance = v,
-                    0f, 1.3f
+                    0f, 1.3f,
+                    "", // unit
+                    null, // No filter ID
+                    "LandingZone_Tooltip_PlantDensity".Translate()
                 ),
                 new FilterControl(
                     "LandingZone_Filter_ResourceModifiers_Title".Translate(),
@@ -416,12 +458,11 @@ namespace LandingZone.Core.UI
                             var importance = filters.MapFeatures.GetImportance(mutator);
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            // Check DLC requirement
-                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
-                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
+                            // Check DLC and runtime availability (with tooltip for source info)
+                            GetMutatorAvailability(mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip);
+                            string displayLabel = friendlyLabel + labelSuffix;
 
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, tooltip, isEnabled, warningText);
 
                             if (isEnabled)
                             {
@@ -449,12 +490,11 @@ namespace LandingZone.Core.UI
                             var importance = filters.MapFeatures.GetImportance(mutator);
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            // Check DLC requirement
-                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
-                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
+                            // Check DLC and runtime availability (with tooltip for source info)
+                            GetMutatorAvailability(mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip);
+                            string displayLabel = friendlyLabel + labelSuffix;
 
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, tooltip, isEnabled, warningText);
 
                             if (isEnabled)
                             {
@@ -550,7 +590,9 @@ namespace LandingZone.Core.UI
                         foreach (var stoneType in moddedList)
                         {
                             var importance = filters.Stones.GetImportance(stoneType);
-                            UIHelpers.DrawImportanceSelector(innerListing.GetRect(itemHeight), stoneType, ref importance);
+                            string displayLabel = $"{stoneType} [MOD]";
+                            string tooltip = GetStoneSourceTooltip(stoneType);
+                            UIHelpers.DrawImportanceSelector(innerListing.GetRect(itemHeight), displayLabel, ref importance, tooltip);
                             filters.Stones.SetImportance(stoneType, importance);
                         }
 
@@ -633,7 +675,11 @@ namespace LandingZone.Core.UI
                     "Roads",
                     (listing, filters) =>
                     {
-                        listing.Label("LandingZone_Filter_Roads".Translate());
+                        // Label with info icon for detailed tooltip
+                        var labelRect = listing.GetRect(22f);
+                        var infoIconRect = new Rect(labelRect.xMax - 20f, labelRect.y + 2f, 18f, 18f);
+                        Widgets.Label(new Rect(labelRect.x, labelRect.y, labelRect.width - 24f, labelRect.height), "LandingZone_Filter_Roads".Translate());
+                        UIHelpers.DrawTooltipIcon(infoIconRect, "LandingZone_TooltipDetail_Roads".Translate());
 
                         // Operator toggle (only show if critical items configured)
                         if (filters.Roads.HasCritical)
@@ -679,12 +725,11 @@ namespace LandingZone.Core.UI
                             var importance = filters.MapFeatures.GetImportance(mutator);
                             var friendlyLabel = MapFeatureFilter.GetMutatorFriendlyLabel(mutator);
 
-                            // Check DLC requirement
-                            string? dlcRequirement = MapFeatureFilter.GetMutatorDLCRequirement(mutator);
-                            bool isEnabled = string.IsNullOrEmpty(dlcRequirement) || DLCDetectionService.IsDLCAvailable(dlcRequirement ?? "");
-                            string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlcRequirement ?? "") : null;
+                            // Check DLC and runtime availability (with tooltip for source info)
+                            GetMutatorAvailability(mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip);
+                            string displayLabel = friendlyLabel + labelSuffix;
 
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), friendlyLabel, ref importance, null, isEnabled, disabledReason);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, tooltip, isEnabled, warningText);
 
                             if (isEnabled)
                             {
@@ -762,7 +807,9 @@ namespace LandingZone.Core.UI
                 ImportanceOnlyControl(
                     "Landmarks",
                     f => f.LandmarkImportance,
-                    (f, v) => f.LandmarkImportance = v
+                    (f, v) => f.LandmarkImportance = v,
+                    null,
+                    "LandingZone_Tooltip_Landmark".Translate()
                 )
             };
 
@@ -1047,21 +1094,121 @@ namespace LandingZone.Core.UI
 
         private static List<BiomeDef> GetAllBiomes()
         {
-            // Get only starting-location-compatible biomes (filter out space, orbit, labyrinth, etc.)
-            // Non-starting biomes: space, orbit, labyrinth, metal hell, lava field
+            // Get only starting-location-compatible biomes
+            // Filter out non-starting biomes (space, orbit, special event biomes)
+            // Note: Most non-starting biomes have impassable=true, but some need explicit exclusion
             var nonStartingBiomes = new HashSet<string>
             {
-                "BiomeSpace", "Space", // Space biomes
+                "BiomeSpace", "Space", // Space biomes (SOS2, etc.)
                 "BiomeOrbit", "Orbit", // Orbital biomes
-                "Labyrinth", // Labyrinth (Anomaly DLC)
-                "MetalHell", "MechanoidBase", // Metal hell / mechanoid bases
-                "LavaField", // Lava field biomes
+                "Labyrinth", // Labyrinth (Anomaly DLC) - special event map
+                "MetalHell", "MechanoidBase", // Mechanoid bases - not player-selectable
             };
 
             return DefDatabase<BiomeDef>.AllDefsListForReading
                 .Where(b => !b.impassable && !nonStartingBiomes.Contains(b.defName))
                 .OrderBy(b => b.label)
                 .ToList();
+        }
+
+        // ============================================================================
+        // MUTATOR AVAILABILITY HELPERS
+        // ============================================================================
+
+        /// <summary>
+        /// Checks if a mutator is available for selection and returns display info.
+        /// Checks both DLC requirements AND runtime existence in the current world.
+        /// Also returns source info for DLC/MOD badges.
+        /// </summary>
+        /// <param name="mutator">The mutator defName to check</param>
+        /// <param name="isEnabled">True if the mutator can be selected</param>
+        /// <param name="warningText">Warning text if mutator has issues (null if fine)</param>
+        /// <param name="labelSuffix">Suffix to add to label (e.g., " [DLC]", " [MOD]", " ⚠")</param>
+        /// <param name="tooltip">Full tooltip text including source info</param>
+        private static void GetMutatorAvailability(string mutator, out bool isEnabled, out string? warningText, out string labelSuffix, out string tooltip)
+        {
+            isEnabled = true;
+            warningText = null;
+            labelSuffix = "";
+            tooltip = "";
+
+            // Get source info for badge
+            var sourceInfo = MapFeatureFilter.GetMutatorSource(mutator);
+
+            // Build base tooltip from source info
+            tooltip = sourceInfo.TooltipText;
+
+            // Add badge suffix for DLC/Mod content
+            if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.DLC)
+            {
+                labelSuffix = $" [{sourceInfo.SourceName}]";
+            }
+            else if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.Mod)
+            {
+                labelSuffix = " [MOD]";
+            }
+
+            // Check DLC requirement - if DLC not installed, disable
+            if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.DLC && !DLCDetectionService.IsDLCAvailable(sourceInfo.SourceName))
+            {
+                isEnabled = false;
+                warningText = "LandingZone_Filter_DLCRequired".Translate(sourceInfo.SourceName);
+                tooltip = warningText;
+                return;
+            }
+
+            // Check if mutator exists in current world (with alias resolution)
+            var resolved = MapFeatureFilter.ResolveToRuntimeMutator(mutator);
+            if (resolved == null)
+            {
+                // Mutator doesn't exist in this world - still allow selection but warn
+                // Keep isEnabled = true so user can still configure (for presets/future worlds)
+                labelSuffix += " ⚠";
+                warningText = "LandingZone_MutatorNotInWorld".Translate(mutator);
+                tooltip = warningText + "\n\n" + sourceInfo.TooltipText;
+            }
+            else if (resolved != mutator)
+            {
+                // Mutator was resolved via alias - show what it resolved to
+                labelSuffix += " →";
+                warningText = "LandingZone_MutatorAliasResolved".Translate(mutator, resolved);
+                tooltip = warningText + "\n\n" + sourceInfo.TooltipText;
+            }
+        }
+
+        /// <summary>
+        /// Overload for backward compatibility - calls new version and discards tooltip.
+        /// </summary>
+        private static void GetMutatorAvailability(string mutator, out bool isEnabled, out string? warningText, out string labelSuffix)
+        {
+            GetMutatorAvailability(mutator, out isEnabled, out warningText, out labelSuffix, out _);
+        }
+
+        /// <summary>
+        /// Gets a tooltip describing where a stone type comes from.
+        /// </summary>
+        private static string GetStoneSourceTooltip(string stoneDefName)
+        {
+            if (VanillaStones.Contains(stoneDefName))
+            {
+                return "LandingZone_StoneSource_Vanilla".Translate();
+            }
+
+            try
+            {
+                var stoneDef = DefDatabase<ThingDef>.GetNamedSilentFail(stoneDefName);
+                if (stoneDef?.modContentPack != null)
+                {
+                    string modName = stoneDef.modContentPack.Name ?? stoneDef.modContentPack.PackageId;
+                    return "LandingZone_StoneSource_Mod".Translate(modName);
+                }
+            }
+            catch
+            {
+                // Silently fail
+            }
+
+            return "LandingZone_StoneSource_Mod".Translate("Unknown");
         }
 
         // ============================================================================

@@ -90,14 +90,21 @@ namespace LandingZone.Data
         }
 
         /// <summary>
-        /// Applies this preset's filters to the target FilterSettings
+        /// Applies this preset's filters to the target FilterSettings.
+        /// Preserves the user's MaxResults setting (presets don't override result limits).
         /// </summary>
         public void ApplyTo(FilterSettings target)
         {
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
 
+            // Preserve user's MaxResults setting - presets shouldn't override result limits
+            int userMaxResults = target.MaxResults;
+
             target.CopyFrom(Filters);
+
+            // Restore user's MaxResults
+            target.MaxResults = userMaxResults;
         }
 
         /// <summary>
@@ -163,22 +170,27 @@ namespace LandingZone.Data
 
             _curated = new List<Preset>
             {
-                // Special presets (4-column row 1)
+                // Row 1: Balanced + Special presets (5 columns)
+                CreateBalancedPreset(),   // NEW: Easy start for new players
                 CreateElysianPreset(),
                 CreateExoticPreset(),
                 CreateSubZeroPreset(),
                 CreateScorchedPreset(),
 
-                // Curated playstyle presets (4-column rows 2-3)
+                // Row 2: Themed presets (5 columns)
+                CreateSavannahPreset(),
+                CreateAquaticPreset(),
                 CreateDesertOasisPreset(),
                 CreateDefensePreset(),
+                CreateAnomalyPreset(),    // NEW: Horror experience
+
+                // Row 3: Playstyle presets (5 columns)
                 CreateAgrarianPreset(),
                 CreatePowerPreset(),
                 CreateBayouPreset(),
-                CreateSavannahPreset(),
-                CreateAquaticPreset(),
-                CreateHomesteadPreset()
-                // 8 curated + 4 specials = 12 total (perfect 3x4 grid)
+                CreateHomesteadPreset(),
+                CreateTradeEmpirePreset() // NEW: Coastal trade focus
+                // 12 original + 3 new = 15 total (5x3 grid)
             };
 
             _initialized = true;
@@ -355,7 +367,89 @@ namespace LandingZone.Data
             return string.Join(" | ", parts);
         }
 
+        // ===== BALANCED PRESET: Easy start for new players =====
+        // DESIGN NOTE: Layered design - great with Core, deeper with DLC/mods
+        // Purpose: Year-round growing, defensible terrain, water access, trade routes
+        private static Preset CreateBalancedPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "balanced",
+                Name = "LandingZone_Preset_balanced_Name".Translate(),
+                Description = "LandingZone_Preset_balanced_Description".Translate(),
+                Category = "Curated",
+                TargetRarity = TileRarity.Common,
+                FilterSummary = "LandingZone_Preset_balanced_FilterSummary".Translate()
+            };
+
+            var filters = preset.Filters;
+
+            // === CORE LAYER (Always Works) ===
+
+            // Growing: Year-round farming guaranteed (Critical)
+            filters.GrowingDaysRange = new FloatRange(55f, 60f);
+            filters.GrowingDaysImportance = FilterImportance.Critical;
+
+            // Terrain: Defensible hilliness - NOT flat (Critical via allowed hilliness)
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
+            filters.AllowedHilliness.Add(Hilliness.LargeHills);
+            filters.AllowedHilliness.Add(Hilliness.Mountainous);
+
+            // Water: Rivers for water access (Critical, OR)
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Critical);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Critical);
+            filters.Rivers.SetImportance("River", FilterImportance.Critical);
+            filters.Rivers.Operator = ImportanceOperator.OR;
+
+            // Defensible terrain feature (Critical, OR)
+            filters.MapFeatures.SetImportance("Mountain", FilterImportance.Critical);
+            filters.MapFeatures.SetImportance("Caves", FilterImportance.Critical);
+            filters.MapFeatures.Operator = ImportanceOperator.OR;
+
+            // Climate: Comfortable temperature (Preferred)
+            filters.AverageTemperatureRange = new FloatRange(10f, 25f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+
+            // Rainfall: Good plant growth (Preferred)
+            filters.RainfallRange = new FloatRange(800f, 1800f);
+            filters.RainfallImportance = FilterImportance.Preferred;
+
+            // Roads: Basic trade access (Preferred, OR)
+            filters.Roads.SetImportance("DirtRoad", FilterImportance.Preferred);
+            filters.Roads.SetImportance("StoneRoad", FilterImportance.Preferred);
+            filters.Roads.SetImportance("AncientAsphaltRoad", FilterImportance.Preferred);
+            filters.Roads.Operator = ImportanceOperator.OR;
+
+            // Coastal: Fishing bonus (Preferred)
+            filters.CoastalImportance = FilterImportance.Preferred;
+            filters.CoastalLakeImportance = FilterImportance.Preferred;
+
+            // === DLC LAYER (Enhanced with DLC) ===
+            // Priority features - high scoring but not required
+
+            // [Core/Anomaly] Geothermal power
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Priority);
+
+            // [Core] Fertile land for better farming
+            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Priority);
+
+            // [Core/Ideology] Exploration opportunities
+            filters.MapFeatures.SetImportance("AncientRuins", FilterImportance.Priority);
+
+            // === MOD LAYER (Bonus with Mods) ===
+            // [Geological Landforms] Terrain variety - Preferred
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Hollow", FilterImportance.Preferred);
+
+            return preset;
+        }
+
         // ===== ELYSIAN PRESET: Perfect everything - highest quality of life =====
+        // DESIGN NOTE: Layered design - great with Core, paradise with DLC/mods
+        // Philosophy: Year-round farming + comfortable temps = anchor. Everything else enriches.
+        // Key Fix: Loosened Critical gates from 5 to 2 (was: temp + rain + grow + pollution + mutators)
         private static Preset CreateElysianPreset()
         {
             var preset = new Preset
@@ -370,42 +464,68 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Perfect comfort zone (Critical)
-            filters.AverageTemperatureRange = new FloatRange(18f, 25f);
-            filters.AverageTemperatureImportance = FilterImportance.Critical;
-            filters.RainfallRange = new FloatRange(1400f, 2200f);
-            filters.RainfallImportance = FilterImportance.Critical;
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Year-round farming - THE defining feature (Critical)
             filters.GrowingDaysRange = new FloatRange(55f, 60f);
             filters.GrowingDaysImportance = FilterImportance.Critical;
+
+            // Comfortable temperature (Critical)
+            filters.AverageTemperatureRange = new FloatRange(18f, 25f);
+            filters.AverageTemperatureImportance = FilterImportance.Critical;
+
+            // === DLC LAYER (Priority - high scoring, not gates) ===
+
+            // Perfect rainfall (downgraded from Critical)
+            filters.RainfallRange = new FloatRange(1400f, 2200f);
+            filters.RainfallImportance = FilterImportance.Priority;
+
+            // Clean air (downgraded from Critical)
             filters.PollutionRange = new FloatRange(0f, 0.1f);
-            filters.PollutionImportance = FilterImportance.Critical;
+            filters.PollutionImportance = FilterImportance.Priority;
 
-            // Biomes: Paradise biomes (Critical, OR)
-            // Note: Would use multi-biome container if available
-            // Target: TemperateForest (30%), TropicalRainforest (11.7%)
-
-            // +10 Mutators (Critical, OR) - Stack as many as possible
-            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("AncientHeatVent", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Critical);
+            // +10 Mutators (Priority, OR) - High value features but not required
+            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Priority);               // Best farming
+            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Priority);           // Mining bonus
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Priority); // Free power
+            filters.MapFeatures.SetImportance("AncientHeatVent", FilterImportance.Priority);       // Heat + power
+            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Priority);            // Unique feature
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // +8 Mutators (Preferred, OR) - Secondary bonuses
+            // [DLC] Loot opportunities (Priority)
+            filters.MapFeatures.SetImportance("AncientWarehouse", FilterImportance.Priority);      // Loot cache
+            filters.MapFeatures.SetImportance("Stockpile", FilterImportance.Priority);             // Supplies
+
+            // === MOD LAYER (Preferred - bonus scoring) ===
+
+            // +8 Mutators (Preferred) - Secondary bonuses
             filters.MapFeatures.SetImportance("PlantLife_Increased", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("Fish_Increased", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
 
-            // +7 Mutators (Preferred, OR) - Tertiary bonuses
+            // +7 Mutators (Preferred)
             filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("Wetland", FilterImportance.Preferred);
 
-            // +5/+6 Mutators (Preferred, OR)
+            // +5/+6 Mutators (Preferred)
             filters.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("Muddy", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("River", FilterImportance.Preferred);
+
+            // [Geological Landforms] Sheltered terrain (Preferred)
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Hollow", FilterImportance.Preferred);
+
+            // [Geological Landforms] Scenic water (Preferred)
+            filters.MapFeatures.SetImportance("Harbor", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Bay", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Cove", FilterImportance.Preferred);
+
+            // [Alpha Biomes] Paradise biomes (Preferred)
+            filters.MapFeatures.SetImportance("AB_IdyllicMeadows", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("AB_GallatrossGraveyard", FilterImportance.Preferred);
 
             // Geography: Water access for trade/fishing (Preferred, OR)
             filters.CoastalImportance = FilterImportance.Preferred;
@@ -426,9 +546,9 @@ namespace LandingZone.Data
             filters.MovementDifficultyImportance = FilterImportance.Preferred;
 
             // Resources: Valuable ores for construction and trading (Preferred, OR)
-            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Preferred);  // Advanced construction
-            filters.Stones.SetImportance("MineableGold", FilterImportance.Preferred);      // Trading wealth
-            filters.Stones.Operator = ImportanceOperator.OR;  // Accept either (tiles only have 1 ore)
+            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Preferred);
+            filters.Stones.SetImportance("MineableGold", FilterImportance.Preferred);
+            filters.Stones.Operator = ImportanceOperator.OR;
 
             // Resource ranges: Abundant everything (Preferred)
             filters.ForageabilityRange = new FloatRange(0.7f, 1.0f);
@@ -440,21 +560,27 @@ namespace LandingZone.Data
             filters.FishPopulationRange = new FloatRange(400f, 900f);
             filters.FishPopulationImportance = FilterImportance.Preferred;
 
+            // Quality Overrides: Boost paradise features
+            preset.MutatorQualityOverrides["AB_IdyllicMeadows"] = 10;    // Paradise biome
+            preset.MutatorQualityOverrides["AB_GallatrossGraveyard"] = 7; // Unique fauna
+            preset.MutatorQualityOverrides["Valley"] = 6;                // Sheltered
+            preset.MutatorQualityOverrides["Basin"] = 5;                 // Sheltered
+            preset.MutatorQualityOverrides["Harbor"] = 6;                // Scenic water
+            preset.MutatorQualityOverrides["Bay"] = 5;                   // Scenic water
+
             return preset;
         }
 
         // ===== EXOTIC PRESET: Ultra-rare feature hunter =====
-        // DESIGN NOTE: This preset uses a "guaranteed anchor + bonus stacking" approach instead of staged fallback.
-        // Critical: ArcheanTrees (0.0034%, ~24 tiles globally) - THE rarest mutator, guarantees exact result count
-        // Preferred: Other rare features - bonus scoring for tiles that stack multiple rares
+        // DESIGN NOTE: Layered rare hunting - works with Core, richer with DLC/mods
         //
-        // This design INTENTIONALLY avoids fallback logic because:
-        // 1. ArcheanTrees alone guarantees non-zero results (exactly 24 tiles)
-        // 2. Preferred rares create natural scoring gradient (1-7 rares stacked)
-        // 3. Top results will be tiles with ArcheanTrees + multiple other rares
-        // 4. No risk of empty results or confusing "which tier matched" logging
-        //
-        // Expected Results: ~24 tiles (all ArcheanTrees locations), scored by rare feature stacking.
+        // Philosophy: Hunt for ANY ultra-rare feature. More DLCs/mods = more rare options = richer experience.
+        // Key Design:
+        // 1. NO Critical gates - all rare features are Priority with OR (guarantees results)
+        // 2. Core rares (Cavern, HotSprings, Oasis, MineralRich) exist in every world
+        // 3. DLC enriches: Biotech adds ArcheanTrees, Anomaly adds lava features
+        // 4. Mods expand: GL adds geographic rares, AB adds biome-specific rares
+        // 5. Stacking scores highest: quality overrides reward tiles with multiple rares
         private static Preset CreateExoticPreset()
         {
             var preset = new Preset
@@ -473,61 +599,57 @@ namespace LandingZone.Data
             filters.AverageTemperatureRange = new FloatRange(5f, 35f);
             filters.AverageTemperatureImportance = FilterImportance.Preferred;
 
-            // Ultra-Rare Anchor (Critical): ArcheanTrees is THE rarest mutator
-            // This guarantees ~24 results (all ArcheanTrees tiles globally)
-            filters.MapFeatures.SetImportance("ArcheanTrees", FilterImportance.Critical);
-            filters.MapFeatures.Operator = ImportanceOperator.OR;
+            // === CORE LAYER (Always Works) ===
+            // Core rare features - Priority (OR) - these exist in vanilla
+            filters.MapFeatures.SetImportance("Cavern", FilterImportance.Priority);         // 0.022%, 157 tiles
+            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Priority);     // 0.0094%, 66 tiles
+            filters.MapFeatures.SetImportance("Oasis", FilterImportance.Priority);          // 0.0094%, 66 tiles
+            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Priority);    // 0.017%, 119 tiles
+            filters.MapFeatures.Operator = ImportanceOperator.OR;  // Any rare feature matches
 
-            // Stack More Rares (Preferred, OR) - Reward tiles with multiple rare features
-            // Tiles with ArcheanTrees + multiple of these will score highest
-            filters.MapFeatures.SetImportance("Cavern", FilterImportance.Preferred);        // 0.022%, 157 tiles
-            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);     // 0.25%, 1745 tiles
-            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Preferred);    // 0.0094%, 66 tiles
-            filters.MapFeatures.SetImportance("Oasis", FilterImportance.Preferred);         // 0.0094%, 66 tiles
+            // === DLC LAYER (Enhanced with DLC) ===
+            // [Biotech] Ultra-rare features - Priority (contribute to scoring, don't gate)
+            filters.MapFeatures.SetImportance("ArcheanTrees", FilterImportance.Priority);   // 0.0034%, 24 tiles - THE rarest
+
+            // [Anomaly] Volcanic rares - Priority
+            filters.MapFeatures.SetImportance("LavaCaves", FilterImportance.Priority);      // Very rare
+            filters.MapFeatures.SetImportance("TerraformingScar", FilterImportance.Priority); // Alien terrain
+
+            // === MOD LAYER (Bonus with Mods) ===
+            // [Geological Landforms] Geographic rares - Preferred (bonus scoring)
             filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Preferred);    // 0.023%, 159 tiles
             filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Preferred);     // 0.021%, 148 tiles
-            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Preferred);   // 0.017%, 119 tiles
+            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);     // 0.25%, 1745 tiles
+            filters.MapFeatures.SetImportance("Fjord", FilterImportance.Preferred);         // Coastal inlet
+            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Preferred); // Rivers meet
 
             // Geography: Unusual combinations (Preferred)
             filters.CoastalLakeImportance = FilterImportance.Preferred;
             filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
             filters.Rivers.Operator = ImportanceOperator.OR;
 
-            // Tiered fallback for when ArcheanTrees doesn't exist (missing Biotech DLC or unlucky seed)
-            preset.FallbackTiers = new List<FallbackTier>();
-
-            // Tier 2: Any ultra-rare feature (if ArcheanTrees yields zero)
-            var tier2 = new FallbackTier
-            {
-                Name = "LandingZone_Preset_exotic_FallbackTier2".Translate(),
-                Filters = new FilterSettings()
-            };
-            tier2.Filters.CopyFrom(filters); // Copy base settings
-            tier2.Filters.MapFeatures.Reset(); // Clear existing map features
-            tier2.Filters.MapFeatures.SetImportance("Cavern", FilterImportance.Critical);       // 0.022%
-            tier2.Filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Critical);   // 0.0094%
-            tier2.Filters.MapFeatures.SetImportance("Oasis", FilterImportance.Critical);        // 0.0094%
-            tier2.Filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Critical);   // 0.023%
-            tier2.Filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Critical);    // 0.021%
-            tier2.Filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Critical);  // 0.017%
-            tier2.Filters.MapFeatures.Operator = ImportanceOperator.OR; // Need at least one
-
-            preset.FallbackTiers.Add(tier2);
+            // No fallback tiers needed - Priority OR guarantees results from Core rares
 
             // Quality Overrides: Boost ultra-rare features for stacking bonuses
             preset.MutatorQualityOverrides["ArcheanTrees"] = 10;     // 3 → +10 (THE rarest, 0.0034% = 24 tiles)
             preset.MutatorQualityOverrides["Cavern"] = 8;            // 5 → +8  (0.022% = 157 tiles)
             preset.MutatorQualityOverrides["HotSprings"] = 10;       // Already 10, keep high
             preset.MutatorQualityOverrides["Oasis"] = 9;             // 7 → +9  (0.0094% = 66 tiles)
+            preset.MutatorQualityOverrides["MineralRich"] = 10;      // Already 10, keep high
+            preset.MutatorQualityOverrides["LavaCaves"] = 8;         // Volcanic rare
+            preset.MutatorQualityOverrides["TerraformingScar"] = 7;  // Alien terrain
             preset.MutatorQualityOverrides["RiverDelta"] = 7;        // 2 → +7  (0.023% = 159 tiles)
             preset.MutatorQualityOverrides["Peninsula"] = 6;         // 0 → +6  (0.021% = 148 tiles)
-            preset.MutatorQualityOverrides["MineralRich"] = 10;      // Already 10, keep high
             preset.MutatorQualityOverrides["Headwater"] = 5;         // Boost headwater bonus
+            preset.MutatorQualityOverrides["Fjord"] = 6;             // Coastal rare
+            preset.MutatorQualityOverrides["RiverConfluence"] = 5;   // River feature
 
             return preset;
         }
 
         // ===== SUBZERO PRESET: Frozen wasteland survival =====
+        // DESIGN NOTE: Layered design - solid Core, enriched with DLC/mods
+        // Key Addition: DLC layer for heat sources, GL ice features
         private static Preset CreateSubZeroPreset()
         {
             var preset = new Preset
@@ -542,31 +664,59 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Extreme cold (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Climate: Extreme cold (Critical) - defines the preset
             filters.AverageTemperatureRange = new FloatRange(-50f, -15f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
             filters.GrowingDaysRange = new FloatRange(0f, 15f);
             filters.GrowingDaysImportance = FilterImportance.Critical;
 
-            // Biomes: Frozen biomes (Critical, OR)
-            // Note: Would use multi-biome container if available
-            // Target: Tundra (8.5%), BorealForest (5.6%), GlacialPlain (0.33%)
+            // === DLC LAYER (Priority - survival aids) ===
 
-            // Desired Features (Preferred, OR): Survival aids in frozen environment
-            filters.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);                // Shelter from cold
-            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Preferred); // Critical for heating
-            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Preferred);          // Mining focus when can't farm
+            // Heat sources - survival critical in frozen hellscape (Priority, OR)
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Priority); // Geothermal heat
+            filters.MapFeatures.SetImportance("AncientHeatVent", FilterImportance.Priority);        // DLC heat source
+            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Priority);             // Rare heat source
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Geographic Features (Preferred, OR): Thematic ice features
-            filters.MapFeatures.SetImportance("IceCaves", FilterImportance.Preferred);  // Very rare ice feature
+            // [Anomaly] Volcanic warmth (Priority) - rare oasis of warmth
+            filters.MapFeatures.SetImportance("LavaCaves", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - thematic features) ===
+
+            // Shelter (Preferred)
+            filters.MapFeatures.SetImportance("Caves", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Mountain", FilterImportance.Preferred);
+
+            // Mining focus when can't farm (Preferred)
+            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Preferred);
+
+            // [Geological Landforms] Ice terrain (Preferred)
             filters.MapFeatures.SetImportance("Crevasse", FilterImportance.Preferred);    // Dangerous ice terrain
-            filters.MapFeatures.SetImportance("Iceberg", FilterImportance.Preferred);     // Visual flair
+            filters.MapFeatures.SetImportance("Iceberg", FilterImportance.Preferred);     // Visual ice features
+            filters.MapFeatures.SetImportance("Cliffs", FilterImportance.Preferred);      // Dramatic frozen cliffs
+            filters.MapFeatures.SetImportance("Chasm", FilterImportance.Preferred);       // Ice chasms
+
+            // [Geological Landforms] Water in frozen lands (Preferred)
+            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);   // Frozen river source
+            filters.MapFeatures.SetImportance("Lake", FilterImportance.Preferred);        // Frozen lake
+
+            // Quality Overrides: Boost survival and thematic features
+            preset.MutatorQualityOverrides["SteamGeysers_Increased"] = 10; // CRITICAL for survival
+            preset.MutatorQualityOverrides["AncientHeatVent"] = 10;        // CRITICAL for survival
+            preset.MutatorQualityOverrides["HotSprings"] = 10;             // CRITICAL for survival
+            preset.MutatorQualityOverrides["LavaCaves"] = 8;               // Warmth in hellscape (was -9)
+            preset.MutatorQualityOverrides["Crevasse"] = 4;                // Thematic danger
+            preset.MutatorQualityOverrides["Iceberg"] = 5;                 // Thematic ice
+            preset.MutatorQualityOverrides["Cliffs"] = 4;                  // Dramatic terrain
 
             return preset;
         }
 
         // ===== SCORCHED PRESET: Volcanic nightmare =====
+        // DESIGN NOTE: Already excellent with fallback tiers and quality overrides
+        // Key Addition: Mod layer for volcanic terrain (GL/AB)
         private static Preset CreateScorchedPreset()
         {
             var preset = new Preset
@@ -582,6 +732,8 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
+            // === CORE LAYER (Critical Anchors) ===
+
             // Climate: Extreme heat (Critical)
             filters.AverageTemperatureRange = new FloatRange(35f, 60f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
@@ -589,33 +741,35 @@ namespace LandingZone.Data
             filters.RainfallImportance = FilterImportance.Critical;
             filters.GrowingDaysRange = new FloatRange(0f, 25f);
             filters.GrowingDaysImportance = FilterImportance.Critical;
-            filters.PollutionRange = new FloatRange(0.3f, 1.0f);
-            filters.PollutionImportance = FilterImportance.Preferred;
-
-            // Biomes: Desert/volcanic (Critical, OR)
-            // Note: Would use multi-biome container if available, for now document in description
-            // Target: ExtremeDesert, Desert, LavaField
 
             // Lava Features (Critical, OR) - Core thematic elements
             filters.MapFeatures.SetImportance("LavaCaves", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("LavaFlow", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("LavaCrater", FilterImportance.Critical);
-            filters.MapFeatures.Operator = ImportanceOperator.OR; // Need at least one lava feature
+            filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Toxic/Hostile Features (Preferred, OR) - Secondary thematic elements
-            filters.MapFeatures.SetImportance("ToxicLake", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientSmokeVent", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientToxVent", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("Pollution_Increased", FilterImportance.Preferred);
+            // === DLC LAYER (Priority - hostile features) ===
 
-            // Supporting Features
-            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Preferred); // Geothermal in volcanic regions
-            filters.MapFeatures.SetImportance("DryGround", FilterImportance.Preferred); // Barren wasteland
+            // Pollution (Priority - downgraded from Critical for flexibility)
+            filters.PollutionRange = new FloatRange(0.3f, 1.0f);
+            filters.PollutionImportance = FilterImportance.Priority;
 
-            // Resources: Volcanic materials
+            // Toxic/Hostile Features (Priority)
+            filters.MapFeatures.SetImportance("ToxicLake", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientSmokeVent", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientToxVent", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Pollution_Increased", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - volcanic terrain) ===
+
+            // [Geological Landforms] Volcanic terrain (Preferred)
+            filters.MapFeatures.SetImportance("Chasm", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Cliffs", FilterImportance.Preferred);
+
+            // Supporting Features (Preferred)
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("DryGround", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("ObsidianDeposits", FilterImportance.Preferred);
-            // Note: MineableObsidian may not exist in base game - needs validation via mineral cache logs
-            // filters.Stones.SetImportance("MineableObsidian", FilterImportance.Preferred);
 
             // Quality Overrides: Make "dangerous" features valuable for this theme
             preset.MutatorQualityOverrides["LavaCaves"] = 8;           // -9 → +8
@@ -626,8 +780,10 @@ namespace LandingZone.Data
             preset.MutatorQualityOverrides["AncientToxVent"] = 5;      // -10 → +5
             preset.MutatorQualityOverrides["Pollution_Increased"] = 4; // -8 → +4
             preset.MutatorQualityOverrides["DryGround"] = 3;           // -6 → +3
+            preset.MutatorQualityOverrides["Chasm"] = 4;               // Volcanic terrain
+            preset.MutatorQualityOverrides["Cliffs"] = 3;              // Dramatic terrain
 
-            // Fallback tiers for Scorched (lava features are ultra-rare and may not overlap with extreme heat)
+            // Fallback tiers for Scorched (lava features are ultra-rare)
             preset.FallbackTiers = new List<FallbackTier>();
 
             // Tier 2: Keep lava features Critical, relax temperature requirement
@@ -637,8 +793,8 @@ namespace LandingZone.Data
                 Filters = new FilterSettings()
             };
             tier2.Filters.CopyFrom(filters);
-            tier2.Filters.AverageTemperatureRange = new FloatRange(15f, 80f); // Widen temp range
-            tier2.Filters.AverageTemperatureImportance = FilterImportance.Preferred; // Downgrade from Critical
+            tier2.Filters.AverageTemperatureRange = new FloatRange(15f, 80f);
+            tier2.Filters.AverageTemperatureImportance = FilterImportance.Preferred;
             preset.FallbackTiers.Add(tier2);
 
             // Tier 3: Drop lava requirement, focus on extreme heat/dry desert
@@ -654,14 +810,16 @@ namespace LandingZone.Data
             tier3.Filters.GrowingDaysRange = new FloatRange(0f, 25f);
             tier3.Filters.GrowingDaysImportance = FilterImportance.Critical;
             tier3.Filters.PollutionRange = new FloatRange(0.3f, 1.0f);
-            tier3.Filters.PollutionImportance = FilterImportance.Preferred;
-            // No lava features - rely on temperature/rainfall/pollution for volcanic/hostile feel
+            tier3.Filters.PollutionImportance = FilterImportance.Priority;
             preset.FallbackTiers.Add(tier3);
 
             return preset;
         }
 
         // ===== SAVANNAH PRESET: Wildlife plains =====
+        // DESIGN NOTE: Layered design - works with Core climate, richer with DLC/mods
+        // Key Fix: Changed AnimalLife_Increased/AnimalHabitat from Critical to Priority
+        //          (these rare mutators may not exist, causing 0 results)
         private static Preset CreateSavannahPreset()
         {
             var preset = new Preset
@@ -676,7 +834,9 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Warm savannah range (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Climate: Warm savannah range (Critical) - defines the preset
             filters.AverageTemperatureRange = new FloatRange(22f, 38f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
             filters.RainfallRange = new FloatRange(500f, 1200f);
@@ -684,14 +844,30 @@ namespace LandingZone.Data
             filters.GrowingDaysRange = new FloatRange(45f, 60f);
             filters.GrowingDaysImportance = FilterImportance.Critical;
 
-            // Biomes: Grassland types (Critical, OR)
-            // Note: Would use multi-biome container if available
-            // Target: Grasslands (5.9%), AridShrubland (14.9%), TemperateForest (30%)
+            // Terrain: Open plains (Critical - savannah is flat/rolling)
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Flat);
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
 
-            // Wildlife (Critical, OR): Abundant animals
-            filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("AnimalHabitat", FilterImportance.Critical);
+            // === DLC LAYER (Priority - high scoring, not gates) ===
+
+            // Wildlife (Priority, OR) - downgraded from Critical (these are rare mutators)
+            filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AnimalHabitat", FilterImportance.Priority);
             filters.MapFeatures.Operator = ImportanceOperator.OR;
+
+            // Wind - open plains have wind (Priority)
+            filters.MapFeatures.SetImportance("WindyMutator", FilterImportance.Priority);
+
+            // Grazing fodder (Priority)
+            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - bonus scoring) ===
+
+            // [Geological Landforms] Open terrain (Preferred)
+            filters.MapFeatures.SetImportance("Plateau", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);
 
             // Animal Density: High animal population (Preferred)
             filters.AnimalDensityRange = new FloatRange(3.0f, 6.5f);
@@ -700,14 +876,7 @@ namespace LandingZone.Data
             // Grazing: Animals can graze (Preferred)
             filters.GrazeImportance = FilterImportance.Preferred;
 
-            // Wind (Preferred): Wind turbines
-            filters.MapFeatures.SetImportance("WindyMutator", FilterImportance.Preferred);
-
-            // Terrain: Open plains (Preferred)
-            filters.AllowedHilliness.Clear();
-            filters.AllowedHilliness.Add(Hilliness.Flat);
-            filters.AllowedHilliness.Add(Hilliness.SmallHills);
-
+            // Movement: Easy to traverse (Preferred)
             filters.MovementDifficultyRange = new FloatRange(0.0f, 1.0f);
             filters.MovementDifficultyImportance = FilterImportance.Preferred;
 
@@ -717,11 +886,19 @@ namespace LandingZone.Data
             filters.Rivers.SetImportance("River", FilterImportance.Preferred);
             filters.Rivers.Operator = ImportanceOperator.OR;
 
-            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
+            // Quality Overrides: Boost wildlife-related features
+            preset.MutatorQualityOverrides["AnimalLife_Increased"] = 8;  // THE wildlife mutator
+            preset.MutatorQualityOverrides["AnimalHabitat"] = 7;         // Animal bonus
+            preset.MutatorQualityOverrides["WindyMutator"] = 5;          // Open plains wind
+            preset.MutatorQualityOverrides["Plateau"] = 4;               // Open terrain
+            preset.MutatorQualityOverrides["Basin"] = 3;                 // Open terrain
 
             return preset;
         }
 
+        // ===== AQUATIC PRESET: Water world =====
+        // DESIGN NOTE: Layered design - already good, promoting key features to Priority
+        // Key Addition: Quality overrides for port features, fishing economy
         private static Preset CreateAquaticPreset()
         {
             var preset = new Preset
@@ -736,39 +913,53 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Major Water Source: Coastal OR rivers (Critical) - symmetric water requirement
+            // === CORE LAYER (Critical Anchor - Always Works) ===
+
+            // Major Water Source: Coastal OR rivers (Critical)
             filters.WaterAccessImportance = FilterImportance.Critical;
 
-            // Additional Water (Preferred): Bonus scoring for specific water features
-            filters.CoastalLakeImportance = FilterImportance.Preferred; // Lakes
-            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred); // Big rivers bonus
-            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
-            filters.Rivers.Operator = ImportanceOperator.OR;
+            // === DLC LAYER (Priority - key port features) ===
 
-            // Aquatic Mutators (Preferred, OR): Water features everywhere
-            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);        // River source
-            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Preferred);       // Multiple rivers
-            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Preferred);  // Rivers meet
-            filters.MapFeatures.SetImportance("RiverIsland", FilterImportance.Preferred);      // Island in river
-            filters.MapFeatures.SetImportance("Lake", FilterImportance.Preferred);             // Lakes
-            filters.MapFeatures.SetImportance("LakeWithIsland", FilterImportance.Preferred);   // Lake features
-            filters.MapFeatures.SetImportance("LakeWithIslands", FilterImportance.Preferred);  // Multiple islands
-            filters.MapFeatures.SetImportance("Lakeshore", FilterImportance.Preferred);        // Lake borders
-            filters.MapFeatures.SetImportance("Pond", FilterImportance.Preferred);             // Small water
-            filters.MapFeatures.SetImportance("Bay", FilterImportance.Preferred);              // Coastal bay
-            filters.MapFeatures.SetImportance("Cove", FilterImportance.Preferred);             // Coastal cove
-            filters.MapFeatures.SetImportance("Harbor", FilterImportance.Preferred);           // Natural harbor
-            filters.MapFeatures.SetImportance("Fjord", FilterImportance.Preferred);            // Coastal inlet
+            // [Geological Landforms] Key port features (Priority)
+            filters.MapFeatures.SetImportance("Harbor", FilterImportance.Priority);           // Natural harbor
+            filters.MapFeatures.SetImportance("Bay", FilterImportance.Priority);              // Coastal bay
+            filters.MapFeatures.SetImportance("Fjord", FilterImportance.Priority);            // Coastal inlet
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Fishing: Abundant fish (Preferred)
-            filters.MapFeatures.SetImportance("Fish_Increased", FilterImportance.Preferred);
+            // Major water confluences (Priority)
+            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Priority);       // Multiple rivers
+            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Priority);  // Rivers meet
+
+            // Fishing economy (Priority)
+            filters.MapFeatures.SetImportance("Fish_Increased", FilterImportance.Priority);
+
+            // Big rivers (Priority)
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Priority);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Priority);
+            filters.Rivers.Operator = ImportanceOperator.OR;
+
+            // === MOD LAYER (Preferred - water features everywhere) ===
+
+            // Lakes (Preferred)
+            filters.CoastalLakeImportance = FilterImportance.Preferred;
+            filters.MapFeatures.SetImportance("Lake", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("LakeWithIsland", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("LakeWithIslands", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Lakeshore", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Pond", FilterImportance.Preferred);
+
+            // River features (Preferred)
+            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("RiverIsland", FilterImportance.Preferred);
+
+            // Coastal features (Preferred)
+            filters.MapFeatures.SetImportance("Cove", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("CoastalIsland", FilterImportance.Preferred);
+
+            // Fishing ranges (Preferred)
             filters.FishPopulationRange = new FloatRange(400f, 900f);
             filters.FishPopulationImportance = FilterImportance.Preferred;
-
-            // Biomes: Near water (Preferred, OR)
-            // Note: Would use multi-biome container if available
-            // Target: TemperateForest, TropicalRainforest, Grasslands
 
             // Climate: Temperate for living (Preferred)
             filters.AverageTemperatureRange = new FloatRange(10f, 30f);
@@ -776,9 +967,22 @@ namespace LandingZone.Data
             filters.RainfallRange = new FloatRange(1000f, 2500f);
             filters.RainfallImportance = FilterImportance.Preferred;
 
+            // Quality Overrides: Boost aquatic features
+            preset.MutatorQualityOverrides["Harbor"] = 8;            // Natural port
+            preset.MutatorQualityOverrides["Fjord"] = 7;             // Deep water access
+            preset.MutatorQualityOverrides["Bay"] = 6;               // Sheltered water
+            preset.MutatorQualityOverrides["RiverDelta"] = 6;        // Multiple rivers
+            preset.MutatorQualityOverrides["RiverConfluence"] = 5;   // Rivers meet
+            preset.MutatorQualityOverrides["Fish_Increased"] = 6;    // Fishing economy
+            preset.MutatorQualityOverrides["Peninsula"] = 5;         // Surrounded by water
+            preset.MutatorQualityOverrides["CoastalIsland"] = 5;     // Island life
+
             return preset;
         }
 
+        // ===== DESERT OASIS PRESET: Water in wasteland =====
+        // DESIGN NOTE: Layered design - Core anchors, enriched with DLC/mods
+        // Key Addition: Oasis mutator as Priority, quality overrides for thematic features
         private static Preset CreateDesertOasisPreset()
         {
             var preset = new Preset
@@ -793,41 +997,65 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Hot desert (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Climate: Hot desert (Critical) - defines the preset
             filters.AverageTemperatureRange = new FloatRange(28f, 45f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
             filters.RainfallRange = new FloatRange(100f, 600f);
             filters.RainfallImportance = FilterImportance.Critical;
 
-            // Biomes: Desert types (Critical, OR)
-            // Note: Would use multi-biome container if available
-            // Target: Desert (14.1%), ExtremeDesert (4.2%), AridShrubland (14.9%)
-
             // WATER FEATURES - This is what makes it an oasis!
-            // Water access: Rivers OR coastal (Critical) - symmetric water requirement
             filters.WaterAccessImportance = FilterImportance.Critical;
 
-            // Additional Water (Preferred): Bonus for specific oasis features
-            filters.CoastalLakeImportance = FilterImportance.Preferred; // Lakes
-            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred); // Big rivers bonus
-            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
-            filters.Rivers.Operator = ImportanceOperator.OR;
+            // === DLC LAYER (Priority - thematic oasis features) ===
 
-            // Oasis Features (Preferred, OR): Bonus for literal oasis features
-            filters.MapFeatures.SetImportance("Oasis", FilterImportance.Preferred);       // Literal oasis mutator
-            filters.MapFeatures.SetImportance("Lake", FilterImportance.Preferred);        // Water source
-            filters.MapFeatures.SetImportance("Pond", FilterImportance.Preferred);        // Small water
-            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);  // Moisture pocket
+            // THE oasis mutator (Priority) - the defining thematic feature
+            filters.MapFeatures.SetImportance("Oasis", FilterImportance.Priority);
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Positive Mutators (Preferred, OR): Make desert livable
+            // Desert water sources (Priority)
+            filters.MapFeatures.SetImportance("HotSprings", FilterImportance.Priority);   // Hot water in desert
+            filters.MapFeatures.SetImportance("Fish_Increased", FilterImportance.Priority); // Oasis fish
+
+            // Rivers in desert (Priority)
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Priority);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Priority);
+            filters.Rivers.Operator = ImportanceOperator.OR;
+
+            // === MOD LAYER (Preferred - water features) ===
+
+            // Lakes (Preferred)
+            filters.CoastalLakeImportance = FilterImportance.Preferred;
+            filters.MapFeatures.SetImportance("Lake", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Pond", FilterImportance.Preferred);
+
+            // Moisture pocket (Preferred)
+            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);
+
+            // Make desert livable (Preferred)
             filters.MapFeatures.SetImportance("Fertile", FilterImportance.Preferred);     // Farming in desert
             filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);  // Forage despite heat
+
+            // [Geological Landforms] Water terrain (Preferred)
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);       // Water collects
+            filters.MapFeatures.SetImportance("Hollow", FilterImportance.Preferred);      // Sheltered
+
+            // Quality Overrides: Boost oasis-related features
+            preset.MutatorQualityOverrides["Oasis"] = 10;            // THE oasis feature
+            preset.MutatorQualityOverrides["HotSprings"] = 8;        // Desert water source
+            preset.MutatorQualityOverrides["Fertile"] = 7;           // Rare in desert
+            preset.MutatorQualityOverrides["Fish_Increased"] = 6;    // Oasis fish
+            preset.MutatorQualityOverrides["WetClimate"] = 6;        // Moisture pocket
+            preset.MutatorQualityOverrides["Basin"] = 4;             // Water collects
 
             return preset;
         }
 
         // ===== DEFENSE PRESET: Mountain fortress =====
+        // DESIGN NOTE: Layered design - works with Core terrain, richer with DLC/mods
+        // Key Fix: Changed MineablePlasteel/Components from Critical to Priority
+        //          (these ores may not exist in world generation)
         private static Preset CreateDefensePreset()
         {
             var preset = new Preset
@@ -842,7 +1070,9 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Terrain: Mountainous (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Terrain: Mountainous (Critical) - defines the preset
             filters.AllowedHilliness.Clear();
             filters.AllowedHilliness.Add(Hilliness.LargeHills);
             filters.AllowedHilliness.Add(Hilliness.Mountainous);
@@ -851,23 +1081,34 @@ namespace LandingZone.Data
             filters.MapFeatures.SetImportance("Mountain", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("Caves", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("Cavern", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("Chasm", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("Cliffs", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("Valley", FilterImportance.Critical);
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Resources: Advanced ores for fortifications (Critical, OR)
-            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Critical);  // Advanced armor/walls
-            filters.Stones.SetImportance("MineableComponentsIndustrial", FilterImportance.Critical); // Tech components
-            filters.Stones.Operator = ImportanceOperator.OR;  // Accept either (tiles only have 1 ore)
+            // === DLC LAYER (Priority - high scoring, not gates) ===
 
-            // Mining bonus (Preferred)
-            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Preferred);
+            // Resources: Advanced ores (downgraded from Critical - may not exist)
+            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Priority);
+            filters.Stones.SetImportance("MineableComponentsIndustrial", FilterImportance.Priority);
+            filters.Stones.Operator = ImportanceOperator.OR;
 
-            // Additional Defense (Preferred, OR): Water-based defensibility
-            filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Preferred);     // 3 sides water
-            filters.MapFeatures.SetImportance("RiverIsland", FilterImportance.Preferred);   // River moat
-            filters.MapFeatures.SetImportance("CoastalIsland", FilterImportance.Preferred); // Ocean moat
+            // [DLC] Military structures (Priority)
+            filters.MapFeatures.SetImportance("AncientGarrison", FilterImportance.Priority);  // Military loot
+            filters.MapFeatures.SetImportance("AncientQuarry", FilterImportance.Priority);    // Stone source
+
+            // Mining bonus (Priority)
+            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - bonus scoring) ===
+
+            // [Geological Landforms] Natural barriers (Preferred)
+            filters.MapFeatures.SetImportance("Chasm", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Cliffs", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Crevasse", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);          // Killbox terrain
+
+            // Water-based defensibility (Preferred)
+            filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Preferred);       // 3 sides water
+            filters.MapFeatures.SetImportance("RiverIsland", FilterImportance.Preferred);     // River moat
+            filters.MapFeatures.SetImportance("CoastalIsland", FilterImportance.Preferred);   // Ocean moat
 
             // Climate: Temperate for livability (Preferred)
             filters.AverageTemperatureRange = new FloatRange(10f, 25f);
@@ -875,9 +1116,21 @@ namespace LandingZone.Data
             filters.GrowingDaysRange = new FloatRange(30f, 60f);
             filters.GrowingDaysImportance = FilterImportance.Preferred;
 
+            // Quality Overrides: Boost defense-related features
+            preset.MutatorQualityOverrides["AncientGarrison"] = 6;        // Military loot (was -8)
+            preset.MutatorQualityOverrides["Peninsula"] = 7;              // 3-sided water defense
+            preset.MutatorQualityOverrides["RiverIsland"] = 6;            // Natural moat
+            preset.MutatorQualityOverrides["CoastalIsland"] = 6;          // Ocean moat
+            preset.MutatorQualityOverrides["Chasm"] = 5;                  // Natural barrier
+            preset.MutatorQualityOverrides["Cliffs"] = 5;                 // Natural barrier
+            preset.MutatorQualityOverrides["Valley"] = 6;                 // Killbox terrain
+
             return preset;
         }
 
+        // ===== AGRARIAN PRESET: Farming paradise =====
+        // DESIGN NOTE: Layered design - Core climate anchors, enriched with DLC/mods
+        // Key Addition: Fertile/PlantLife promoted to Priority, quality overrides
         private static Preset CreateAgrarianPreset()
         {
             var preset = new Preset
@@ -892,7 +1145,9 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Optimal crop conditions (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Climate: Optimal crop conditions (Critical) - defines the preset
             filters.AverageTemperatureRange = new FloatRange(15f, 28f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
             filters.RainfallRange = new FloatRange(1200f, 2500f);
@@ -900,17 +1155,37 @@ namespace LandingZone.Data
             filters.GrowingDaysRange = new FloatRange(50f, 60f);
             filters.GrowingDaysImportance = FilterImportance.Critical;
 
-            // Biomes: Best farming biomes (Preferred, OR)
-            // Note: Would use multi-biome container if available
-            // Target: TemperateForest (30%), TropicalRainforest (11.7%), Grasslands (5.9%)
+            // Terrain: Easy to farm (Critical - flat for farming)
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Flat);
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
 
-            // Farming Mutators (Preferred, OR): Agricultural bonuses
-            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Preferred);          // THE farming mutator
-            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);       // Moisture for crops
-            filters.MapFeatures.SetImportance("PlantLife_Increased", FilterImportance.Preferred); // More plants
-            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);       // Forage backup
-            filters.MapFeatures.SetImportance("Muddy", FilterImportance.Preferred);            // Farming bonus
+            // === DLC LAYER (Priority - key farming features) ===
+
+            // THE farming mutator (Priority)
+            filters.MapFeatures.SetImportance("Fertile", FilterImportance.Priority);
             filters.MapFeatures.Operator = ImportanceOperator.OR;
+
+            // Plant life bonuses (Priority)
+            filters.MapFeatures.SetImportance("PlantLife_Increased", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - farming enrichment) ===
+
+            // Secondary farming features (Preferred)
+            filters.MapFeatures.SetImportance("WildPlants", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Muddy", FilterImportance.Preferred);
+
+            // [Geological Landforms] Sheltered farmland (Preferred)
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Hollow", FilterImportance.Preferred);
+
+            // [Geological Landforms] Irrigation (Preferred)
+            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Preferred);
+
+            // [Alpha Biomes] Paradise farming (Preferred)
+            filters.MapFeatures.SetImportance("AB_IdyllicMeadows", FilterImportance.Preferred);
 
             // Water (Preferred, OR): Irrigation and fishing
             filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
@@ -920,17 +1195,25 @@ namespace LandingZone.Data
             filters.CoastalImportance = FilterImportance.Preferred;
             filters.CoastalLakeImportance = FilterImportance.Preferred;
 
-            // Terrain: Easy to farm (Preferred)
-            filters.AllowedHilliness.Clear();
-            filters.AllowedHilliness.Add(Hilliness.Flat);
-            filters.AllowedHilliness.Add(Hilliness.SmallHills);
-
+            // Movement: Easy terrain (Preferred)
             filters.MovementDifficultyRange = new FloatRange(0.0f, 1.2f);
             filters.MovementDifficultyImportance = FilterImportance.Preferred;
+
+            // Quality Overrides: Boost farming-related features
+            preset.MutatorQualityOverrides["Fertile"] = 10;              // THE farming mutator
+            preset.MutatorQualityOverrides["PlantLife_Increased"] = 8;   // More plants
+            preset.MutatorQualityOverrides["WetClimate"] = 6;            // Moisture for crops
+            preset.MutatorQualityOverrides["Valley"] = 5;                // Sheltered farmland
+            preset.MutatorQualityOverrides["Basin"] = 4;                 // Water collects
+            preset.MutatorQualityOverrides["RiverDelta"] = 5;            // Irrigation
+            preset.MutatorQualityOverrides["AB_IdyllicMeadows"] = 8;     // Paradise farming
 
             return preset;
         }
 
+        // ===== POWER PRESET: Energy independence =====
+        // DESIGN NOTE: Layered design - multiple power sources, broader Critical gate
+        // Key Fix: Added WindyMutator/SunnyMutator to Critical OR (alternative anchors)
         private static Preset CreatePowerPreset()
         {
             var preset = new Preset
@@ -945,28 +1228,42 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Geothermal (Critical, OR): Primary power source
-            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Critical);
-            filters.MapFeatures.SetImportance("AncientHeatVent", FilterImportance.Critical);
-            filters.MapFeatures.Operator = ImportanceOperator.OR;
+            // === CORE LAYER (Critical Anchors - Broadened) ===
 
-            // Hydro (Preferred, OR): Watermill potential
-            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
-            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
+            // Multiple power sources (Critical, OR) - broadened to include wind/solar
+            filters.MapFeatures.SetImportance("SteamGeysers_Increased", FilterImportance.Critical); // Geothermal
+            filters.MapFeatures.SetImportance("AncientHeatVent", FilterImportance.Critical);        // DLC geothermal
+            filters.MapFeatures.SetImportance("WindyMutator", FilterImportance.Critical);           // Wind power
+            filters.MapFeatures.SetImportance("SunnyMutator", FilterImportance.Critical);           // Solar power
+            filters.MapFeatures.Operator = ImportanceOperator.OR;  // Any power source works
+
+            // === DLC LAYER (Priority - high scoring, not gates) ===
+
+            // Hydro power (Priority, OR): Watermill potential
+            filters.Rivers.SetImportance("HugeRiver", FilterImportance.Priority);
+            filters.Rivers.SetImportance("LargeRiver", FilterImportance.Priority);
             filters.Rivers.Operator = ImportanceOperator.OR;
 
-            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Preferred);      // Multiple rivers
-            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Preferred); // Rivers meet
-            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);       // River source
+            // Nuclear power potential (Priority)
+            filters.Stones.SetImportance("MineableUranium", FilterImportance.Priority);
 
-            // Wind (Preferred): Wind turbines
-            filters.MapFeatures.SetImportance("WindyMutator", FilterImportance.Preferred);
+            // === MOD LAYER (Preferred - bonus scoring) ===
+
+            // [Geological Landforms] Hydro sites (Preferred)
+            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Headwater", FilterImportance.Preferred);
+
+            // [Geological Landforms] Wind exposure (Preferred)
+            filters.MapFeatures.SetImportance("Plateau", FilterImportance.Preferred);
+
+            // Terrain: Elevated for wind (Preferred)
             filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
             filters.AllowedHilliness.Add(Hilliness.LargeHills);
             filters.AllowedHilliness.Add(Hilliness.Mountainous);
 
-            // Solar (Preferred): Solar panels
-            filters.MapFeatures.SetImportance("SunnyMutator", FilterImportance.Preferred);
+            // Solar optimization: Low rainfall = more sun (Preferred)
             filters.RainfallRange = new FloatRange(400f, 1200f);
             filters.RainfallImportance = FilterImportance.Preferred;
 
@@ -974,16 +1271,25 @@ namespace LandingZone.Data
             filters.AverageTemperatureRange = new FloatRange(10f, 30f);
             filters.AverageTemperatureImportance = FilterImportance.Preferred;
 
-            // Geography: Tidal potential (future)
+            // Geography: Tidal potential (Preferred)
             filters.CoastalImportance = FilterImportance.Preferred;
             filters.CoastalLakeImportance = FilterImportance.Preferred;
 
-            // Uranium: Nuclear power potential (Preferred)
-            filters.Stones.SetImportance("MineableUranium", FilterImportance.Preferred);
+            // Quality Overrides: Boost power-related features
+            preset.MutatorQualityOverrides["SteamGeysers_Increased"] = 10; // THE geothermal mutator
+            preset.MutatorQualityOverrides["AncientHeatVent"] = 9;         // DLC geothermal
+            preset.MutatorQualityOverrides["WindyMutator"] = 7;            // Wind power
+            preset.MutatorQualityOverrides["SunnyMutator"] = 6;            // Solar power
+            preset.MutatorQualityOverrides["RiverDelta"] = 5;              // Hydro potential
+            preset.MutatorQualityOverrides["RiverConfluence"] = 5;         // Hydro potential
+            preset.MutatorQualityOverrides["Plateau"] = 4;                 // Wind exposure
 
             return preset;
         }
 
+        // ===== BAYOU PRESET: Swamp horror =====
+        // DESIGN NOTE: Layered design - swampiness anchor, enriched with DLC/mods
+        // Key Addition: DLC layer for horror features, quality overrides
         private static Preset CreateBayouPreset()
         {
             var preset = new Preset
@@ -998,28 +1304,47 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Hot and humid (Critical)
+            // === CORE LAYER (Critical Anchors - Always Works) ===
+
+            // Climate: Hot and humid (Critical) - defines the preset
             filters.AverageTemperatureRange = new FloatRange(25f, 40f);
             filters.AverageTemperatureImportance = FilterImportance.Critical;
             filters.RainfallRange = new FloatRange(1800f, 3000f);
             filters.RainfallImportance = FilterImportance.Critical;
 
-            // Swampiness: THIS is the key stat for swamps! (Critical)
+            // Swampiness: THE key stat for swamps! (Critical)
             filters.SwampinessRange = new FloatRange(0.4f, 1.0f);
             filters.SwampinessImportance = FilterImportance.Critical;
 
-            // Biomes: Swamp biomes (Critical, OR)
-            // Note: Would use multi-biome container if available
-            // Target: TemperateSwamp (1.2%), TropicalSwamp (0.6%), ColdBog (0.11%)
+            // Terrain: Low-lying swamps (Critical)
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.Flat);
+            filters.AllowedHilliness.Add(Hilliness.SmallHills);
 
-            // Swamp Mutators (Preferred, OR): Swampy terrain
-            filters.MapFeatures.SetImportance("Muddy", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("Marshy", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("Wetland", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);
+            // === DLC LAYER (Priority - horror features) ===
+
+            // [Anomaly] Swamp infestation (Priority)
+            filters.MapFeatures.SetImportance("InsectMegahive", FilterImportance.Priority);
             filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Geographic Features (Preferred, OR): Swamps have water
+            // Murky waters (Priority)
+            filters.MapFeatures.SetImportance("Pollution_Increased", FilterImportance.Priority);
+
+            // Swamp Mutators (Priority)
+            filters.MapFeatures.SetImportance("Muddy", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Marshy", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - swamp enrichment) ===
+
+            // Swamp terrain (Preferred)
+            filters.MapFeatures.SetImportance("Wetland", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("WetClimate", FilterImportance.Preferred);
+
+            // [Alpha Biomes] Horror swamp (Preferred)
+            filters.MapFeatures.SetImportance("AB_MiasmicMangrove", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("AB_TarPits", FilterImportance.Preferred);
+
+            // Water features (Preferred)
             filters.Rivers.SetImportance("HugeRiver", FilterImportance.Preferred);
             filters.Rivers.SetImportance("LargeRiver", FilterImportance.Preferred);
             filters.Rivers.SetImportance("River", FilterImportance.Preferred);
@@ -1028,23 +1353,29 @@ namespace LandingZone.Data
             filters.MapFeatures.SetImportance("Lakeshore", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("Pond", FilterImportance.Preferred);
 
-            // Flora/Fauna (Preferred, OR): Overgrown swamp life
+            // Flora/Fauna (Preferred)
             filters.MapFeatures.SetImportance("PlantLife_Increased", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("WildTropicalPlants", FilterImportance.Preferred);
             filters.MapFeatures.SetImportance("AnimalLife_Increased", FilterImportance.Preferred);
 
-            // Terrain: Low-lying swamps (Preferred)
-            filters.AllowedHilliness.Clear();
-            filters.AllowedHilliness.Add(Hilliness.Flat);
-            filters.AllowedHilliness.Add(Hilliness.SmallHills);
-
+            // Movement: Difficult terrain (Preferred)
             filters.MovementDifficultyRange = new FloatRange(1.2f, 2.0f);
             filters.MovementDifficultyImportance = FilterImportance.Preferred;
+
+            // Quality Overrides: Boost swamp and horror features
+            preset.MutatorQualityOverrides["Muddy"] = 6;                // Swamp terrain
+            preset.MutatorQualityOverrides["Marshy"] = 6;               // Swamp terrain
+            preset.MutatorQualityOverrides["InsectMegahive"] = 5;       // Thematic danger (was 0)
+            preset.MutatorQualityOverrides["Pollution_Increased"] = 3;  // Murky waters (was -8)
+            preset.MutatorQualityOverrides["AB_MiasmicMangrove"] = 7;   // Horror swamp
+            preset.MutatorQualityOverrides["AB_TarPits"] = 5;           // Dangerous terrain
 
             return preset;
         }
 
         // ===== HOMESTEAD PRESET: Abandoned settlement salvage =====
+        // DESIGN NOTE: Already excellent with quality overrides
+        // Key Addition: Junkyard added to Critical OR, mod layer for terrain
         private static Preset CreateHomesteadPreset()
         {
             var preset = new Preset
@@ -1059,28 +1390,36 @@ namespace LandingZone.Data
 
             var filters = preset.Filters;
 
-            // Climate: Temperate (livable)
-            filters.AverageTemperatureRange = new FloatRange(10f, 30f);
-            filters.AverageTemperatureImportance = FilterImportance.Preferred;
-            filters.GrowingDaysRange = new FloatRange(30f, 60f);
-            filters.GrowingDaysImportance = FilterImportance.Preferred;
+            // === CORE LAYER (Critical Anchor - salvage sites) ===
 
-            // Abandoned settlements (Critical - must have one)
+            // Abandoned settlements (Critical, OR) - must have one salvage site
             filters.MapFeatures.SetImportance("AbandonedColonyTribal", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("AbandonedColonyOutlander", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("Stockpile", FilterImportance.Critical);
             filters.MapFeatures.SetImportance("AncientRuins", FilterImportance.Critical);
-            filters.MapFeatures.Operator = ImportanceOperator.OR; // Need at least one
+            filters.MapFeatures.SetImportance("Junkyard", FilterImportance.Critical);  // Added: salvage site
+            filters.MapFeatures.Operator = ImportanceOperator.OR;
 
-            // Ancient structures (Preferred - bonus for having these too)
-            filters.MapFeatures.SetImportance("AncientWarehouse", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientQuarry", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientGarrison", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientLaunchSite", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientUplink", FilterImportance.Preferred);
-            filters.MapFeatures.SetImportance("AncientChemfuelRefinery", FilterImportance.Preferred);
+            // === DLC LAYER (Priority - ancient structures) ===
 
-            // Supporting: Roads (ancient sites often had access)
+            // Ancient structures (Priority) - high value salvage
+            filters.MapFeatures.SetImportance("AncientWarehouse", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientQuarry", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientGarrison", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientLaunchSite", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientUplink", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("AncientChemfuelRefinery", FilterImportance.Priority);
+
+            // Resources: Plasteel for salvage (Priority)
+            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Priority);
+
+            // === MOD LAYER (Preferred - terrain and roads) ===
+
+            // [Geological Landforms] Sheltered settlement (Preferred)
+            filters.MapFeatures.SetImportance("Valley", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Basin", FilterImportance.Preferred);
+
+            // Supporting: Roads (ancient sites had access)
             filters.Roads.SetImportance("DirtRoad", FilterImportance.Preferred);
             filters.Roads.SetImportance("DirtPath", FilterImportance.Preferred);
             filters.Roads.SetImportance("StoneRoad", FilterImportance.Preferred);
@@ -1088,22 +1427,192 @@ namespace LandingZone.Data
             filters.Roads.SetImportance("AncientAsphaltHighway", FilterImportance.Preferred);
             filters.Roads.Operator = ImportanceOperator.OR;
 
+            // Climate: Temperate (livable) - Preferred
+            filters.AverageTemperatureRange = new FloatRange(10f, 30f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+            filters.GrowingDaysRange = new FloatRange(30f, 60f);
+            filters.GrowingDaysImportance = FilterImportance.Preferred;
+
             // Quality overrides: Ancient sites are valuable despite dangers
             preset.MutatorQualityOverrides["AbandonedColonyTribal"] = 6;      // -5 → +6
             preset.MutatorQualityOverrides["AbandonedColonyOutlander"] = 7;   // -5 → +7
+            preset.MutatorQualityOverrides["Junkyard"] = 6;                   // -5 → +6 (salvage value)
             preset.MutatorQualityOverrides["AncientGarrison"] = 6;            // -8 → +6
             preset.MutatorQualityOverrides["AncientLaunchSite"] = 6;          // -8 → +6
             preset.MutatorQualityOverrides["AncientChemfuelRefinery"] = 4;    // -8 → +4
             preset.MutatorQualityOverrides["AncientWarehouse"] = 5;           // 0 → +5
             preset.MutatorQualityOverrides["AncientQuarry"] = 5;              // 0 → +5
+            preset.MutatorQualityOverrides["Valley"] = 4;                     // Sheltered settlement
+            preset.MutatorQualityOverrides["Basin"] = 3;                      // Sheltered settlement
 
-            // Industrial ruins theme: Junk, pollution, and toxicity are thematic and valuable
-            preset.MutatorQualityOverrides["Junkyard"] = 4;                   // -5 → +4
+            // Industrial ruins theme
             preset.MutatorQualityOverrides["Pollution_Increased"] = 3;        // -8 → +3
             preset.MutatorQualityOverrides["AncientToxVent"] = 4;             // -10 → +4
 
-            // Resources: Plasteel for industrial salvage and construction (Preferred)
-            filters.Stones.SetImportance("MineablePlasteel", FilterImportance.Preferred);
+            return preset;
+        }
+
+        // ===== ANOMALY PRESET: Horror experience =====
+        // DESIGN NOTE: Layered design - creepy with Core, terrifying with Anomaly DLC
+        // Purpose: Underground horror, dramatic terrain, atmospheric dread
+        private static Preset CreateAnomalyPreset()
+        {
+            var preset = new Preset
+            {
+                Id = "anomaly",
+                Name = "LandingZone_Preset_anomaly_Name".Translate(),
+                Description = "LandingZone_Preset_anomaly_Description".Translate(),
+                Category = "Special",
+                TargetRarity = TileRarity.Rare,
+                FilterSummary = "LandingZone_Preset_anomaly_FilterSummary".Translate()
+            };
+
+            var filters = preset.Filters;
+
+            // === CORE LAYER (Always Works) ===
+
+            // Underground horror (Critical, OR) - caves exist in vanilla
+            filters.MapFeatures.SetImportance("Caves", FilterImportance.Critical);
+            filters.MapFeatures.SetImportance("Cavern", FilterImportance.Critical);
+            filters.MapFeatures.Operator = ImportanceOperator.OR;
+
+            // Dramatic terrain (Priority) - high scoring for mountainous
+            filters.AllowedHilliness.Clear();
+            filters.AllowedHilliness.Add(Hilliness.LargeHills);
+            filters.AllowedHilliness.Add(Hilliness.Mountainous);
+
+            // Climate: Wide range for biome variety (Preferred)
+            filters.AverageTemperatureRange = new FloatRange(-10f, 35f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+
+            // Atmospheric features (Preferred)
+            filters.MapFeatures.SetImportance("FoggyMutator", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("AncientRuins", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Mountain", FilterImportance.Preferred);
+
+            // === DLC LAYER (The Full Horror Experience) ===
+
+            // [Anomaly] Volcanic horror - Priority (high scoring)
+            filters.MapFeatures.SetImportance("LavaCaves", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("LavaFlow", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("LavaCrater", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("TerraformingScar", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("InsectMegahive", FilterImportance.Priority);
+
+            // [Biotech] Toxic wasteland - Priority
+            filters.MapFeatures.SetImportance("Pollution_Increased", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("ToxicLake", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("ArcheanTrees", FilterImportance.Priority);
+
+            // === MOD LAYER (Deeper Horror) ===
+
+            // [Geological Landforms] Dangerous terrain - Preferred
+            filters.MapFeatures.SetImportance("Chasm", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Crevasse", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("Cliffs", FilterImportance.Preferred);
+
+            // Quality Overrides: Flip negatives to positives for horror theme
+            preset.MutatorQualityOverrides["FoggyMutator"] = 5;          // -3 → +5
+            preset.MutatorQualityOverrides["Pollution_Increased"] = 4;   // -8 → +4
+            preset.MutatorQualityOverrides["LavaCaves"] = 7;             // -9 → +7
+            preset.MutatorQualityOverrides["LavaFlow"] = 6;              // -9 → +6
+            preset.MutatorQualityOverrides["LavaCrater"] = 6;            // -10 → +6
+            preset.MutatorQualityOverrides["ToxicLake"] = 5;             // -10 → +5
+            preset.MutatorQualityOverrides["InsectMegahive"] = 6;        // 0 → +6
+            preset.MutatorQualityOverrides["TerraformingScar"] = 5;      // Alien terrain
+            preset.MutatorQualityOverrides["Chasm"] = 4;                 // Dangerous but thematic
+            preset.MutatorQualityOverrides["Crevasse"] = 4;              // Ice/rock hazard
+
+            return preset;
+        }
+
+        // ===== TRADE EMPIRE PRESET: Coastal trade focus =====
+        // DESIGN NOTE: Layered design - trade routes with Core, magnate with DLC/mods
+        // Purpose: Coastal access, roads, valuable resources, natural ports
+        private static Preset CreateTradeEmpirePreset()
+        {
+            var preset = new Preset
+            {
+                Id = "trade_empire",
+                Name = "LandingZone_Preset_trade_empire_Name".Translate(),
+                Description = "LandingZone_Preset_trade_empire_Description".Translate(),
+                Category = "Curated",
+                TargetRarity = TileRarity.Uncommon,
+                FilterSummary = "LandingZone_Preset_trade_empire_FilterSummary".Translate()
+            };
+
+            var filters = preset.Filters;
+
+            // === CORE LAYER (Always Works) ===
+
+            // Coastal: Sea trade routes (Critical)
+            filters.CoastalImportance = FilterImportance.Critical;
+
+            // Roads: Land trade routes (Critical, OR)
+            filters.Roads.SetImportance("DirtRoad", FilterImportance.Critical);
+            filters.Roads.SetImportance("StoneRoad", FilterImportance.Critical);
+            filters.Roads.SetImportance("AncientAsphaltRoad", FilterImportance.Critical);
+            filters.Roads.SetImportance("AncientAsphaltHighway", FilterImportance.Critical);
+            filters.Roads.Operator = ImportanceOperator.OR;
+
+            // Climate: Productive workers (Preferred)
+            filters.AverageTemperatureRange = new FloatRange(10f, 28f);
+            filters.AverageTemperatureImportance = FilterImportance.Preferred;
+
+            // Growing: Food self-sufficiency (Preferred)
+            filters.GrowingDaysRange = new FloatRange(40f, 60f);
+            filters.GrowingDaysImportance = FilterImportance.Preferred;
+
+            // Additional water access (Preferred)
+            filters.CoastalLakeImportance = FilterImportance.Preferred;
+
+            // === DLC LAYER (Trade Magnate) ===
+
+            // Luxury trade goods - Priority (high scoring)
+            filters.Stones.SetImportance("MineableGold", FilterImportance.Priority);
+            filters.Stones.SetImportance("MineableJade", FilterImportance.Priority);
+            filters.Stones.SetImportance("MineableSilver", FilterImportance.Priority);
+            filters.Stones.Operator = ImportanceOperator.OR;
+
+            // High-tech exports - Priority
+            filters.MapFeatures.SetImportance("MineralRich", FilterImportance.Priority);
+
+            // [Anomaly] Salvage for trade - Priority
+            filters.MapFeatures.SetImportance("Junkyard", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Stockpile", FilterImportance.Priority);
+
+            // [Ideology] Pre-built storage - Priority
+            filters.MapFeatures.SetImportance("AncientWarehouse", FilterImportance.Priority);
+
+            // Fishing industry (Preferred)
+            filters.MapFeatures.SetImportance("Fish_Increased", FilterImportance.Preferred);
+            filters.FishPopulationRange = new FloatRange(300f, 900f);
+            filters.FishPopulationImportance = FilterImportance.Preferred;
+
+            // === MOD LAYER (Trade Magnate+) ===
+
+            // [Geological Landforms] Natural ports - Priority
+            filters.MapFeatures.SetImportance("Harbor", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Bay", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Cove", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("Fjord", FilterImportance.Priority);
+
+            // River trade hubs - Priority
+            filters.MapFeatures.SetImportance("RiverDelta", FilterImportance.Priority);
+            filters.MapFeatures.SetImportance("RiverConfluence", FilterImportance.Priority);
+
+            // Defensible ports - Preferred
+            filters.MapFeatures.SetImportance("Peninsula", FilterImportance.Preferred);
+            filters.MapFeatures.SetImportance("CoastalIsland", FilterImportance.Preferred);
+
+            // Quality Overrides: Boost trade-related features
+            preset.MutatorQualityOverrides["Harbor"] = 8;            // Natural port
+            preset.MutatorQualityOverrides["Bay"] = 6;               // Sheltered water
+            preset.MutatorQualityOverrides["Cove"] = 5;              // Small harbor
+            preset.MutatorQualityOverrides["Fjord"] = 7;             // Deep water access
+            preset.MutatorQualityOverrides["RiverDelta"] = 7;        // River trade hub
+            preset.MutatorQualityOverrides["RiverConfluence"] = 6;   // Rivers meet
+            preset.MutatorQualityOverrides["Junkyard"] = 5;          // Salvage value
 
             return preset;
         }

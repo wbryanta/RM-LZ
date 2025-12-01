@@ -23,23 +23,55 @@ namespace LandingZone.Core.Filtering.Filters
 
             // If no roads configured, pass all tiles through
             if (!roads.HasAnyImportance)
-                return inputTiles;
-
-            // If no Critical roads, pass all tiles through (Preferred handled by scoring)
-            if (!roads.HasCritical)
-                return inputTiles;
-
-            // Filter for tiles that meet Critical road requirements
-            return inputTiles.Where(id =>
             {
-                var roadDefs = GetTileRoadDefs(id);
-                if (roadDefs == null || !roadDefs.Any())
-                    return false;  // No roads = doesn't meet Critical requirement
+                if (Prefs.DevMode)
+                    Log.Message($"[LandingZone][RoadFilter] No road importance configured, passing all tiles");
+                return inputTiles;
+            }
 
-                // Check if this tile's roads meet Critical requirements
-                var tileRoads = roadDefs.Select(r => r.defName);
-                return roads.MeetsCriticalRequirements(tileRoads);
-            });
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!roads.HasHardGates)
+            {
+                if (Prefs.DevMode)
+                    Log.Message($"[LandingZone][RoadFilter] No hard gates (MustHave/MustNotHave), passing all tiles. HasPriority={roads.HasPriority}, HasPreferred={roads.HasPreferred}");
+                return inputTiles;
+            }
+
+            // Debug: Log the road filter configuration
+            if (Prefs.DevMode)
+            {
+                var mustHaves = roads.GetMustHaveItems().ToList();
+                var mustNotHaves = roads.GetMustNotHaveItems().ToList();
+                Log.Message($"[LandingZone][RoadFilter] Applying hard gates: MustHave=[{string.Join(", ", mustHaves)}] ({roads.Operator}), MustNotHave=[{string.Join(", ", mustNotHaves)}]");
+            }
+
+            int inputCount = 0;
+            int matchCount = 0;
+
+            // Filter for tiles that meet hard gate requirements (MustHave AND MustNotHave)
+            var result = inputTiles.Where(id =>
+            {
+                inputCount++;
+                var roadDefs = GetTileRoadDefs(id).ToList();
+                // Note: If no roads, use empty list for requirements checking
+                var tileRoads = roadDefs.Select(r => r.defName).ToList();
+
+                bool meets = roads.MeetsHardGateRequirements(tileRoads);
+
+                // Log first few matches/non-matches in dev mode
+                if (Prefs.DevMode && inputCount <= 5)
+                {
+                    Log.Message($"[LandingZone][RoadFilter] Tile {id}: Roads=[{string.Join(", ", tileRoads)}], Meets={meets}");
+                }
+
+                if (meets) matchCount++;
+                return meets;
+            }).ToList();
+
+            if (Prefs.DevMode)
+                Log.Message($"[LandingZone][RoadFilter] Result: {matchCount}/{inputCount} tiles passed road filter");
+
+            return result;
         }
 
         public string Describe(FilterContext context)
@@ -99,16 +131,27 @@ namespace LandingZone.Core.Filtering.Filters
             if (!roads.HasAnyImportance)
                 return 0.0f;
 
-            var roadDefs = GetTileRoadDefs(tileId);
-            if (roadDefs == null || !roadDefs.Any())
-                return 0.0f; // No roads on this tile
+            var roadDefs = GetTileRoadDefs(tileId).ToList();
+            // For tiles with no roads, use empty list for scoring
+            var tileRoads = roadDefs?.Select(r => r.defName).ToList() ?? new List<string>();
 
-            // Check if ANY of this tile's roads are selected (have any importance)
-            foreach (var roadDef in roadDefs)
+            // Align with Apply phase: prioritize Critical (MustHave) requirements
+            if (roads.HasCritical)
             {
-                var importance = roads.GetImportance(roadDef.defName);
-                if (importance != FilterImportance.Ignored)
-                    return 1.0f; // At least one selected road present
+                // Use GetCriticalSatisfaction to respect AND/OR operator
+                float satisfaction = roads.GetCriticalSatisfaction(tileRoads);
+                return satisfaction;
+            }
+
+            // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
+            if (roads.HasPriority || roads.HasPreferred)
+            {
+                float score = roads.GetScoringScore(tileRoads);
+                // Normalize to [0,1] range based on maximum possible score
+                int maxScore = roads.CountByImportance(FilterImportance.Priority) * 2
+                             + roads.CountByImportance(FilterImportance.Preferred);
+                float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
+                return membership;
             }
 
             return 0.0f;

@@ -6,26 +6,26 @@ using LandingZone.Data;
 namespace LandingZone.Core.Filtering.Filters
 {
     /// <summary>
-    /// Filters tiles by specific stone/mineral types.
-    /// Uses MineralStockpileCache to resolve MineralRich tiles to specific rock types.
+    /// Filters tiles by specific mineral ore types found on MineralRich tiles.
+    /// Uses MineralStockpileCache to resolve ore types per tile.
     /// Supports multi-select with AND/OR logic and Preferred/Critical importance.
     /// </summary>
-    public sealed class StoneFilter : ISiteFilter
+    public sealed class MineralOresFilter : ISiteFilter
     {
-        public string Id => "stone";
+        public string Id => "mineral_ores";
         public FilterHeaviness Heaviness => FilterHeaviness.Light;  // Cache is pre-computed
 
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
-            var stones = filters.Stones;
+            var mineralOres = filters.MineralOres;
 
-            // If no stones configured, pass all tiles through
-            if (!stones.HasAnyImportance)
+            // If no ores configured, pass all tiles through
+            if (!mineralOres.HasAnyImportance)
                 return inputTiles;
 
             // Only hard gates (MustHave/MustNotHave) filter in Apply phase
-            if (!stones.HasHardGates)
+            if (!mineralOres.HasHardGates)
                 return inputTiles;
 
             var cache = context.State.MineralStockpileCache;
@@ -33,62 +33,62 @@ namespace LandingZone.Core.Filtering.Filters
             // Filter for tiles that meet hard gate requirements (MustHave AND MustNotHave)
             return inputTiles.Where(id =>
             {
-                var tileStones = cache.GetMineralTypes(id);
+                var tileOres = cache.GetMineralTypes(id);
                 // Note: Empty list is valid for MeetsHardGateRequirements (no MustHave will fail, no MustNotHave is ok)
-                var stoneList = tileStones ?? new List<string>();
+                var oreList = tileOres ?? new List<string>();
 
-                return stones.MeetsHardGateRequirements(stoneList);
+                return mineralOres.MeetsHardGateRequirements(oreList);
             });
         }
 
         public string Describe(FilterContext context)
         {
             var filters = context.Filters;
-            var stones = filters.Stones;
+            var mineralOres = filters.MineralOres;
 
-            if (!stones.HasAnyImportance)
-                return "Stones not configured";
+            if (!mineralOres.HasAnyImportance)
+                return "Mineral ores not configured";
 
             var parts = new List<string>();
-            var criticalCount = stones.CountByImportance(FilterImportance.Critical);
-            var preferredCount = stones.CountByImportance(FilterImportance.Preferred);
+            var criticalCount = mineralOres.CountByImportance(FilterImportance.Critical);
+            var preferredCount = mineralOres.CountByImportance(FilterImportance.Preferred);
 
             if (criticalCount > 0)
                 parts.Add($"{criticalCount} required");
             if (preferredCount > 0)
                 parts.Add($"{preferredCount} preferred");
 
-            return $"Stones: {string.Join(", ", parts)}";
+            return $"Mineral Ores: {string.Join(", ", parts)}";
         }
 
         public float Membership(int tileId, FilterContext context)
         {
-            var stones = context.Filters.Stones;
+            var mineralOres = context.Filters.MineralOres;
 
-            // If no stones configured, no membership
-            if (!stones.HasAnyImportance)
+            // If no ores configured, no membership
+            if (!mineralOres.HasAnyImportance)
                 return 0.0f;
 
             var cache = context.State.MineralStockpileCache;
-            var tileStones = cache.GetMineralTypes(tileId);
-            // For tiles with no stones, use empty list for scoring
-            var stoneList = (IEnumerable<string>)(tileStones ?? new List<string>());
+            var tileOres = cache.GetMineralTypes(tileId);
+            // For tiles with no ores, use empty list for scoring
+            var oreList = (IEnumerable<string>)(tileOres ?? new List<string>());
 
             // Align with Apply phase: prioritize Critical (MustHave) requirements
-            if (stones.HasCritical)
+            if (mineralOres.HasCritical)
             {
                 // Use GetCriticalSatisfaction to respect AND/OR operator
-                float satisfaction = stones.GetCriticalSatisfaction(stoneList);
+                float satisfaction = mineralOres.GetCriticalSatisfaction(oreList);
                 return satisfaction;
             }
 
             // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
-            if (stones.HasPriority || stones.HasPreferred)
+            if (mineralOres.HasPriority || mineralOres.HasPreferred)
             {
-                float score = stones.GetScoringScore(stoneList);
+                float score = mineralOres.GetScoringScore(oreList);
                 // Normalize to [0,1] range based on maximum possible score
-                int maxScore = stones.CountByImportance(FilterImportance.Priority) * 2
-                             + stones.CountByImportance(FilterImportance.Preferred);
+                int maxScore = mineralOres.CountByImportance(FilterImportance.Priority) * 2
+                             + mineralOres.CountByImportance(FilterImportance.Preferred);
                 float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
                 return membership;
             }

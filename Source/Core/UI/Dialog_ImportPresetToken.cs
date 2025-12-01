@@ -16,6 +16,7 @@ namespace LandingZone.Core.UI
         private string _presetName = "";
         private string? _errorMessage = null;
         private Preset? _decodedPreset = null;
+        private PresetValidationResult? _validationResult = null;
 
         public Dialog_ImportPresetToken()
         {
@@ -26,7 +27,7 @@ namespace LandingZone.Core.UI
             forcePause = true;
         }
 
-        public override Vector2 InitialSize => new Vector2(600f, 400f);
+        public override Vector2 InitialSize => new Vector2(600f, 480f);
 
         public override void DoWindowContents(Rect inRect)
         {
@@ -64,8 +65,10 @@ namespace LandingZone.Core.UI
             // Single Import button - decodes and saves in one step
             if (listing.ButtonText("LandingZone_ImportPreset".Translate()))
             {
-                // Decode token
-                var (preset, error) = PresetTokenCodec.DecodePreset(_tokenInput);
+                // Decode token with validation
+                var (preset, error, validation) = PresetTokenCodec.DecodePreset(_tokenInput);
+                _validationResult = validation;
+
                 if (error != null)
                 {
                     _errorMessage = error;
@@ -100,7 +103,15 @@ namespace LandingZone.Core.UI
                         preset.Name = finalName;
                         if (PresetLibrary.SaveUserPreset(preset))
                         {
-                            Messages.Message("LandingZone_PresetImported".Translate(finalName), MessageTypeDefOf.PositiveEvent, false);
+                            // Include validation info in success message if there are issues
+                            if (validation?.HasMissingItems == true)
+                            {
+                                Messages.Message("LandingZone_PresetImportedWithWarnings".Translate(finalName, validation.SkippedCount), MessageTypeDefOf.CautionInput, false);
+                            }
+                            else
+                            {
+                                Messages.Message("LandingZone_PresetImported".Translate(finalName), MessageTypeDefOf.PositiveEvent, false);
+                            }
                             Close();
                         }
                         else
@@ -118,7 +129,43 @@ namespace LandingZone.Core.UI
             {
                 GUI.color = new Color(1f, 0.5f, 0.5f);
                 Text.Font = GameFont.Tiny;
-                listing.Label($"⚠ {_errorMessage}");
+                listing.Label(_errorMessage);
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+            }
+
+            // Show validation warnings (missing items that will be skipped)
+            if (_validationResult?.HasMissingItems == true)
+            {
+                listing.Gap(8f);
+                GUI.color = new Color(1f, 0.85f, 0.5f); // Yellow/orange for warnings
+                Text.Font = GameFont.Tiny;
+                listing.Label("LandingZone_ImportValidationWarning".Translate(_validationResult.SkippedCount));
+
+                // List missing items by category
+                foreach (var item in _validationResult.MissingItems)
+                {
+                    listing.Label($"  - {item.Category}: {item.DefName} ({item.Resolution})");
+                }
+
+                listing.Gap(4f);
+                listing.Label("LandingZone_ImportValidationNote".Translate());
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+            }
+
+            // Show resolved aliases (informational, not warnings)
+            if (_validationResult?.HasResolvedAliases == true)
+            {
+                listing.Gap(4f);
+                GUI.color = new Color(0.7f, 0.9f, 0.7f); // Light green for info
+                Text.Font = GameFont.Tiny;
+                listing.Label("LandingZone_ImportAliasInfo".Translate(_validationResult.ResolvedAliases.Count));
+
+                foreach (var item in _validationResult.ResolvedAliases)
+                {
+                    listing.Label($"  - {item.DefName} -> {item.Resolution?.Replace("Resolved to ", "")}");
+                }
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
             }

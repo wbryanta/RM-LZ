@@ -14,14 +14,18 @@ namespace LandingZone.Core.Filtering.Filters
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var importance = context.Filters.CoastalImportance;
-            if (importance != FilterImportance.Critical)
+
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!importance.IsHardGate())
                 return inputTiles;
 
             var worldGrid = Find.World.grid;
             return inputTiles.Where(id =>
             {
                 var tile = worldGrid[id];
-                return tile != null && tile.IsCoastal;
+                if (tile == null) return false;
+                bool isCoastal = tile.IsCoastal;
+                return importance == FilterImportance.MustNotHave ? !isCoastal : isCoastal;
             });
         }
 

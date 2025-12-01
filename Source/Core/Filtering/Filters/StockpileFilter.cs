@@ -27,21 +27,20 @@ namespace LandingZone.Core.Filtering.Filters
             if (!stockpiles.HasAnyImportance)
                 return inputTiles;
 
-            // If no Critical stockpiles, pass all tiles through (Preferred handled by scoring)
-            if (!stockpiles.HasCritical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!stockpiles.HasHardGates)
                 return inputTiles;
 
             var cache = context.State.MineralStockpileCache;
 
-            // Filter for tiles that meet Critical stockpile requirements
+            // Filter for tiles that meet hard gate requirements (MustHave AND MustNotHave)
             return inputTiles.Where(id =>
             {
                 var tileStockpiles = cache.GetStockpileTypes(id);
-                if (tileStockpiles == null || tileStockpiles.Count == 0)
-                    return false;  // No stockpiles = doesn't meet Critical requirement
+                // Note: Empty list is valid for MeetsHardGateRequirements (no MustHave will fail, no MustNotHave is ok)
+                var stockpileList = tileStockpiles ?? new List<string>();
 
-                // Check if this tile's stockpiles meet Critical requirements
-                return stockpiles.MeetsCriticalRequirements(tileStockpiles);
+                return stockpiles.MeetsHardGateRequirements(stockpileList);
             });
         }
 
@@ -75,52 +74,26 @@ namespace LandingZone.Core.Filtering.Filters
 
             var cache = context.State.MineralStockpileCache;
             var tileStockpiles = cache.GetStockpileTypes(tileId);
+            // For tiles with no stockpiles, use empty list for scoring
+            var stockpileList = (IEnumerable<string>)(tileStockpiles ?? new List<string>());
 
-            if (tileStockpiles == null || tileStockpiles.Count == 0)
-                return 0.0f; // No stockpiles on this tile
-
-            // Count matches for scoring
-            int criticalMatches = 0;
-            int criticalTotal = stockpiles.CountByImportance(FilterImportance.Critical);
-            int preferredMatches = 0;
-            int preferredTotal = stockpiles.CountByImportance(FilterImportance.Preferred);
-
-            foreach (var stockpile in tileStockpiles)
+            // Align with Apply phase: prioritize Critical (MustHave) requirements
+            if (stockpiles.HasCritical)
             {
-                var importance = stockpiles.GetImportance(stockpile);
-                if (importance == FilterImportance.Critical)
-                    criticalMatches++;
-                else if (importance == FilterImportance.Preferred)
-                    preferredMatches++;
+                // Use GetCriticalSatisfaction to respect AND/OR operator
+                float satisfaction = stockpiles.GetCriticalSatisfaction(stockpileList);
+                return satisfaction;
             }
 
-            // Align with Apply phase: prioritize Critical requirements
-            if (criticalTotal > 0)
+            // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
+            if (stockpiles.HasPriority || stockpiles.HasPreferred)
             {
-                // Use operator logic
-                if (stockpiles.Operator == ImportanceOperator.OR)
-                {
-                    // OR: Any match is good (1.0), no match is bad (0.0)
-                    return criticalMatches > 0 ? 1.0f : 0.0f;
-                }
-                else
-                {
-                    // AND: Score by coverage
-                    return criticalTotal > 0 ? (float)criticalMatches / criticalTotal : 0.0f;
-                }
-            }
-
-            // Only Preferred stockpiles configured
-            if (preferredTotal > 0)
-            {
-                if (stockpiles.Operator == ImportanceOperator.OR)
-                {
-                    return preferredMatches > 0 ? 1.0f : 0.0f;
-                }
-                else
-                {
-                    return (float)preferredMatches / preferredTotal;
-                }
+                float score = stockpiles.GetScoringScore(stockpileList);
+                // Normalize to [0,1] range based on maximum possible score
+                int maxScore = stockpiles.CountByImportance(FilterImportance.Priority) * 2
+                             + stockpiles.CountByImportance(FilterImportance.Preferred);
+                float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
+                return membership;
             }
 
             return 0.0f;

@@ -26,19 +26,18 @@ namespace LandingZone.Core.Filtering.Filters
             if (!adjacentBiomes.HasAnyImportance)
                 return inputTiles;
 
-            // If no Critical adjacent biomes, pass all tiles through (Preferred handled by scoring)
-            if (!adjacentBiomes.HasCritical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!adjacentBiomes.HasHardGates)
                 return inputTiles;
 
-            // Filter for tiles that meet Critical adjacent biome requirements
+            // Filter for tiles that meet hard gate requirements (MustHave AND MustNotHave)
             return inputTiles.Where(id =>
             {
                 var neighborBiomes = GetAdjacentBiomeDefNames(id);
-                if (neighborBiomes == null || !neighborBiomes.Any())
-                    return false;  // No adjacent biomes = doesn't meet Critical requirement
+                // Note: If no adjacent biomes, use empty list for requirements checking
+                var biomeList = neighborBiomes?.ToList() ?? new List<string>();
 
-                // Check if this tile's adjacent biomes meet Critical requirements
-                return adjacentBiomes.MeetsCriticalRequirements(neighborBiomes);
+                return adjacentBiomes.MeetsHardGateRequirements(biomeList);
             });
         }
 
@@ -122,15 +121,24 @@ namespace LandingZone.Core.Filtering.Filters
                 return 0.0f;
 
             var neighborBiomes = GetAdjacentBiomeDefNames(tileId).ToList();
-            if (!neighborBiomes.Any())
-                return 0.0f; // No adjacent biomes found
 
-            // Check if ANY of this tile's adjacent biomes are selected (have any importance)
-            foreach (var biome in neighborBiomes)
+            // Align with Apply phase: prioritize Critical (MustHave) requirements
+            if (adjacentBiomes.HasCritical)
             {
-                var importance = adjacentBiomes.GetImportance(biome);
-                if (importance != FilterImportance.Ignored)
-                    return 1.0f; // At least one selected adjacent biome present
+                // Use GetCriticalSatisfaction to respect AND/OR operator
+                float satisfaction = adjacentBiomes.GetCriticalSatisfaction(neighborBiomes);
+                return satisfaction;
+            }
+
+            // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
+            if (adjacentBiomes.HasPriority || adjacentBiomes.HasPreferred)
+            {
+                float score = adjacentBiomes.GetScoringScore(neighborBiomes);
+                // Normalize to [0,1] range based on maximum possible score
+                int maxScore = adjacentBiomes.CountByImportance(FilterImportance.Priority) * 2
+                             + adjacentBiomes.CountByImportance(FilterImportance.Preferred);
+                float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
+                return membership;
             }
 
             return 0.0f;

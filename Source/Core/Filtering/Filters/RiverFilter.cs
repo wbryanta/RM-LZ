@@ -27,20 +27,18 @@ namespace LandingZone.Core.Filtering.Filters
             if (!rivers.HasAnyImportance)
                 return inputTiles;
 
-            // If no Critical rivers, pass all tiles through (Preferred handled by scoring)
-            if (!rivers.HasCritical)
+            // Only hard gates (MustHave/MustNotHave) filter in Apply phase
+            if (!rivers.HasHardGates)
                 return inputTiles;
 
-            // Filter for tiles that meet Critical river requirements
+            // Filter for tiles that meet hard gate requirements (MustHave AND MustNotHave)
             return inputTiles.Where(id =>
             {
                 var riverDef = GetTileRiverDef(id);
-                if (riverDef == null)
-                    return false;  // No river = doesn't meet Critical requirement
+                // Note: If no river, use empty list for requirements checking
+                var tileRivers = riverDef != null ? new[] { riverDef.defName } : System.Array.Empty<string>();
 
-                // Check if this river type meets Critical requirements
-                var tileRivers = new[] { riverDef.defName };
-                return rivers.MeetsCriticalRequirements(tileRivers);
+                return rivers.MeetsHardGateRequirements(tileRivers);
             });
         }
 
@@ -104,19 +102,18 @@ namespace LandingZone.Core.Filtering.Filters
                 return 0.0f;
 
             var riverDef = GetTileRiverDef(tileId);
-            if (riverDef == null)
-                return 0.0f; // No river on this tile
+            // For tiles with no river, use empty array for scoring
+            var tileRivers = riverDef != null ? new[] { riverDef.defName } : System.Array.Empty<string>();
 
-            // Align with Apply phase: prioritize Critical requirements
+            // Align with Apply phase: prioritize Critical (MustHave) requirements
             if (rivers.HasCritical)
             {
                 // Use GetCriticalSatisfaction to respect AND/OR operator
-                var tileRivers = new[] { riverDef.defName };
                 float satisfaction = rivers.GetCriticalSatisfaction(tileRivers);
 
                 if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
                 {
-                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef.defName}");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef?.defName ?? "none"}");
                     LandingZoneLogger.LogVerbose($"  Critical rivers: [{string.Join(", ", rivers.GetCriticalItems())}], Operator={rivers.Operator}");
                     LandingZoneLogger.LogVerbose($"  → Satisfaction: {satisfaction:F2}");
                 }
@@ -124,19 +121,24 @@ namespace LandingZone.Core.Filtering.Filters
                 return satisfaction;
             }
 
-            // No Critical rivers, check Preferred (binary: 1.0 if river is Preferred)
-            if (rivers.HasPreferred)
+            // Priority OR Preferred: Use GetScoringScore for weighted scoring (Priority=2x, Preferred=1x)
+            if (rivers.HasPriority || rivers.HasPreferred)
             {
-                var importance = rivers.GetImportance(riverDef.defName);
+                float score = rivers.GetScoringScore(tileRivers);
+                // Normalize to [0,1] range based on maximum possible score
+                int maxScore = rivers.CountByImportance(FilterImportance.Priority) * 2
+                             + rivers.CountByImportance(FilterImportance.Preferred);
+                float membership = maxScore > 0 ? UnityEngine.Mathf.Clamp01(score / maxScore) : 0f;
 
                 if (Prefs.DevMode && LandingZoneLogger.IsVerbose && tileId < 10)
                 {
-                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef.defName}");
+                    LandingZoneLogger.LogVerbose($"[LandingZone] RiverFilter.Membership(tile={tileId}): river={riverDef?.defName ?? "none"}");
+                    LandingZoneLogger.LogVerbose($"  Priority rivers: [{string.Join(", ", rivers.GetPriorityItems())}]");
                     LandingZoneLogger.LogVerbose($"  Preferred rivers: [{string.Join(", ", rivers.GetPreferredItems())}]");
-                    LandingZoneLogger.LogVerbose($"  → Importance={importance}, returning {(importance == FilterImportance.Preferred ? "1.0" : "0.0")}");
+                    LandingZoneLogger.LogVerbose($"  → Score={score:F2}, MaxScore={maxScore}, Membership={membership:F2}");
                 }
 
-                return importance == FilterImportance.Preferred ? 1.0f : 0.0f;
+                return membership;
             }
 
             return 0.0f;
