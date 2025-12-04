@@ -132,10 +132,15 @@ namespace LandingZone.Core.Filtering
             LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Adaptive threshold = {effectiveMinMustHave}/{_cheapMustHave.Count} cheap MustHave");
 
             // Step 5: Compute upper bounds and create candidates
+            // STRICT: Two separate lists - strict matches (k=n) and near-misses (k=n-1)
             int initialCapacity = Mathf.Min(maxCandidates, 100000);
             var candidates = new List<CandidateTile>(initialCapacity);
+            var nearMissCandidates = new List<CandidateTile>(Mathf.Min(maxCandidates / 4, 10000));
             var world = Find.World;
             var worldGrid = world?.grid;
+
+            // Near-miss threshold: one less than required (for opt-in display)
+            int nearMissThreshold = effectiveMinMustHave > 0 ? effectiveMinMustHave - 1 : -1;
 
             if (DevDiagnostics.PhaseADiagnosticsEnabled)
             {
@@ -163,16 +168,12 @@ namespace LandingZone.Core.Filtering
                     continue;
                 }
 
-                // ADAPTIVE K-OF-N GATE: Tile must match at least effectiveMinMustHave cheap MustHave predicates
-                if (_cheapMustHave.Count > 0 && _mustHaveCheapCount[tileId] < effectiveMinMustHave)
-                {
-                    continue;
-                }
+                int mustHaveMatches = _mustHaveCheapCount[tileId];
 
                 // Upper bound scoring: assume tile matches ALL heavy predicates
                 // MustHave gates contribute to binary satisfaction (not weighted)
                 float mustHaveScoreUB = (totalMustHave == 0) ? 1f :
-                    (_mustHaveCheapCount[tileId] + _heavyMustHaveCount) / (float)totalMustHave;
+                    (mustHaveMatches + _heavyMustHaveCount) / (float)totalMustHave;
 
                 // Scoring: Priority has 2x weight, Preferred has 1x weight
                 float priorityScore = (totalPriority == 0) ? 0f :
@@ -188,11 +189,31 @@ namespace LandingZone.Core.Filtering
 
                 // For backwards compatibility, store combined counts
                 int combinedScoringCount = _priorityCheapCount[tileId] + _preferredCheapCount[tileId];
+
+                // STRICT GATE CHECK: Tile must match ALL cheap MustHave predicates
+                if (_cheapMustHave.Count > 0 && mustHaveMatches < effectiveMinMustHave)
+                {
+                    // Check if this is a near-miss (exactly n-1 matches)
+                    if (nearMissThreshold >= 0 && mustHaveMatches == nearMissThreshold)
+                    {
+                        nearMissCandidates.Add(new CandidateTile(
+                            tileId,
+                            upperBound,
+                            mustHaveMatches,
+                            combinedScoringCount,
+                            isNearMiss: true
+                        ));
+                    }
+                    continue;
+                }
+
+                // STRICT MATCH: Tile passes all gates
                 candidates.Add(new CandidateTile(
                     tileId,
                     upperBound,
-                    _mustHaveCheapCount[tileId],
-                    combinedScoringCount
+                    mustHaveMatches,
+                    combinedScoringCount,
+                    isNearMiss: false
                 ));
             }
 
@@ -201,42 +222,49 @@ namespace LandingZone.Core.Filtering
                 LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {excludedByMustNotHave} tiles excluded by MustNotHave gates");
             }
 
-            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {candidates.Count} candidates pass gates");
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {candidates.Count} strict matches, {nearMissCandidates.Count} near-misses tracked");
 
             bool capHit = candidates.Count > maxCandidates;
             if (DevDiagnostics.PhaseADiagnosticsEnabled)
             {
-                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A candidates: {candidates.Count} (cap {maxCandidates}, capHit={capHit})");
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A strict candidates: {candidates.Count} (cap {maxCandidates}, capHit={capHit})");
             }
 
-            // Step 6: Adaptive tightening if too many candidates
+            // Step 6: Cap strict candidates if needed
             if (capHit)
             {
                 int originalCount = candidates.Count;
-                LandingZoneLogger.LogStandard($"[LandingZone] Candidate cap hit! {originalCount} candidates exceed limit of {maxCandidates}. " +
-                                              $"Tightening to top {maxCandidates} by score. Consider using stricter filters or increasing Max Candidate Tiles in settings.");
+                LandingZoneLogger.LogStandard($"[LandingZone] Strict candidate cap hit! {originalCount} candidates exceed limit of {maxCandidates}. " +
+                                              $"Tightening to top {maxCandidates} by score.");
 
                 candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
                 candidates = candidates.Take(maxCandidates).ToList();
             }
 
-            // Step 7: Sort by upper bound descending for branch-and-bound
+            // Step 7: Sort strict candidates by upper bound descending for branch-and-bound
             candidates.Sort((a, b) => b.UpperBound.CompareTo(a.UpperBound));
 
+            // NOTE: Near-miss candidates are tracked but NOT appended to main results
+            // Near-misses are for future opt-in display only, kept separate from strict matches
+            // See Fix 4 in plan: near-misses will be handled in a separate pass if user opts-in
+
             // Final summary
+            int strictCount = candidates.Count(c => !c.IsNearMiss);
+            int nearMissCount = candidates.Count(c => c.IsNearMiss);
+
             if (maxCandidates == int.MaxValue)
             {
-                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {candidates.Count} candidates (Unlimited mode)");
+                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {strictCount} strict + {nearMissCount} near-misses (Unlimited mode)");
             }
             else
             {
-                string capStatus = capHit ? "CAP HIT" : $"{candidates.Count}/{maxCandidates}";
-                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {candidates.Count} candidates ({capStatus})");
+                string capStatus = capHit ? "STRICT CAP HIT" : $"{strictCount}/{maxCandidates}";
+                LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Returning {strictCount} strict ({capStatus}) + {nearMissCount} near-misses");
             }
 
             if (DevDiagnostics.PhaseADiagnosticsEnabled)
             {
-                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A candidates: {candidates.Count} (cap {maxCandidates}, capHit={capHit})");
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] Phase A final: {candidates.Count} total ({strictCount} strict, {nearMissCount} near-miss)");
                 phaseASw?.Stop();
                 Log.Message($"[LZ][DIAG] Phase A END: candidates={candidates.Count}, elapsed_ms={phaseASw?.ElapsedMilliseconds ?? 0}");
             }
@@ -322,19 +350,22 @@ namespace LandingZone.Core.Filtering
 
         /// <summary>
         /// Determines the minimum number of cheap MustHave predicates a tile must match to pass Stage A.
-        /// Uses adaptive k-of-n fallback to ensure a reasonable candidate count for Heavy filter processing.
+        /// STRICT ENFORCEMENT: MustHave means ALL must match. No relaxation.
+        /// Near-miss candidates (n-1 matches) are tracked separately for opt-in display.
         /// </summary>
-        /// <param name="minCandidates">Minimum desired candidates (e.g., 1000)</param>
-        /// <param name="maxCandidates">Maximum desired candidates (e.g., 10000)</param>
+        /// <param name="minCandidates">Minimum desired candidates (informational only - not used for relaxation)</param>
+        /// <param name="maxCandidates">Maximum desired candidates (informational only - not used for relaxation)</param>
         /// <param name="strictness">User's strictness setting (informational)</param>
-        /// <returns>Minimum cheap MustHave matches required (k in k-of-n)</returns>
+        /// <returns>Minimum cheap MustHave matches required - ALWAYS returns n (all MustHave predicates)</returns>
         private int DetermineAdaptiveThreshold(int minCandidates, int maxCandidates, float strictness)
         {
-            // If no cheap MustHave predicates, no filtering possible
+            // If no cheap MustHave predicates, no filtering required
             if (_cheapMustHave.Count == 0)
                 return 0;
 
-            // Count tiles matching k cheap MustHave predicates for each k
+            int requiredMatches = _cheapMustHave.Count;
+
+            // Count tiles matching k cheap MustHave predicates for each k (for logging only)
             int[] tileCounts = new int[_cheapMustHave.Count + 1]; // tileCounts[k] = # tiles matching ≥k MustHave
             var world = Find.World;
             var worldGrid = world?.grid;
@@ -362,36 +393,25 @@ namespace LandingZone.Core.Filtering
             }
 
             // Log tile distribution for transparency
-            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: k-of-n distribution:");
-            for (int k = _cheapMustHave.Count; k >= 0; k--)
+            int strictMatches = tileCounts[requiredMatches];
+            int nearMissMatches = requiredMatches > 0 ? tileCounts[requiredMatches - 1] - strictMatches : 0;
+
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: STRICT {requiredMatches}/{requiredMatches} MustHave enforcement");
+            LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: {strictMatches} tiles match ALL gates, {nearMissMatches} near-misses ({requiredMatches - 1}/{requiredMatches})");
+
+            // Log full distribution if diagnostic mode enabled
+            if (DevDiagnostics.PhaseADiagnosticsEnabled)
             {
-                LandingZoneLogger.LogStandard($"  {k}/{_cheapMustHave.Count}: {tileCounts[k]} tiles");
-            }
-
-            // Find the best k (highest match requirement) that produces a reasonable candidate count
-            // Start from strictest (all MustHave) and relax until we have enough candidates
-            for (int k = _cheapMustHave.Count; k >= 0; k--)
-            {
-                int candidateCount = tileCounts[k];
-
-                // Perfect: Within target range
-                if (candidateCount >= minCandidates && candidateCount <= maxCandidates)
+                LandingZoneLogger.LogStandard($"[LZ][DIAG] k-of-n distribution:");
+                for (int k = _cheapMustHave.Count; k >= 0; k--)
                 {
-                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapMustHave.Count} (produces {candidateCount} candidates, target: {minCandidates}-{maxCandidates})");
-                    return k;
-                }
-
-                // Good enough: Exceeds minimum
-                if (candidateCount >= minCandidates)
-                {
-                    LandingZoneLogger.LogStandard($"[LandingZone] BitsetAggregator: Selected {k}/{_cheapMustHave.Count} (produces {candidateCount} candidates, exceeds minimum {minCandidates})");
-                    return k;
+                    LandingZoneLogger.LogStandard($"  {k}/{_cheapMustHave.Count}: {tileCounts[k]} tiles");
                 }
             }
 
-            // Fallback: No k produces enough candidates, use 0 (accept all)
-            LandingZoneLogger.LogWarning($"[LandingZone] BitsetAggregator: No k-of-n threshold produces {minCandidates}+ candidates. Using 0/{_cheapMustHave.Count} (all tiles).");
-            return 0;
+            // STRICT: Always return n (all MustHave predicates must match)
+            // NO RELAXATION - if only 7 tiles match, that's the correct result
+            return requiredMatches;
         }
     }
 
@@ -400,17 +420,23 @@ namespace LandingZone.Core.Filtering
     /// </summary>
     public readonly struct CandidateTile
     {
-        public CandidateTile(int tileId, float upperBound, int critCheapMatches, int prefCheapMatches)
+        public CandidateTile(int tileId, float upperBound, int critCheapMatches, int prefCheapMatches, bool isNearMiss = false)
         {
             TileId = tileId;
             UpperBound = upperBound;
             CritCheapMatches = critCheapMatches;
             PrefCheapMatches = prefCheapMatches;
+            IsNearMiss = isNearMiss;
         }
 
         public int TileId { get; }
         public float UpperBound { get; }
         public int CritCheapMatches { get; }
         public int PrefCheapMatches { get; }
+        /// <summary>
+        /// True if this tile missed exactly 1 MustHave gate (near-miss candidate).
+        /// Near-miss tiles are tracked separately and shown in an opt-in section.
+        /// </summary>
+        public bool IsNearMiss { get; }
     }
 }

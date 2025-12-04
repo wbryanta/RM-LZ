@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LandingZone.Core.Filtering
 {
@@ -127,22 +128,63 @@ namespace LandingZone.Core.Filtering
 
         /// <summary>
         /// Gets quality rating for a mutator.
+        /// Priority order: User global overrides → Preset overrides → Default ratings → 0 (neutral)
         /// Returns 0 if mutator not found (treat as neutral).
         /// </summary>
         /// <param name="mutatorName">Mutator defName</param>
-        /// <param name="activePreset">Optional preset - if provided, checks for preset-specific overrides first</param>
+        /// <param name="activePreset">Optional preset - if provided, checks for preset-specific overrides after user overrides</param>
         /// <returns>Quality rating from -10 (very bad) to +10 (very good)</returns>
         public static int GetQuality(string mutatorName, LandingZone.Data.Preset? activePreset = null)
         {
-            // Check preset-specific overrides first
-            if (activePreset?.MutatorQualityOverrides != null
-                && activePreset.MutatorQualityOverrides.TryGetValue(mutatorName, out int overrideQuality))
+            int quality;
+
+            // 1. Check user global overrides first (from Mod Settings)
+            if (LandingZoneSettings.UserMutatorQualityOverrides != null
+                && LandingZoneSettings.UserMutatorQualityOverrides.TryGetValue(mutatorName, out int userOverride))
             {
-                return overrideQuality;
+                quality = userOverride;
+            }
+            // 2. Check preset-specific overrides
+            else if (activePreset?.MutatorQualityOverrides != null
+                && activePreset.MutatorQualityOverrides.TryGetValue(mutatorName, out int presetOverride))
+            {
+                quality = presetOverride;
+            }
+            // 3. Fall back to default ratings
+            else
+            {
+                quality = _ratings.TryGetValue(mutatorName, out int defaultQuality) ? defaultQuality : 0;
             }
 
-            // Fall back to global rating
+            // Clamp to valid range
+            quality = Math.Max(-10, Math.Min(10, quality));
+
+            // Apply inversion if Challenge Mode is enabled
+            if (LandingZoneSettings.InvertMutatorQuality)
+            {
+                quality = -quality;
+            }
+
+            return quality;
+        }
+
+        /// <summary>
+        /// Gets the default (un-modified) quality rating for a mutator.
+        /// Does NOT apply user overrides or inversion.
+        /// Used for displaying default values in the UI.
+        /// </summary>
+        public static int GetDefaultQuality(string mutatorName)
+        {
             return _ratings.TryGetValue(mutatorName, out int quality) ? quality : 0;
+        }
+
+        /// <summary>
+        /// Gets all mutators that have default ratings.
+        /// Used for populating the Mod Settings UI.
+        /// </summary>
+        public static IEnumerable<string> GetAllRatedMutators()
+        {
+            return _ratings.Keys;
         }
 
         /// <summary>
@@ -171,6 +213,20 @@ namespace LandingZone.Core.Filtering
         /// <returns>Mutator quality score [0,1]</returns>
         public static float ComputeMutatorScore(IEnumerable<string> mutators, float beta = 0.25f, LandingZone.Data.Preset? activePreset = null)
         {
+            return ComputeMutatorScore(mutators, beta, activePreset, excludedMutators: null);
+        }
+
+        /// <summary>
+        /// Computes mutator quality score, excluding mutators that were already required by filters.
+        /// This prevents "double-dipping" - getting bonus points for features you required.
+        /// </summary>
+        /// <param name="mutators">List of mutator defNames on tile</param>
+        /// <param name="beta">Sensitivity parameter (default 0.25)</param>
+        /// <param name="activePreset">Optional preset for quality overrides</param>
+        /// <param name="excludedMutators">Mutators to skip (already required by Critical filters)</param>
+        /// <returns>Mutator quality score [0,1]</returns>
+        public static float ComputeMutatorScore(IEnumerable<string> mutators, float beta, LandingZone.Data.Preset? activePreset, HashSet<string>? excludedMutators)
+        {
             if (mutators == null)
                 return 0.5f; // Neutral baseline
 
@@ -178,6 +234,10 @@ namespace LandingZone.Core.Filtering
             float qRaw = 0f;
             foreach (var mutator in mutators)
             {
+                // Skip mutators that were required by Critical filters (no bonus for must-haves)
+                if (excludedMutators != null && excludedMutators.Contains(mutator))
+                    continue;
+
                 qRaw += GetQuality(mutator, activePreset);
             }
 
@@ -188,6 +248,45 @@ namespace LandingZone.Core.Filtering
             float sMut = 0.5f * (1f + (float)tanhValue);
 
             return Math.Max(0f, Math.Min(1f, sMut)); // Clamp to [0,1]
+        }
+
+        /// <summary>
+        /// River-related mutators that should be excluded when Rivers filter is Critical.
+        /// </summary>
+        private static readonly HashSet<string> RiverRelatedMutators = new HashSet<string>
+        {
+            "River", "RiverDelta", "RiverConfluence", "RiverIsland", "Headwater",
+            "GL_River", "GL_RiverDelta", "GL_RiverConfluence", "GL_RiverIsland", "GL_RiverSource"
+        };
+
+        /// <summary>
+        /// Builds the set of mutators to exclude from quality scoring based on Critical filter requirements.
+        /// Mutators that were required shouldn't give bonus points (no double-dipping).
+        /// </summary>
+        /// <param name="filters">Current filter settings</param>
+        /// <returns>HashSet of mutator defNames to exclude from scoring</returns>
+        public static HashSet<string> BuildExcludedMutators(LandingZone.Data.FilterSettings filters)
+        {
+            var excluded = new HashSet<string>();
+
+            if (filters == null)
+                return excluded;
+
+            // 1. If Rivers has Critical items, exclude river-related mutators
+            //    (user required a river, so having one shouldn't be a bonus)
+            if (filters.Rivers.HasCritical)
+            {
+                foreach (var mutator in RiverRelatedMutators)
+                    excluded.Add(mutator);
+            }
+
+            // 2. Exclude MapFeatures Critical items directly (they're mutator defNames)
+            foreach (var feature in filters.MapFeatures.GetCriticalItems())
+            {
+                excluded.Add(feature);
+            }
+
+            return excluded;
         }
     }
 }

@@ -27,7 +27,7 @@ namespace LandingZone.Core.UI
             doCloseX = true;
             doCloseButton = false;
             closeOnClickedOutside = false;
-            absorbInputAroundWindow = false;
+            absorbInputAroundWindow = true;
         }
 
         public override Vector2 InitialSize => new Vector2(700f, 600f);
@@ -63,7 +63,7 @@ namespace LandingZone.Core.UI
             if (manager.Bookmarks.Count > 0 && Widgets.ButtonText(clearAllRect, "LandingZone_ClearAll".Translate()))
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                    "Are you sure you want to delete all bookmarks? This cannot be undone.",
+                    "LandingZone_ClearAllBookmarksConfirm".Translate(),
                     () => ClearAllBookmarks(manager),
                     destructive: true
                 ));

@@ -23,7 +23,7 @@ namespace LandingZone.Core.UI
             var activePreset = LandingZoneContext.State?.Preferences?.ActivePreset;
             if (activePreset != null)
             {
-                return activePreset.Name;
+                return activePreset.GetDisplayName();
             }
 
             var currentMode = LandingZoneContext.State?.Preferences?.Options?.PreferencesUIMode ?? UIMode.Simple;
@@ -91,8 +91,8 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
 
             string tooltip = hasResults
-                ? $"View top {maxResults} matches"
-                : "No matches yet - run a search first";
+                ? "LandingZone_ViewTopMatches".Translate(maxResults)
+                : "LandingZone_NoMatchesRunSearch".Translate();
             TooltipHandler.TipRegion(rect, tooltip);
         }
 
@@ -168,8 +168,8 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
 
             string tooltip = hasTileSelected
-                ? (isBookmarked ? "Remove bookmark from this tile" : "Bookmark this tile for later reference")
-                : "Select a tile to bookmark it";
+                ? (isBookmarked ? "LandingZone_RemoveBookmark".Translate() : "LandingZone_AddBookmark".Translate())
+                : "LandingZone_SelectTileToBookmark".Translate();
             TooltipHandler.TipRegion(rect, tooltip);
         }
 
@@ -210,8 +210,8 @@ namespace LandingZone.Core.UI
             GUI.color = prevColor;
 
             string tooltip = bookmarkCount > 0
-                ? $"View and manage {bookmarkCount} bookmarked tiles"
-                : "Open bookmark manager (no bookmarks yet)";
+                ? "LandingZone_ViewManageBookmarks".Translate(bookmarkCount)
+                : "LandingZone_OpenBookmarkManagerEmpty".Translate();
             TooltipHandler.TipRegion(rect, tooltip);
         }
 
@@ -227,7 +227,7 @@ namespace LandingZone.Core.UI
                 int percent = (int)(LandingZoneContext.TileCacheProgress * 100f);
                 int processed = LandingZoneContext.TileCacheProcessedTiles;
                 int total = LandingZoneContext.TileCacheTotalTiles;
-                return $"Analyzing world... {percent}% ({processed:N0}/{total:N0} tiles)";
+                return "LandingZone_AnalyzingWorld".Translate(percent, processed.ToString("N0"), total.ToString("N0"));
             }
 
             if (LandingZoneContext.IsEvaluating)
@@ -237,7 +237,7 @@ namespace LandingZone.Core.UI
                 {
                     return $"{(LandingZoneContext.EvaluationProgress * 100f):F0}% - {phaseDesc}";
                 }
-                return $"Searching... {(LandingZoneContext.EvaluationProgress * 100f):F0}%";
+                return "LandingZone_SearchingPercent".Translate($"{(LandingZoneContext.EvaluationProgress * 100f):F0}");
             }
 
             if (LandingZoneContext.LastEvaluationCount > 0)
@@ -259,11 +259,11 @@ namespace LandingZone.Core.UI
                 string worldStats = worldStatsGetter();
                 if (!string.IsNullOrEmpty(worldStats))
                 {
-                    return $"No matches yet | {worldStats}";
+                    return "LandingZone_NoMatchesWithStats".Translate(worldStats);
                 }
             }
 
-            return "No matches yet - click Search to find settlements";
+            return "LandingZone_NoMatchesClickSearch".Translate();
         }
 
         /// <summary>

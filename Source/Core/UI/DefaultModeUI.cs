@@ -179,15 +179,15 @@ namespace LandingZone.Core.UI
                 foreach (var preset in userPresets)
                 {
                     var presetCapture = preset;
-                    exportOptions.Add(new FloatMenuOption(preset.Name, () =>
+                    exportOptions.Add(new FloatMenuOption(preset.GetDisplayName(), () =>
                     {
                         var token = PresetTokenCodec.EncodePreset(presetCapture);
                         if (!string.IsNullOrEmpty(token))
                         {
                             // Copy to clipboard and show dialog with token
                             GUIUtility.systemCopyBuffer = token;
-                            Messages.Message("LandingZone_TokenCopied".Translate(presetCapture.Name), MessageTypeDefOf.NeutralEvent, false);
-                            Find.WindowStack.Add(new Dialog_ShowToken(presetCapture.Name, token));
+                            Messages.Message("LandingZone_TokenCopied".Translate(presetCapture.GetDisplayName()), MessageTypeDefOf.NeutralEvent, false);
+                            Find.WindowStack.Add(new Dialog_ShowToken(presetCapture.GetDisplayName(), token));
                         }
                         else
                         {
@@ -250,29 +250,43 @@ namespace LandingZone.Core.UI
             // Check if this is the active preset
             bool isActive = preferences.ActivePreset?.Id == preset.Id;
 
-            // Check if active preset has been modified (basic check: compare temperature ranges)
-            bool isModified = false;
-            if (isActive && preferences.ActivePreset != null)
-            {
-                // Simple modification check: compare a few key properties
-                // TODO: Implement comprehensive FilterSettings comparison method
-                var presetTemp = preset.Filters.AverageTemperatureRange;
-                var currentTemp = filters.AverageTemperatureRange;
-                isModified = Math.Abs(presetTemp.min - currentTemp.min) > 0.1f ||
-                            Math.Abs(presetTemp.max - currentTemp.max) > 0.1f ||
-                            preset.Filters.MaxResults != filters.MaxResults;
-            }
+            // Check if this is the default preset (applied on new world load)
+            bool isDefault = LandingZoneSettings.DefaultPresetId == preset.Id;
+
+            // Validate preset requirements against current runtime
+            var validation = preset.ValidateRequirements();
 
             // Draw card background
             Color bgColor = new Color(0.15f, 0.15f, 0.15f);
             Widgets.DrawBoxSolid(rect, bgColor);
 
-            // Active preset: Draw highlighted border with glow effect
+            // Determine border color based on state
+            // Priority: Active (green) > Blocking missing (red) > Warning missing (yellow) > Default
             if (isActive)
             {
                 Color highlightColor = new Color(0.4f, 0.8f, 0.4f); // Soft green glow
                 Widgets.DrawBox(rect, 2); // Thicker border
                 GUI.color = highlightColor;
+                Widgets.DrawBox(rect);
+                GUI.color = Color.white;
+            }
+            else if (validation.HasBlockingMissing)
+            {
+                // Subtle red border for blocking missing requirements
+                // Not screaming - muted red/coral color
+                Color warningColor = new Color(0.6f, 0.3f, 0.3f, 0.8f); // Muted red
+                Widgets.DrawBox(rect);
+                GUI.color = warningColor;
+                Widgets.DrawBox(rect);
+                GUI.color = Color.white;
+            }
+            else if (validation.HasWarningMissing)
+            {
+                // Subtle yellow border for non-blocking missing requirements
+                // Very subtle amber tint
+                Color cautionColor = new Color(0.6f, 0.5f, 0.3f, 0.7f); // Muted amber
+                Widgets.DrawBox(rect);
+                GUI.color = cautionColor;
                 Widgets.DrawBox(rect);
                 GUI.color = Color.white;
             }
@@ -290,11 +304,31 @@ namespace LandingZone.Core.UI
             float badgeRowY = rect.y + 4f;
             float badgeRowHeight = 16f;
 
-            // DLC badges (top-left)
+            // Default star indicator (top-left corner, before DLC badges)
+            float badgeX = rect.x + 4f;
+            if (isDefault)
+            {
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Rect starRect = new Rect(badgeX, badgeRowY, 14f, 14f);
+                GUI.color = new Color(1f, 0.85f, 0.2f); // Gold star
+                Widgets.Label(starRect, "★");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+                Text.Anchor = TextAnchor.UpperLeft;
+                badgeX += 16f;
+
+                // Tooltip for star
+                if (Mouse.IsOver(starRect))
+                {
+                    TooltipHandler.TipRegion(starRect, "LandingZone_DefaultPresetIndicator".Translate());
+                }
+            }
+
+            // DLC badges (top-left, after star if present)
             var dlcBadges = GetPresetDLCBadges(preset);
             if (dlcBadges.Count > 0)
             {
-                float badgeX = rect.x + 4f;
                 Text.Font = GameFont.Tiny;
                 Text.Anchor = TextAnchor.MiddleCenter;
 
@@ -340,37 +374,14 @@ namespace LandingZone.Core.UI
             // === ROW 2: Title (below badges) ===
             float titleY = badgeRowY + badgeRowHeight + 2f;
             Rect titleRect = new Rect(contentRect.x, titleY, contentRect.width, 20f);
-            Widgets.Label(titleRect, preset.Name);
-
-            // Modification indicator (small icon next to title if modified)
-            if (isModified)
-            {
-                Text.Font = GameFont.Tiny;
-                float titleWidth = Text.CalcSize(preset.Name).x;
-                Text.Font = GameFont.Small;
-                Rect modBadgeRect = new Rect(contentRect.x + titleWidth + 4f, titleY + 2f, 14f, 14f);
-                Color yellowWarning = new Color(1f, 0.9f, 0.3f);
-                GUI.color = yellowWarning;
-                Widgets.DrawBoxSolid(modBadgeRect, yellowWarning * 0.3f);
-                Text.Font = GameFont.Tiny;
-                Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(modBadgeRect, "✎");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-                Text.Anchor = TextAnchor.UpperLeft;
-
-                if (Mouse.IsOver(modBadgeRect))
-                {
-                    TooltipHandler.TipRegion(modBadgeRect, "LandingZone_ModifiedFromPreset".Translate(preset.Name));
-                }
-            }
+            Widgets.Label(titleRect, preset.GetDisplayName());
 
             // === ROW 3: Description (below title) ===
             float descY = titleY + 20f;
             Text.Font = GameFont.Tiny;
             Rect descRect = new Rect(contentRect.x, descY, contentRect.width, 36f);
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
-            Widgets.Label(descRect, preset.Description);
+            Widgets.Label(descRect, preset.GetDisplayDescription());
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
@@ -394,13 +405,14 @@ namespace LandingZone.Core.UI
                 if (deleteClicked)
                 {
                     // Simple confirmation using Find.WindowStack
+                    // Note: User presets store literal names (not translation keys), so Name == GetDisplayName()
                     Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                        "LandingZone_DeletePresetConfirm".Translate(preset.Name),
+                        "LandingZone_DeletePresetConfirm".Translate(preset.GetDisplayName()),
                         delegate
                         {
-                            if (PresetLibrary.DeleteUserPreset(preset.Name))
+                            if (PresetLibrary.DeleteUserPreset(preset.Name)) // Use raw Name for lookup
                             {
-                                Messages.Message("LandingZone_PresetDeleted".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
+                                Messages.Message("LandingZone_PresetDeleted".Translate(preset.GetDisplayName()), MessageTypeDefOf.NeutralEvent, false);
                             }
                         },
                         destructive: true
@@ -422,18 +434,24 @@ namespace LandingZone.Core.UI
             if (remixClicked)
             {
                 var remixTimer = Stopwatch.StartNew();
-                Log.Message($"[LandingZone][Remix] Start remix of preset '{preset.Name}' into Advanced mode");
+                string displayName = preset.GetDisplayName();
+                Log.Message($"[LandingZone][Remix] Start remix of preset '{displayName}' into Advanced mode");
                 // Apply preset to Advanced mode filters (not Simple mode)
                 preset.ApplyTo(preferences.AdvancedFilters);
-                preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
+                // Clear ActivePreset since we're now editing a copy, not using the preset directly
+                // This makes search button show "Advanced" instead of preset name
+                preferences.ActivePreset = null;
                 preferences.Options.PreferencesUIMode = UIMode.Advanced; // Switch to Advanced mode
+
+                // Force workspace to reload from updated FilterSettings
+                AdvancedModeUI.InvalidateWorkspace();
 
                 // If in Workspace mode and preset has hidden filters, auto-switch to Classic
                 AdvancedModeUI.EnsureHiddenFiltersVisible(preferences.AdvancedFilters);
 
                 remixTimer.Stop();
-                Log.Message($"[LandingZone][Remix] Completed remix of '{preset.Name}' in {remixTimer.ElapsedMilliseconds} ms");
-                Messages.Message("LandingZone_LoadedPresetForEditing".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
+                Log.Message($"[LandingZone][Remix] Completed remix of '{displayName}' in {remixTimer.ElapsedMilliseconds} ms");
+                Messages.Message("LandingZone_LoadedPresetForEditing".Translate(displayName), MessageTypeDefOf.NeutralEvent, false);
             }
             Text.Font = GameFont.Small;
             Text.Anchor = TextAnchor.UpperLeft;
@@ -449,29 +467,67 @@ namespace LandingZone.Core.UI
             Rect clickableArea = rect;
             if (!remixRect.Contains(Event.current.mousePosition))
             {
-                if (Widgets.ButtonInvisible(rect))
+                // Right-click: Show context menu with "Set as Default" option
+                // Check this FIRST before ButtonInvisible consumes the event
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && rect.Contains(Event.current.mousePosition))
+                {
+                    var options = new List<FloatMenuOption>();
+
+                    // "Set as Default" option (only if not already default)
+                    if (!isDefault)
+                    {
+                        var capturedPreset = preset;
+                        options.Add(new FloatMenuOption("LandingZone_SetAsDefault".Translate(), () =>
+                        {
+                            LandingZoneSettings.DefaultPresetId = capturedPreset.Id;
+                            LandingZoneMod.Instance?.WriteSettings();
+                            Messages.Message("LandingZone_DefaultPresetSet".Translate(capturedPreset.GetDisplayName()), MessageTypeDefOf.NeutralEvent, false);
+                        }));
+                    }
+                    else
+                    {
+                        // Already default - show disabled option
+                        options.Add(new FloatMenuOption("LandingZone_AlreadyDefault".Translate(), null));
+                    }
+
+                    if (options.Count > 0)
+                    {
+                        Find.WindowStack.Add(new FloatMenu(options));
+                        Event.current.Use();
+                    }
+                }
+                // Left-click: Apply preset
+                else if (Widgets.ButtonInvisible(rect))
                 {
                     preset.ApplyTo(filters);
                     preferences.ActivePreset = preset; // Track active preset for mutator quality overrides
 
-                    // If in Advanced mode with Workspace view, check for hidden filters
+                    // If in Advanced mode, reset workspace to show new preset filters
                     if (preferences.Options.PreferencesUIMode == UIMode.Advanced)
                     {
+                        AdvancedModeUI.InvalidateWorkspace();
                         AdvancedModeUI.EnsureHiddenFiltersVisible(filters);
                     }
 
-                    Messages.Message("LandingZone_AppliedPreset".Translate(preset.Name), MessageTypeDefOf.NeutralEvent, false);
+                    Messages.Message("LandingZone_AppliedPreset".Translate(preset.GetDisplayName()), MessageTypeDefOf.NeutralEvent, false);
                 }
             }
 
             // Tooltip with filter summary (for main card area, not remix button)
             if (!Mouse.IsOver(remixRect))
             {
-                string tooltip = $"{preset.Name}\n\n{preset.Description}\n\n";
+                string tooltip = $"{preset.GetDisplayName()}\n\n{preset.GetDisplayDescription()}\n\n";
                 if (!string.IsNullOrEmpty(preset.FilterSummary))
-                    tooltip += "LandingZone_PresetFilters".Translate(preset.FilterSummary) + "\n\n";
+                    tooltip += "LandingZone_PresetFilters".Translate(preset.GetDisplayFilterSummary()) + "\n\n";
                 if (preset.TargetRarity.HasValue)
                     tooltip += "LandingZone_TargetRarity".Translate(preset.TargetRarity.Value.ToLabel()) + "\n\n";
+
+                // Add validation warnings to tooltip
+                if (validation.HasAnyMissing)
+                {
+                    tooltip += "\n" + validation.GetTooltip() + "\n\n";
+                }
+
                 tooltip += "LandingZone_PresetTooltipAction".Translate();
 
                 TooltipHandler.TipRegion(rect, tooltip);

@@ -87,7 +87,9 @@ except Exception as e:
     sys.exit(1)
 
 used = set()
-translate_re = re.compile(r'Translate\(\s*"([A-Za-z0-9_\.]+)"')
+# RimWorld pattern: "TranslationKey".Translate() - key comes BEFORE .Translate
+# NOT Translate("key") which would capture format parameters
+translate_re = re.compile(r'"([A-Za-z0-9_\.]+)"\.Translate')
 for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
     for f in files:
         if not f.endswith('.cs'):
@@ -97,7 +99,8 @@ for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
                 for m in translate_re.finditer(line):
                     used.add(m.group(1))
 
-missing = sorted(k for k in used if k not in keys)
+# Only check OUR keys (LandingZone_*) - base game keys like "Back", "Cancel" are provided by RimWorld
+missing = sorted(k for k in used if k.startswith('LandingZone_') and k not in keys)
 if missing:
     print("Missing translation keys (used in code but not in Languages/English/Keyed/LandingZone.xml):", file=sys.stderr)
     for k in missing:
@@ -105,12 +108,16 @@ if missing:
     sys.exit(1)
 
 # Hardcoded UI string check: crude scan for Label/ButtonText with raw literals (UI folder only)
+# Skip dev-only files (DevToolsWindow, etc.) - they don't need translation
 ui_dir = os.path.join(root, 'Source', 'Core', 'UI')
 hardcoded = []
 pattern = re.compile(r'(Label|ButtonText)\(\s*"([^"]*[A-Za-z][^"]*)"')
 for dirpath, _, files in os.walk(ui_dir):
     for f in files:
         if not f.endswith('.cs'):
+            continue
+        # Skip dev-only files
+        if 'Dev' in f or 'Debug' in f:
             continue
         path = os.path.join(dirpath, f)
         with open(path, encoding='utf-8', errors='ignore') as fh:
@@ -277,7 +284,9 @@ except Exception as e:
     sys.exit(1)
 
 used = set()
-translate_re = re.compile(r'Translate\(\s*"([A-Za-z0-9_\.]+)"')
+# RimWorld pattern: "TranslationKey".Translate() - key comes BEFORE .Translate
+# NOT Translate("key") which would capture format parameters
+translate_re = re.compile(r'"([A-Za-z0-9_\.]+)"\.Translate')
 for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
     for f in files:
         if not f.endswith('.cs'):
@@ -287,7 +296,8 @@ for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
                 for m in translate_re.finditer(line):
                     used.add(m.group(1))
 
-missing = sorted(k for k in used if k not in keys)
+# Only check OUR keys (LandingZone_*) - base game keys like "Back", "Cancel" are provided by RimWorld
+missing = sorted(k for k in used if k.startswith('LandingZone_') and k not in keys)
 if missing:
     print("Missing translation keys (used in code but not in Languages/English/Keyed/LandingZone.xml):", file=sys.stderr)
     for k in missing:
@@ -295,12 +305,16 @@ if missing:
     sys.exit(1)
 
 # Hardcoded UI string check: crude scan for Label/ButtonText with raw literals (UI folder only)
+# Skip dev-only files (DevToolsWindow, etc.) - they don't need translation
 ui_dir = os.path.join(root, 'Source', 'Core', 'UI')
 hardcoded = []
 pattern = re.compile(r'(Label|ButtonText)\(\s*"([^"]*[A-Za-z][^"]*)"')
 for dirpath, _, files in os.walk(ui_dir):
     for f in files:
         if not f.endswith('.cs'):
+            continue
+        # Skip dev-only files
+        if 'Dev' in f or 'Debug' in f:
             continue
         path = os.path.join(dirpath, f)
         with open(path, encoding='utf-8', errors='ignore') as fh:
@@ -369,7 +383,9 @@ except Exception as e:
     sys.exit(1)
 
 used = set()
-translate_re = re.compile(r'Translate\(\s*"([A-Za-z0-9_\.]+)"')
+# RimWorld pattern: "TranslationKey".Translate() - key comes BEFORE .Translate
+# NOT Translate("key") which would capture format parameters
+translate_re = re.compile(r'"([A-Za-z0-9_\.]+)"\.Translate')
 for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
     for f in files:
         if not f.endswith('.cs'):
@@ -379,7 +395,8 @@ for dirpath, _, files in os.walk(os.path.join(root, 'Source')):
                 for m in translate_re.finditer(line):
                     used.add(m.group(1))
 
-missing = sorted(k for k in used if k not in keys)
+# Only check OUR keys (LandingZone_*) - base game keys like "Back", "Cancel" are provided by RimWorld
+missing = sorted(k for k in used if k.startswith('LandingZone_') and k not in keys)
 if missing:
     print("Missing translation keys (used in code but not in Languages/English/Keyed/LandingZone.xml):", file=sys.stderr)
     for k in missing:
@@ -387,12 +404,16 @@ if missing:
     sys.exit(1)
 
 # Hardcoded UI string check: crude scan for Label/ButtonText with raw literals (UI folder only)
+# Skip dev-only files (DevToolsWindow, etc.) - they don't need translation
 ui_dir = os.path.join(root, 'Source', 'Core', 'UI')
 hardcoded = []
 pattern = re.compile(r'(Label|ButtonText)\(\s*"([^"]*[A-Za-z][^"]*)"')
 for dirpath, _, files in os.walk(ui_dir):
     for f in files:
         if not f.endswith('.cs'):
+            continue
+        # Skip dev-only files
+        if 'Dev' in f or 'Debug' in f:
             continue
         path = os.path.join(dirpath, f)
         with open(path, encoding='utf-8', errors='ignore') as fh:

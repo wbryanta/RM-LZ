@@ -442,15 +442,22 @@ namespace LandingZone.Core.Filtering
             private static bool _performanceWarningShownThisSession = false;
             private const long PerformanceWarningThresholdMs = 20000; // 20 seconds
 
+            /// <summary>
+            /// Sensitivity parameter (β) for mutator quality tanh squashing.
+            /// Controls how quickly the score approaches 0 or 1 as quality sum increases.
+            /// β=0.25 means Q_raw of ±10 gives S_mut ≈ 0.92/0.08 (see MutatorQualityRatings).
+            /// </summary>
+            private const float MutatorScoringSensitivity = 0.25f;
+
             private readonly FilterService _owner;
             private readonly GameState _state;
             private readonly Data.Preset? _preset; // Track active preset for fallback logic
             private List<CandidateTile> _candidates;
             // Heavy predicates partitioned by importance
             private readonly List<IFilterPredicate> _heavyMustHave;
+            private readonly List<IFilterPredicate> _heavyMustNotHave;
             private readonly List<IFilterPredicate> _heavyPriority;
             private readonly List<IFilterPredicate> _heavyPreferred;
-            // Note: MustNotHave heavy predicates are auto-demoted to Priority in GetAllPredicates
             private int _totalMustHave; // Not readonly - updated when fallback tiers activate
             private int _totalPriority; // Not readonly - updated when fallback tiers activate
             private int _totalPreferred; // Not readonly - updated when fallback tiers activate
@@ -468,9 +475,9 @@ namespace LandingZone.Core.Filtering
             private bool _completed;
             private bool _precomputationComplete;
             private float _minInHeap;
-            private float _currentStrictness; // Mutable strictness for auto-relax
             private int _fallbackTierUsed = 0; // 0 = primary, 1+ = fallback tier index
             private bool _scoringStartLogged = false; // Track if scoring phase start has been logged
+            private bool _heavyGatesApplied = false; // Track if heavy gates have been applied to survivors
 
             // For membership scoring
             private readonly List<ISiteFilter> _mustHaveFilters;
@@ -479,6 +486,7 @@ namespace LandingZone.Core.Filtering
             private float[] _mustHaveWeights; // Not readonly - updated when fallback tiers activate
             private float[] _priorityWeights; // Not readonly - updated when fallback tiers activate
             private float[] _preferredWeights; // Not readonly - updated when fallback tiers activate
+            private readonly HashSet<string> _excludedMutators; // Mutators to skip in quality scoring (already required)
 
             internal FilterEvaluationJob(FilterService owner, GameState state, FilterSettings? overrideFilters = null)
             {
@@ -497,7 +505,6 @@ namespace LandingZone.Core.Filtering
                     LandingZoneLogger.LogStandard($"[LandingZone] Preset '{_preset.Id}' enforces MinimumStrictness={_preset.MinimumStrictness:F2}");
                 }
 
-                _currentStrictness = _strictness; // Initialize current strictness
                 _maxResults = Mathf.Clamp(filters.MaxResults, 1, FilterSettings.MaxResultsLimit);
                 var modeLabel = state.Preferences.Options.PreferencesUIMode.ToString();
                 var presetLabel = _preset != null
@@ -534,8 +541,8 @@ namespace LandingZone.Core.Filtering
                 var (cheapPredicates, heavyPredicates) = owner._registry.GetAllPredicates(state, overrideFilters);
 
                 // Partition heavy predicates by importance
-                // Note: MustNotHave heavy predicates are auto-demoted to Priority in GetAllPredicates
                 _heavyMustHave = heavyPredicates.Where(p => p.Importance == FilterImportance.MustHave).ToList();
+                _heavyMustNotHave = heavyPredicates.Where(p => p.Importance == FilterImportance.MustNotHave).ToList();
                 _heavyPriority = heavyPredicates.Where(p => p.Importance == FilterImportance.Priority).ToList();
                 _heavyPreferred = heavyPredicates.Where(p => p.Importance == FilterImportance.Preferred).ToList();
 
@@ -549,6 +556,13 @@ namespace LandingZone.Core.Filtering
                 int totalScoring = _totalPriority + _totalPreferred;
                 _kappa = ScoringWeights.ComputeKappa(_totalMustHave, totalScoring);
                 _context = new FilterContext(state, owner._tileCache, overrideFilters);
+
+                // Build set of mutators to exclude from quality scoring (already required by Critical filters)
+                _excludedMutators = MutatorQualityRatings.BuildExcludedMutators(filters);
+                if (_excludedMutators.Count > 0 && LandingZoneSettings.LogLevel >= LoggingLevel.Standard)
+                {
+                    Log.Message($"[LandingZone] Excluding {_excludedMutators.Count} mutators from quality scoring (already required): [{string.Join(", ", _excludedMutators)}]");
+                }
 
                 // Eager-build MineralStockpileCache if StoneFilter is active (prevents lazy build during tile evaluation)
                 if (filters.Stones.HasAnyImportance)
@@ -722,16 +736,17 @@ namespace LandingZone.Core.Filtering
                     return; // Skip to next state check
                 }
 
-                // PERFORMANCE OPTIMIZATION: Skip precomputation of Heavy scoring filters
-                // Heavy scoring filters (e.g., Growing Days) are computed on-demand for top N candidates only
+                // PERFORMANCE OPTIMIZATION: Skip precomputation of Heavy filters
+                // Heavy filters are computed on-demand during Stage B candidate processing
                 // This prevents expensive operations on 100k+ candidates (3+ minutes → 3 seconds)
-                // Heavy MustHave filters are auto-demoted to Priority, so they also skip precomputation
+                // Heavy MustHave filters are enforced as gates (not demoted) in Stage B
                 int heavyScoringCount = _heavyPriority.Count + _heavyPreferred.Count;
                 _heavyPredicateCount = _heavyMustHave.Count + heavyScoringCount;
                 if (_heavyMustHave.Count > 0)
                 {
-                    // This should never happen due to auto-demotion, but handle it gracefully
-                    LandingZoneLogger.LogWarning($"[LandingZone] {_heavyMustHave.Count} Heavy MustHave predicates detected (should be auto-demoted). Skipping precomputation.");
+                    // Heavy MustHave filters are enforced as gates in Stage B (after scoring starts)
+                    // No precomputation needed - evaluated on-demand during candidate processing
+                    LandingZoneLogger.LogStandard($"[LandingZone] {_heavyMustHave.Count} Heavy MustHave filters will be enforced as gates in Stage B");
                 }
 
                 if (heavyScoringCount > 0)
@@ -742,10 +757,13 @@ namespace LandingZone.Core.Filtering
                     if (Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
                     {
                         var heavyMustHaveDefNames = _heavyMustHave.Select(p => p.Id ?? p.GetType().Name).ToList();
+                        var heavyMustNotHaveDefNames = _heavyMustNotHave.Select(p => p.Id ?? p.GetType().Name).ToList();
                         var heavyPriorityDefNames = _heavyPriority.Select(p => p.Id ?? p.GetType().Name).ToList();
                         var heavyPrefDefNames = _heavyPreferred.Select(p => p.Id ?? p.GetType().Name).ToList();
                         if (heavyMustHaveDefNames.Count > 0)
                             Log.Message($"[LZ][DIAG] Heavy MustHave deferred ({heavyMustHaveDefNames.Count}): {string.Join(", ", heavyMustHaveDefNames)}");
+                        if (heavyMustNotHaveDefNames.Count > 0)
+                            Log.Message($"[LZ][DIAG] Heavy MustNotHave deferred ({heavyMustNotHaveDefNames.Count}): {string.Join(", ", heavyMustNotHaveDefNames)}");
                         if (heavyPriorityDefNames.Count > 0)
                             Log.Message($"[LZ][DIAG] Heavy Priority deferred ({heavyPriorityDefNames.Count}): {string.Join(", ", heavyPriorityDefNames)}");
                         if (heavyPrefDefNames.Count > 0)
@@ -753,8 +771,14 @@ namespace LandingZone.Core.Filtering
                     }
                 }
 
-                // Skip all precomputation - Heavy filters compute on-demand during scoring
-                _precomputationComplete = true;
+                // Heavy gates will be applied on cheap survivors before scoring - no full-world precompute
+                // This avoids scanning 300k tiles; heavy gates evaluate only ~5k cheap survivors
+                int heavyGateCount = _heavyMustHave.Count + _heavyMustNotHave.Count;
+                if (heavyGateCount > 0)
+                {
+                    LandingZoneLogger.LogStandard($"[LandingZone] {heavyGateCount} Heavy gate filters will filter {_candidates.Count} cheap survivors");
+                }
+                _precomputationComplete = true; // Skip precompute phase entirely - heavy gates applied in StepInternal
 
                 // Auto-backoff detection: Check for low RAM or large worlds
                 PerformAutoBackoffCheck();
@@ -971,7 +995,41 @@ namespace LandingZone.Core.Filtering
                     return false; // Not done yet, keep stepping
                 }
 
-                // PHASE 2: Heavy evaluation with branch-and-bound pruning
+                // PHASE 2: Apply heavy gates to cheap survivors (once, before scoring)
+                if (!_heavyGatesApplied && (_heavyMustHave.Count > 0 || _heavyMustNotHave.Count > 0))
+                {
+                    int beforeCount = _candidates.Count;
+                    var survivors = _candidates.Select(c => c.TileId).ToList();
+
+                    // Apply heavy MustHave gates
+                    foreach (var predicate in _heavyMustHave)
+                    {
+                        if (predicate is FilterPredicateAdapter adapter)
+                        {
+                            survivors = adapter.UnderlyingFilter.Apply(_context, survivors).ToList();
+                        }
+                    }
+
+                    // Apply heavy MustNotHave gates (exclude matches)
+                    foreach (var predicate in _heavyMustNotHave)
+                    {
+                        if (predicate is FilterPredicateAdapter adapter)
+                        {
+                            var excluded = new HashSet<int>(adapter.UnderlyingFilter.Apply(_context, survivors));
+                            survivors = survivors.Where(t => !excluded.Contains(t)).ToList();
+                        }
+                    }
+
+                    // Rebuild candidates from survivors
+                    var survivorSet = new HashSet<int>(survivors);
+                    _candidates = _candidates.Where(c => survivorSet.Contains(c.TileId)).ToList();
+                    _cursor = 0; // Reset cursor since candidates changed
+
+                    LandingZoneLogger.LogStandard($"[LandingZone] Heavy gates reduced {beforeCount} → {_candidates.Count} survivors");
+                    _heavyGatesApplied = true;
+                }
+
+                // PHASE 3: Scoring with branch-and-bound pruning
                 // Diagnostic: Log scoring phase start (once)
                 if (!_scoringStartLogged && Diagnostics.DevDiagnostics.PhaseADiagnosticsEnabled)
                 {
@@ -987,49 +1045,17 @@ namespace LandingZone.Core.Filtering
                     if (_best.Count >= _maxResults && candidate.UpperBound <= _minInHeap)
                         continue;
 
+                    // NOTE: Heavy gate checks removed - now done upfront in PHASE 2 (survivor filtering)
+                    // All candidates at this point have already passed both cheap AND heavy gates
+
                     float prioScore, prefScore, finalScore;
                     MatchBreakdownV2? detailedBreakdown = null;
 
-                    // Check feature flag for scoring system
-                    if (_state.Preferences.Options.UseNewScoring)
-                    {
-                        // NEW: 5-state scoring (MustHave/MustNotHave are gates, Priority/Preferred are scored)
-                        (prioScore, prefScore, finalScore, detailedBreakdown) = ComputeMembershipScoreForTile(candidate.TileId);
+                    // 5-state scoring (MustHave/MustNotHave are gates, Priority/Preferred are scored)
+                    (prioScore, prefScore, finalScore, detailedBreakdown) = ComputeMembershipScoreForTile(candidate.TileId);
 
-                        // Note: No strictness check needed - gates already passed in Apply phase
-                        // Priority/Preferred are soft scoring, not gates
-
-                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [5-STATE] prioScore={prioScore:F2}, " +
-                                       $"prefScore={prefScore:F2}, finalScore={finalScore:F2}");
-                    }
-                    else
-                    {
-                        // OLD: k-of-n binary scoring (legacy path)
-                        // Note: This path is deprecated and will be removed in a future version
-                        int mustHaveHeavyMatches = CountMatches(_heavyMustHave, candidate.TileId);
-                        int priorityHeavyMatches = CountMatches(_heavyPriority, candidate.TileId);
-                        int preferredHeavyMatches = CountMatches(_heavyPreferred, candidate.TileId);
-
-                        int totalMustHaveMatches = candidate.CritCheapMatches + mustHaveHeavyMatches;
-                        int totalScoringMatches = candidate.PrefCheapMatches + priorityHeavyMatches + preferredHeavyMatches;
-
-                        int totalScoring = _totalPriority + _totalPreferred;
-                        float legacyCritScore = ScoringWeights.NormalizeCriticalScore(totalMustHaveMatches, _totalMustHave);
-                        prefScore = ScoringWeights.NormalizePreferredScore(totalScoringMatches, totalScoring);
-
-                        // Strictness check
-                        if (legacyCritScore < _currentStrictness)
-                        {
-                            LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] Failed strictness check " +
-                                           $"(mustHave {totalMustHaveMatches}/{_totalMustHave} = {legacyCritScore:F2} < {_currentStrictness:F2})");
-                            continue;
-                        }
-
-                        finalScore = ScoringWeights.ComputeFinalScore(legacyCritScore, prefScore, _kappa);
-                        prioScore = legacyCritScore; // Map legacy critical to priority for compatibility
-
-                        LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: [K-OF-N] critScore={legacyCritScore:F2}, prefScore={prefScore:F2}, finalScore={finalScore:F2}");
-                    }
+                    LandingZoneLogger.LogVerbose($"[LandingZone] Tile {candidate.TileId}: prioScore={prioScore:F2}, " +
+                                   $"prefScore={prefScore:F2}, finalScore={finalScore:F2}");
 
                     // Simplified breakdown for now
                     var breakdown = new MatchBreakdown(
@@ -1042,7 +1068,7 @@ namespace LandingZone.Core.Filtering
                         true, 0f, null, finalScore
                     );
 
-                    var tileScore = new TileScore(candidate.TileId, finalScore, breakdown, detailedBreakdown);
+                    var tileScore = new TileScore(candidate.TileId, finalScore, breakdown, detailedBreakdown, candidate.IsNearMiss);
 
                     // Insert into Top-N heap
                     InsertTopResult(_best, tileScore, _maxResults);
@@ -1064,25 +1090,9 @@ namespace LandingZone.Core.Filtering
                     // Log Stage B completion telemetry
                     LandingZoneLogger.LogStandard($"[LandingZone] Stage B processed {_cursor}/{_candidates.Count} candidates in {_stopwatch.ElapsedMilliseconds}ms");
 
-                    // Auto-relax: If 0 results and strictness is 1.0, retry with relaxed strictness
-                    if (_best.Count == 0 && _currentStrictness >= 1.0f && _totalMustHave >= 2)
-                    {
-                        LandingZoneLogger.LogWarning("[LandingZone] FilterEvaluationJob: 0 results at strictness 1.0");
-                        LandingZoneLogger.LogWarning($"[LandingZone] Auto-relaxing to {_totalMustHave - 1} of {_totalMustHave} MustHave and retrying...");
-
-                        float relaxedStrictness = (_totalMustHave - 1) / (float)_totalMustHave;
-
-                        // Reset and retry with relaxed strictness
-                        _currentStrictness = relaxedStrictness;
-                        _cursor = 0;
-                        _best.Clear();
-                        _minInHeap = 0f;
-                        // Don't clear _heavyBitsets - we want to reuse the cached precomputed bitsets
-
-                        // Continue processing (don't set _completed = true)
-                        LandingZoneLogger.LogStandard($"[LandingZone] Retrying with relaxed strictness {relaxedStrictness:F2}");
-                        return false; // Not done yet, continue processing
-                    }
+                    // MustHave = hard gate. No auto-relaxation, no fallbacks.
+                    // If zero results, that's the correct answer - user's filters are too restrictive.
+                    // Future: Offer "Show closest matches?" dialog when zero results.
 
                     _best.Sort((a, b) => b.Score.CompareTo(a.Score));
                     _results.Clear();
@@ -1110,35 +1120,13 @@ namespace LandingZone.Core.Filtering
                     string tierSuffix = _fallbackTierUsed > 0 ? $", tier={_fallbackTierUsed + 1}" : "";
                     LandingZoneLogger.LogMinimal(
                         $"[LandingZone] Search complete: preset={presetLabel}, mode={modeLabel}, results={_results.Count}, " +
-                        $"bestScore={bestScore:F4}, strictness={_currentStrictness:F2}, duration={_stopwatch.ElapsedMilliseconds}ms{tierSuffix}"
+                        $"bestScore={bestScore:F4}, duration={_stopwatch.ElapsedMilliseconds}ms{tierSuffix}"
                     );
-
-                    // Standard/Verbose: Additional context about relaxed strictness
-                    if (_results.Count > 0 && _currentStrictness < 1.0f)
-                    {
-                        int requiredMatches = Mathf.CeilToInt(_totalMustHave * _currentStrictness);
-                        LandingZoneLogger.LogStandard($"[LandingZone] No tiles matched all {_totalMustHave} MustHave. Showing tiles matching {requiredMatches} of {_totalMustHave}.");
-                    }
 
                     return true;
                 }
 
                 return false;
-            }
-
-            /// <summary>
-            /// Counts how many predicates match a specific tile using cached bitsets.
-            /// </summary>
-            private int CountMatches(List<IFilterPredicate> predicates, int tileId)
-            {
-                int matches = 0;
-                foreach (var predicate in predicates)
-                {
-                    // Use cached bitset - evaluates ALL tiles once, then O(1) lookups
-                    if (_heavyBitsets.Matches(predicate, tileId, _context, _tileCount))
-                        matches++;
-                }
-                return matches;
             }
 
             /// <summary>
@@ -1186,20 +1174,41 @@ namespace LandingZone.Core.Filtering
                 );
 
                 // Compute mutator quality score (with preset-specific overrides if active)
+                // Excludes mutators that were already required by Critical filters (no double-dipping)
                 var tileMutators = Filters.MapFeatureFilter.GetTileMapFeatures(tileId);
                 var activePreset = _context.State.Preferences.ActivePreset;
-                float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators, 0.25f, activePreset);
+                float mutatorScore = MutatorQualityRatings.ComputeMutatorScore(tileMutators, MutatorScoringSensitivity, activePreset, _excludedMutators);
 
-                // Compute final score: S = λ_prio·S_prio + λ_pref·S_pref + λ_mut·S_mut
-                // No penalty term - gates are binary (handled in Apply phase)
-                float finalScore = ScoringWeights.ComputeScoringScore(
-                    prioScore,
-                    prefScore,
-                    mutatorScore,
-                    lambdaPrio,
-                    lambdaPref,
-                    lambdaMut
-                );
+                // Compute final score
+                float finalScore;
+
+                // SPECIAL CASE: Gates-only mode (no Priority/Preferred filters)
+                // Sentinel (-1, -1, -1) indicates only MustHave/MustNotHave gates were used.
+                // Base score = 1.0 (passed all gates = perfect match)
+                // But we still apply mutator influence for differentiation:
+                //   - mutatorScore=0.5 (neutral) → finalScore=1.0
+                //   - mutatorScore=1.0 (excellent) → finalScore=1.05 (Perfect+)
+                //   - mutatorScore=0.0 (terrible) → finalScore=0.95 (Perfect-)
+                if (lambdaPrio < 0 && lambdaPref < 0 && lambdaMut < 0)
+                {
+                    // Mutator influence: ±5% around 1.0 based on mutator quality
+                    // Formula: 1.0 + (mutatorScore - 0.5) * 0.1
+                    const float mutatorInfluence = 0.1f;
+                    finalScore = 1.0f + (mutatorScore - 0.5f) * mutatorInfluence;
+                }
+                else
+                {
+                    // Normal scoring: S = λ_prio·S_prio + λ_pref·S_pref + λ_mut·S_mut
+                    // No penalty term - gates are binary (handled in Apply phase)
+                    finalScore = ScoringWeights.ComputeScoringScore(
+                        prioScore,
+                        prefScore,
+                        mutatorScore,
+                        lambdaPrio,
+                        lambdaPref,
+                        lambdaMut
+                    );
+                }
 
                 // Build detailed breakdown
                 var breakdown = BuildDetailedBreakdown(
@@ -1558,17 +1567,24 @@ namespace LandingZone.Core.Filtering
 
     public readonly struct TileScore
     {
-        public TileScore(int tileId, float score, MatchBreakdown breakdown, MatchBreakdownV2? breakdownV2 = null)
+        public TileScore(int tileId, float score, MatchBreakdown breakdown, MatchBreakdownV2? breakdownV2 = null, bool isNearMiss = false)
         {
             TileId = tileId;
             Score = score;
             Breakdown = breakdown;
             BreakdownV2 = breakdownV2;
+            IsNearMiss = isNearMiss;
         }
 
         public int TileId { get; }
         public float Score { get; }
         public MatchBreakdown Breakdown { get; } // Legacy
         public MatchBreakdownV2? BreakdownV2 { get; } // New detailed breakdown
+
+        /// <summary>
+        /// True if this tile missed exactly 1 MustHave gate (from Stage A cheap filtering).
+        /// Near-miss tiles are tracked separately for optional display.
+        /// </summary>
+        public bool IsNearMiss { get; }
     }
 }

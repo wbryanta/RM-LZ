@@ -17,6 +17,7 @@ namespace LandingZone.Core.UI
         private string? _errorMessage = null;
         private Preset? _decodedPreset = null;
         private PresetValidationResult? _validationResult = null;
+        private Vector2 _scrollPosition = Vector2.zero;
 
         public Dialog_ImportPresetToken()
         {
@@ -27,12 +28,24 @@ namespace LandingZone.Core.UI
             forcePause = true;
         }
 
-        public override Vector2 InitialSize => new Vector2(600f, 480f);
+        public override Vector2 InitialSize => new Vector2(600f, 520f);
 
         public override void DoWindowContents(Rect inRect)
         {
+            // Calculate content height to determine if scrolling needed
+            float estimatedHeight = 400f; // Base content
+            if (_validationResult?.HasMissingItems == true)
+                estimatedHeight += 50f + (_validationResult.MissingItems.Count * 20f);
+            if (_validationResult?.HasResolvedAliases == true)
+                estimatedHeight += 30f + (_validationResult.ResolvedAliases.Count * 20f);
+            if (_decodedPreset != null)
+                estimatedHeight += 100f;
+
+            var viewRect = new Rect(0f, 0f, inRect.width - 16f, estimatedHeight);
+            Widgets.BeginScrollView(inRect, ref _scrollPosition, viewRect);
+
             var listing = new Listing_Standard();
-            listing.Begin(inRect);
+            listing.Begin(viewRect);
 
             // Header
             Text.Font = GameFont.Medium;
@@ -192,6 +205,7 @@ namespace LandingZone.Core.UI
             }
 
             listing.End();
+            Widgets.EndScrollView();
         }
     }
 }

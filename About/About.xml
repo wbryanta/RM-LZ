@@ -4,7 +4,7 @@
   <author>wcbryant</author>
   <url>https://github.com/wbryanta/RM-LZ</url>
   <packageId>wcb.landingzone.dev</packageId>
-  <modVersion>0.4.3-beta</modVersion>
+  <modVersion>0.4.6-dev</modVersion>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>

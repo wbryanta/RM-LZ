@@ -15,6 +15,9 @@ namespace LandingZone.Core.Filtering.Filters
         public string Id => "coastal_lake";
         public FilterHeaviness Heaviness => FilterHeaviness.Light;
 
+        // Reusable list for neighbor queries (avoid allocations)
+        private static readonly List<PlanetTile> _neighborBuffer = new List<PlanetTile>(7);
+
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
@@ -45,23 +48,49 @@ namespace LandingZone.Core.Filtering.Filters
 
         /// <summary>
         /// Checks if a tile is adjacent to a lake (non-ocean water body).
+        /// A "lake" is defined as a water tile that is NOT ocean coastal (inland water).
         /// </summary>
         private static bool TileIsAdjacentToLake(int tileId)
         {
             var worldGrid = Find.WorldGrid;
+            if (worldGrid == null) return false;
+
             var tile = worldGrid[tileId];
 
             // Can't be lakeside if already in water
             if (tile.WaterCovered)
                 return false;
 
-            // Simplified approach: Use a fixed neighbor checking pattern
-            // RimWorld uses icosahedral grid, so we need to check adjacent tiles
-            // For now, use a simpler heuristic - check if any nearby water has higher elevation
-            // This is a simplified implementation that may need refinement
+            // Get neighbors using RimWorld's icosahedral grid API
+            // PlanetTile has implicit conversion from int
+            _neighborBuffer.Clear();
+            worldGrid.GetTileNeighbors((PlanetTile)tileId, _neighborBuffer);
 
-            // TODO: Properly implement neighbor checking once RimWorld API is clarified
-            // For now, always return false (disabled) until we can properly detect lakes
+            // Check each neighbor for lake water (water that's not ocean)
+            foreach (var neighborTile in _neighborBuffer)
+            {
+                int neighborId = (int)neighborTile;
+                if (neighborId < 0 || neighborId >= worldGrid.TilesCount)
+                    continue;
+
+                var neighborSurfaceTile = worldGrid[neighborId];
+                if (neighborSurfaceTile == null)
+                    continue;
+
+                // Check if neighbor is water
+                if (!neighborSurfaceTile.WaterCovered)
+                    continue;
+
+                // Check if it's NOT ocean (i.e., it's a lake/inland water)
+                // Ocean biome is typically detected via biome.defName or biome properties
+                var biome = neighborSurfaceTile.PrimaryBiome;
+                if (biome != null && biome.defName != "Ocean")
+                {
+                    // Found a non-ocean water neighbor = lake
+                    return true;
+                }
+            }
+
             return false;
         }
 

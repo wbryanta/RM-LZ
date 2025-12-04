@@ -65,7 +65,15 @@ namespace LandingZone.Core.UI
     internal static class LandingZoneWorldMapDrawer
     {
         private const float Gap = 10f;
-        private static readonly Vector2 ButtonSize = new Vector2(150f, 38f);
+        private const float ButtonHeight = 38f;
+
+        // Button widths matching SelectStartingSiteButtonsPatch for consistency
+        private const float NavWidth = 44f;
+        private const float SearchButtonWidth = 220f; // Fixed width for in-game (no dynamic fill like world gen)
+        private const float FiltersWidth = 80f;
+        private const float DevWidth = 60f;
+        private const float TopButtonWidth = 90f;
+        private const float InnerGap = 6f;
 
         // From RimWorld's GizmoGridDrawer.DrawGizmoGrid() - gizmos occupy bottom ~124px of screen
         private const float GIZMO_GRID_BOTTOM_OFFSET = 124f;
@@ -75,13 +83,19 @@ namespace LandingZone.Core.UI
         public static void Draw()
         {
             // Calculate button panel dimensions
-            // In Dev mode: Filters, Search, Dev, Top (4 buttons)
-            // Otherwise: Filters, Search, Top (3 buttons)
-            int numButtons = Prefs.DevMode ? 4 : 3;
+            // Layout: [<] [Search] [Filters] [Dev?] [Top] [>]
+            // Navigation arrows are always present (like world gen screen)
             const float labelHeight = 18f;
             const float statusRowHeight = 22f;
-            float width = ButtonSize.x * numButtons + Gap * (numButtons + 1);
-            float height = labelHeight + Gap + ButtonSize.y + Gap + statusRowHeight + Gap;
+
+            // Calculate total width based on which buttons are shown
+            float buttonsWidth = SearchButtonWidth + InnerGap + FiltersWidth + InnerGap + TopButtonWidth;
+            if (Prefs.DevMode)
+            {
+                buttonsWidth += InnerGap + DevWidth;
+            }
+            float width = NavWidth + InnerGap + buttonsWidth + InnerGap + NavWidth + Gap * 2f;
+            float height = labelHeight + Gap + ButtonHeight + Gap + statusRowHeight + Gap;
 
             // Position ABOVE the gizmo grid to avoid overlap with utility buttons
             // Gizmos start at screenHeight - 124, so we position above with safe margin
@@ -124,25 +138,34 @@ namespace LandingZone.Core.UI
             DrawLabel(labelRect);
             cursorY += labelHeight + Gap;
 
-            // Button row: Filters, Search, [Dev], Top (XX)
-            DrawFiltersButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
-            cursorX += ButtonSize.x + Gap;
+            // Button row: [<] [Search] [Filters] [Dev?] [Top] [>] (matches world gen screen)
+            var leftNavRect = new Rect(cursorX, cursorY, NavWidth, ButtonHeight);
+            cursorX += NavWidth + InnerGap;
 
-            DrawSearchButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
-            cursorX += ButtonSize.x + Gap;
+            DrawSearchButton(new Rect(cursorX, cursorY, SearchButtonWidth, ButtonHeight));
+            cursorX += SearchButtonWidth + InnerGap;
+
+            DrawFiltersButton(new Rect(cursorX, cursorY, FiltersWidth, ButtonHeight));
+            cursorX += FiltersWidth + InnerGap;
 
             // Dev button (Dev Mode only) - same style as in world-gen ribbon
             if (Prefs.DevMode)
             {
-                DrawDevButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
-                cursorX += ButtonSize.x + Gap;
+                DrawDevButton(new Rect(cursorX, cursorY, DevWidth, ButtonHeight));
+                cursorX += DevWidth + InnerGap;
             }
 
-            DrawTopButton(new Rect(cursorX, cursorY, ButtonSize.x, ButtonSize.y));
+            DrawTopButton(new Rect(cursorX, cursorY, TopButtonWidth, ButtonHeight));
+            cursorX += TopButtonWidth + InnerGap;
+
+            var rightNavRect = new Rect(cursorX, cursorY, NavWidth, ButtonHeight);
+
+            // Draw navigation arrows
+            DrawMatchNavigation(leftNavRect, rightNavRect);
 
             // Status row (with bookmark icons)
             cursorX = rect.xMin + Gap;
-            cursorY += ButtonSize.y + Gap;
+            cursorY += ButtonHeight + Gap;
             var statusRow = new Rect(cursorX, cursorY, width - Gap * 2f, 22f);
             DrawStatusRow(statusRow);
 
@@ -247,6 +270,33 @@ namespace LandingZone.Core.UI
 
             // Draw bookmark manager icon
             LandingZoneRibbonHelpers.DrawBookmarkManagerIcon(bookmarkMgrIconRect);
+        }
+
+        private static void DrawMatchNavigation(Rect leftRect, Rect rightRect)
+        {
+            bool enabled = LandingZoneContext.HasMatches && !LandingZoneContext.IsEvaluating;
+
+            var prevEnabled = GUI.enabled;
+            var prevColor = GUI.color;
+
+            // Manually grey out buttons when disabled
+            if (!enabled)
+            {
+                GUI.color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+            }
+            GUI.enabled = enabled;
+
+            if (Widgets.ButtonText(leftRect, "<") && enabled)
+            {
+                LandingZoneContext.FocusNextMatch(-1);
+            }
+            if (Widgets.ButtonText(rightRect, ">") && enabled)
+            {
+                LandingZoneContext.FocusNextMatch(1);
+            }
+
+            GUI.enabled = prevEnabled;
+            GUI.color = prevColor;
         }
     }
 }

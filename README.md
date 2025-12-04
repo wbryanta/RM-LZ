@@ -1,6 +1,6 @@
 # LandingZone
 
-**Version**: 0.3.0-beta
+**Version**: 0.4.3-beta
 **RimWorld Version**: 1.6
 **Status**: Beta Release
 **Author**: wcbryant

@@ -41,15 +41,66 @@ namespace LandingZone.Data
     public class Preset : IExposable
     {
         public string Id { get; set; } = "";
+
+        /// <summary>
+        /// Raw name - may be translation key (for curated) or literal string (for user presets)
+        /// Use GetDisplayName() for UI display.
+        /// </summary>
         public string Name { get; set; } = "";
+
+        /// <summary>
+        /// Raw description - may be translation key or literal string.
+        /// Use GetDisplayDescription() for UI display.
+        /// </summary>
         public string Description { get; set; } = "";
+
         public string Category { get; set; } = "User"; // "Curated", "Special", "User"
         public TileRarity? TargetRarity { get; set; } = null;
 
         /// <summary>
-        /// Quick summary of key filters for display on preset card
+        /// Raw filter summary - may be translation key or literal string.
+        /// Use GetDisplayFilterSummary() for UI display.
         /// </summary>
         public string FilterSummary { get; set; } = "";
+
+        /// <summary>
+        /// Gets the display-ready name, translating if this is a translation key.
+        /// </summary>
+        public string GetDisplayName()
+        {
+            if (string.IsNullOrEmpty(Name)) return "";
+            if (Name.StartsWith("LandingZone_") && LanguageDatabase.activeLanguage != null)
+            {
+                return Name.Translate();
+            }
+            return Name;
+        }
+
+        /// <summary>
+        /// Gets the display-ready description, translating if this is a translation key.
+        /// </summary>
+        public string GetDisplayDescription()
+        {
+            if (string.IsNullOrEmpty(Description)) return "";
+            if (Description.StartsWith("LandingZone_") && LanguageDatabase.activeLanguage != null)
+            {
+                return Description.Translate();
+            }
+            return Description;
+        }
+
+        /// <summary>
+        /// Gets the display-ready filter summary, translating if this is a translation key.
+        /// </summary>
+        public string GetDisplayFilterSummary()
+        {
+            if (string.IsNullOrEmpty(FilterSummary)) return "";
+            if (FilterSummary.StartsWith("LandingZone_") && LanguageDatabase.activeLanguage != null)
+            {
+                return FilterSummary.Translate();
+            }
+            return FilterSummary;
+        }
 
         /// <summary>
         /// Filter settings to apply when this preset is selected
@@ -87,6 +138,98 @@ namespace LandingZone.Data
             var clone = new FilterSettings();
             clone.CopyFrom(Filters);
             return clone;
+        }
+
+        /// <summary>
+        /// Validates preset requirements against the current runtime.
+        /// Returns info about missing mutators that won't be available.
+        /// </summary>
+        public RuntimeValidationResult ValidateRequirements()
+        {
+            var result = new RuntimeValidationResult();
+
+            // Check MapFeatures for mutators not in runtime
+            foreach (var (defName, importance) in Filters.MapFeatures.ItemImportance)
+            {
+                // Skip if mutator exists in runtime
+                if (MapFeatureFilter.IsRuntimeMutator(defName))
+                    continue;
+
+                // Get source info to identify what mod provides this
+                // For missing mutators, source detection may return Core - infer from naming patterns
+                var sourceInfo = MapFeatureFilter.GetMutatorSource(defName);
+                string sourceName = InferSourceName(defName, sourceInfo);
+
+                // Critical/MustHave = blocking, Priority/Preferred = warning only
+                bool isBlocking = importance == FilterImportance.Critical || importance == FilterImportance.MustHave;
+
+                result.MissingMutators.Add(new MissingMutatorInfo
+                {
+                    DefName = defName,
+                    SourceName = sourceName,
+                    Importance = importance,
+                    IsBlocking = isBlocking
+                });
+
+                if (isBlocking)
+                    result.HasBlockingMissing = true;
+                else
+                    result.HasWarningMissing = true;
+            }
+
+            // Check MutatorQualityOverrides (these are scoring bonuses, not blocking)
+            if (MutatorQualityOverrides != null)
+            {
+                foreach (var defName in MutatorQualityOverrides.Keys)
+                {
+                    // Skip if already checked in MapFeatures or if exists in runtime
+                    if (result.MissingMutators.Any(m => m.DefName == defName))
+                        continue;
+                    if (MapFeatureFilter.IsRuntimeMutator(defName))
+                        continue;
+
+                    var sourceInfo = MapFeatureFilter.GetMutatorSource(defName);
+                    string sourceName = InferSourceName(defName, sourceInfo);
+
+                    // Quality overrides are always non-blocking (scoring only)
+                    result.MissingMutators.Add(new MissingMutatorInfo
+                    {
+                        DefName = defName,
+                        SourceName = sourceName,
+                        Importance = FilterImportance.Preferred, // Treat as preferred for display
+                        IsBlocking = false
+                    });
+                    result.HasWarningMissing = true;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Infers a user-friendly source name for a mutator based on naming conventions.
+        /// If GetMutatorSource returns a mod/DLC, use that. Otherwise infer from prefix patterns.
+        /// </summary>
+        private static string InferSourceName(string defName, MapFeatureFilter.MutatorSourceInfo sourceInfo)
+        {
+            // If we got a real source (Mod or DLC), use it
+            if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.Mod)
+                return sourceInfo.SourceName;
+            if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.DLC)
+                return sourceInfo.SourceName;
+
+            // For Core/unknown, try to infer from naming conventions
+            if (defName.StartsWith("GL_"))
+                return "Geological Landforms";
+            if (defName.StartsWith("AB_"))
+                return "Alpha Biomes";
+            if (defName.StartsWith("VE_"))
+                return "Vanilla Expanded";
+            if (defName.StartsWith("RF_"))
+                return "ReGrowth Framework";
+
+            // Unknown source
+            return "unknown mod";
         }
 
         /// <summary>
@@ -194,7 +337,8 @@ namespace LandingZone.Data
             };
 
             _initialized = true;
-            Log.Message("LandingZone_PresetLibraryInitialized".Translate(_curated.Count));
+            // Use hardcoded English for startup log - language system may not be loaded yet
+            Log.Message($"[LandingZone] Preset library initialized with {_curated.Count} curated presets");
         }
 
         /// <summary>
@@ -292,7 +436,7 @@ namespace LandingZone.Data
             {
                 Id = $"user_{Guid.NewGuid():N}",
                 Name = name,
-                Description = "LandingZone_UserCreatedPresetDesc".Translate(),
+                Description = "LandingZone_UserCreatedPresetDesc", // Translation key - use GetDisplayDescription()
                 Category = "User",
                 Filters = new FilterSettings()
             };
@@ -375,11 +519,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "balanced",
-                Name = "LandingZone_Preset_balanced_Name".Translate(),
-                Description = "LandingZone_Preset_balanced_Description".Translate(),
+                Name = "LandingZone_Preset_balanced_Name",
+                Description = "LandingZone_Preset_balanced_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Common,
-                FilterSummary = "LandingZone_Preset_balanced_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_balanced_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -455,11 +599,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "elysian",
-                Name = "LandingZone_Preset_elysian_Name".Translate(),
-                Description = "LandingZone_Preset_elysian_Description".Translate(),
+                Name = "LandingZone_Preset_elysian_Name",
+                Description = "LandingZone_Preset_elysian_Description",
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
-                FilterSummary = "LandingZone_Preset_elysian_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_elysian_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -586,11 +730,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "exotic",
-                Name = "LandingZone_Preset_exotic_Name".Translate(),
-                Description = "LandingZone_Preset_exotic_Description".Translate(),
+                Name = "LandingZone_Preset_exotic_Name",
+                Description = "LandingZone_Preset_exotic_Description",
                 Category = "Special",
                 TargetRarity = TileRarity.Epic,
-                FilterSummary = "LandingZone_Preset_exotic_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_exotic_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -655,11 +799,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "subzero",
-                Name = "LandingZone_Preset_subzero_Name".Translate(),
-                Description = "LandingZone_Preset_subzero_Description".Translate(),
+                Name = "LandingZone_Preset_subzero_Name",
+                Description = "LandingZone_Preset_subzero_Description",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "LandingZone_Preset_subzero_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_subzero_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -722,11 +866,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "scorched",
-                Name = "LandingZone_Preset_scorched_Name".Translate(),
-                Description = "LandingZone_Preset_scorched_Description".Translate(),
+                Name = "LandingZone_Preset_scorched_Name",
+                Description = "LandingZone_Preset_scorched_Description",
                 Category = "Special",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "LandingZone_Preset_scorched_FilterSummary".Translate(),
+                FilterSummary = "LandingZone_Preset_scorched_FilterSummary",
                 MinimumStrictness = 1.0f  // Enforce ALL Critical filters (temp + rainfall + lava features)
             };
 
@@ -789,7 +933,7 @@ namespace LandingZone.Data
             // Tier 2: Keep lava features Critical, relax temperature requirement
             var tier2 = new FallbackTier
             {
-                Name = "LandingZone_Preset_scorched_FallbackTier2".Translate(),
+                Name = "LandingZone_Preset_scorched_FallbackTier2",
                 Filters = new FilterSettings()
             };
             tier2.Filters.CopyFrom(filters);
@@ -800,7 +944,7 @@ namespace LandingZone.Data
             // Tier 3: Drop lava requirement, focus on extreme heat/dry desert
             var tier3 = new FallbackTier
             {
-                Name = "LandingZone_Preset_scorched_FallbackTier3".Translate(),
+                Name = "LandingZone_Preset_scorched_FallbackTier3",
                 Filters = new FilterSettings()
             };
             tier3.Filters.AverageTemperatureRange = new FloatRange(35f, 60f);
@@ -825,11 +969,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "savannah",
-                Name = "LandingZone_Preset_savannah_Name".Translate(),
-                Description = "LandingZone_Preset_savannah_Description".Translate(),
+                Name = "LandingZone_Preset_savannah_Name",
+                Description = "LandingZone_Preset_savannah_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Common,
-                FilterSummary = "LandingZone_Preset_savannah_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_savannah_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -904,11 +1048,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "aquatic",
-                Name = "LandingZone_Preset_aquatic_Name".Translate(),
-                Description = "LandingZone_Preset_aquatic_Description".Translate(),
+                Name = "LandingZone_Preset_aquatic_Name",
+                Description = "LandingZone_Preset_aquatic_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "LandingZone_Preset_aquatic_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_aquatic_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -988,11 +1132,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "desert_oasis",
-                Name = "LandingZone_Preset_desert_oasis_Name".Translate(),
-                Description = "LandingZone_Preset_desert_oasis_Description".Translate(),
+                Name = "LandingZone_Preset_desert_oasis_Name",
+                Description = "LandingZone_Preset_desert_oasis_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "LandingZone_Preset_desert_oasis_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_desert_oasis_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1061,11 +1205,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "defense",
-                Name = "LandingZone_Preset_defense_Name".Translate(),
-                Description = "LandingZone_Preset_defense_Description".Translate(),
+                Name = "LandingZone_Preset_defense_Name",
+                Description = "LandingZone_Preset_defense_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Uncommon,
-                FilterSummary = "LandingZone_Preset_defense_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_defense_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1136,11 +1280,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "agrarian",
-                Name = "LandingZone_Preset_agrarian_Name".Translate(),
-                Description = "LandingZone_Preset_agrarian_Description".Translate(),
+                Name = "LandingZone_Preset_agrarian_Name",
+                Description = "LandingZone_Preset_agrarian_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Common,
-                FilterSummary = "LandingZone_Preset_agrarian_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_agrarian_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1219,11 +1363,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "power",
-                Name = "LandingZone_Preset_power_Name".Translate(),
-                Description = "LandingZone_Preset_power_Description".Translate(),
+                Name = "LandingZone_Preset_power_Name",
+                Description = "LandingZone_Preset_power_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "LandingZone_Preset_power_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_power_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1295,11 +1439,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "bayou",
-                Name = "LandingZone_Preset_bayou_Name".Translate(),
-                Description = "LandingZone_Preset_bayou_Description".Translate(),
+                Name = "LandingZone_Preset_bayou_Name",
+                Description = "LandingZone_Preset_bayou_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Uncommon,
-                FilterSummary = "LandingZone_Preset_bayou_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_bayou_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1381,11 +1525,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "homestead",
-                Name = "LandingZone_Preset_homestead_Name".Translate(),
-                Description = "LandingZone_Preset_homestead_Description".Translate(),
+                Name = "LandingZone_Preset_homestead_Name",
+                Description = "LandingZone_Preset_homestead_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.VeryRare,
-                FilterSummary = "LandingZone_Preset_homestead_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_homestead_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1460,11 +1604,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "anomaly",
-                Name = "LandingZone_Preset_anomaly_Name".Translate(),
-                Description = "LandingZone_Preset_anomaly_Description".Translate(),
+                Name = "LandingZone_Preset_anomaly_Name",
+                Description = "LandingZone_Preset_anomaly_Description",
                 Category = "Special",
                 TargetRarity = TileRarity.Rare,
-                FilterSummary = "LandingZone_Preset_anomaly_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_anomaly_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1534,11 +1678,11 @@ namespace LandingZone.Data
             var preset = new Preset
             {
                 Id = "trade_empire",
-                Name = "LandingZone_Preset_trade_empire_Name".Translate(),
-                Description = "LandingZone_Preset_trade_empire_Description".Translate(),
+                Name = "LandingZone_Preset_trade_empire_Name",
+                Description = "LandingZone_Preset_trade_empire_Description",
                 Category = "Curated",
                 TargetRarity = TileRarity.Uncommon,
-                FilterSummary = "LandingZone_Preset_trade_empire_FilterSummary".Translate()
+                FilterSummary = "LandingZone_Preset_trade_empire_FilterSummary"
             };
 
             var filters = preset.Filters;
@@ -1615,6 +1759,67 @@ namespace LandingZone.Data
             preset.MutatorQualityOverrides["Junkyard"] = 5;          // Salvage value
 
             return preset;
+        }
+    }
+
+    /// <summary>
+    /// Information about a mutator that's missing from the current runtime.
+    /// </summary>
+    public class MissingMutatorInfo
+    {
+        public string DefName { get; set; } = "";
+        public string SourceName { get; set; } = "";
+        public FilterImportance Importance { get; set; }
+        public bool IsBlocking { get; set; }
+    }
+
+    /// <summary>
+    /// Result of validating a preset's requirements against the current runtime.
+    /// Different from PresetValidationResult (in PresetTokenCodec) which validates token imports.
+    /// </summary>
+    public class RuntimeValidationResult
+    {
+        public List<MissingMutatorInfo> MissingMutators { get; } = new List<MissingMutatorInfo>();
+        public bool HasBlockingMissing { get; set; }
+        public bool HasWarningMissing { get; set; }
+
+        public bool HasAnyMissing => HasBlockingMissing || HasWarningMissing;
+
+        /// <summary>
+        /// Gets a tooltip string describing missing requirements.
+        /// </summary>
+        public string GetTooltip()
+        {
+            if (!HasAnyMissing)
+                return "";
+
+            var sb = new System.Text.StringBuilder();
+
+            if (HasBlockingMissing)
+            {
+                sb.AppendLine("⚠ " + "LandingZone_PresetMissingCritical".Translate());
+                foreach (var m in MissingMutators.Where(m => m.IsBlocking))
+                {
+                    sb.AppendLine($"  • {m.DefName} ({m.SourceName})");
+                }
+            }
+
+            if (HasWarningMissing)
+            {
+                if (sb.Length > 0) sb.AppendLine();
+                sb.AppendLine("LandingZone_PresetMissingOptional".Translate());
+                foreach (var m in MissingMutators.Where(m => !m.IsBlocking).Take(5))
+                {
+                    sb.AppendLine($"  • {m.DefName} ({m.SourceName})");
+                }
+                var remaining = MissingMutators.Count(m => !m.IsBlocking) - 5;
+                if (remaining > 0)
+                {
+                    sb.AppendLine($"  ... and {remaining} more");
+                }
+            }
+
+            return sb.ToString().TrimEnd();
         }
     }
 }

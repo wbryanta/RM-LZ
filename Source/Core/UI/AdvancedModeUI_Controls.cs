@@ -787,7 +787,7 @@ namespace LandingZone.Core.UI
                             // Check DLC requirement
                             bool isEnabled = string.IsNullOrEmpty(dlc) || DLCDetectionService.IsDLCAvailable(dlc!);
                             string? disabledReason = !isEnabled ? "LandingZone_Filter_DLCRequired".Translate(dlc ?? "") : null;
-                            string displayLabel = isEnabled ? label : $"{label} (DLC Required)";
+                            string displayLabel = isEnabled ? label : $"{label} {"LandingZone_DLCRequiredSuffix".Translate()}";
 
                             UIHelpers.DrawImportanceSelector(listing.GetRect(30f), displayLabel, ref importance, null, isEnabled, disabledReason);
 
@@ -1246,18 +1246,6 @@ namespace LandingZone.Core.UI
             };
         }
 
-        /// <summary>
-        /// DEPRECATED: Use GetWeatherMutators() + GetLifeModifierMutators() instead.
-        /// Kept for backward compatibility.
-        /// </summary>
-        private static List<string> GetClimateMutators()
-        {
-            var all = new List<string>();
-            all.AddRange(GetWeatherMutators());
-            all.AddRange(GetLifeModifierMutators());
-            return all;
-        }
-
         private static List<string> GetGeographyMutators()
         {
             return new List<string>
@@ -1360,6 +1348,14 @@ namespace LandingZone.Core.UI
             all.UnionWith(GetResourceMutators());
             all.UnionWith(GetSpecialSiteMutators());
             return all;
+        }
+
+        /// <summary>
+        /// Diagnostics helper: returns the current workspace for debugging bucket sync issues.
+        /// </summary>
+        public static BucketWorkspace? GetWorkspaceForDiagnostics()
+        {
+            return _workspace;
         }
 
         // ============================================================================

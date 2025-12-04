@@ -36,14 +36,31 @@ namespace LandingZone
         /// </summary>
         public static int MaxCandidatesForHeavyFilters = 1000;
 
+        // ===== DEFAULT PRESET =====
+
         /// <summary>
-        /// Pre-compute growing days (and other expensive tile data) on world load.
-        /// When enabled, all tiles are cached in the background when a world loads,
-        /// making Growing Days filter behave like a cheap filter.
-        /// DEFAULT: false - Lazy computation only (on-demand caching).
-        /// WARNING: May take several seconds on large worlds (500k+ tiles).
+        /// The ID of the preset to apply automatically when loading a new world.
+        /// DEFAULT: "balanced" - The Balanced preset is applied by default.
+        /// Users can set any preset (stock or user-created) as their persistent default.
+        /// If the selected default is deleted, falls back to "balanced".
         /// </summary>
-        public static bool PrecomputeGrowingDaysOnLoad = false;
+        public static string DefaultPresetId = "balanced";
+
+        // ===== MUTATOR QUALITY SETTINGS =====
+
+        /// <summary>
+        /// User-defined quality overrides for mutators.
+        /// Key: mutator defName, Value: quality rating (-10 to +10).
+        /// Overrides take precedence over default ratings.
+        /// </summary>
+        public static Dictionary<string, int> UserMutatorQualityOverrides = new Dictionary<string, int>();
+
+        /// <summary>
+        /// When enabled, inverts all mutator quality scores (Challenge Mode).
+        /// Positive mutators become negative and vice versa.
+        /// Useful for players who want harsh environments.
+        /// </summary>
+        public static bool InvertMutatorQuality = false;
 
         // ===== SCORING WEIGHT PRESETS =====
 
@@ -94,16 +111,26 @@ namespace LandingZone
             Scribe_Values.Look(ref CurrentPerformanceProfile, "performanceProfile", PerformanceProfile.Default);
             Scribe_Values.Look(ref MaxCandidatesForHeavyFilters, "maxCandidatesForHeavyFilters", 1000);
             Scribe_Values.Look(ref EnableInGameWorldMap, "enableInGameWorldMap", true);
-            Scribe_Values.Look(ref PrecomputeGrowingDaysOnLoad, "precomputeGrowingDaysOnLoad", false);
+            Scribe_Values.Look(ref DefaultPresetId, "defaultPresetId", "balanced");
+
+            // Mutator quality settings
+            Scribe_Collections.Look(ref UserMutatorQualityOverrides, "userMutatorQualityOverrides", LookMode.Value, LookMode.Value);
+            Scribe_Values.Look(ref InvertMutatorQuality, "invertMutatorQuality", false);
 
             // User presets (global persistence)
             Scribe_Collections.Look(ref _userPresets, "userPresets", LookMode.Deep);
 
+            // Ensure dictionary is never null after load
+            if (Scribe.mode == LoadSaveMode.LoadingVars && UserMutatorQualityOverrides == null)
+            {
+                UserMutatorQualityOverrides = new Dictionary<string, int>();
+            }
+
             // Clamp evaluation chunk size
             EvaluationChunkSize = Mathf.Clamp(EvaluationChunkSize, 50, 1000);
 
-            // Clamp heavy filter candidates (100 to 10000)
-            MaxCandidatesForHeavyFilters = Mathf.Clamp(MaxCandidatesForHeavyFilters, 100, 10000);
+            // Clamp heavy filter candidates (100 to unlimited)
+            MaxCandidatesForHeavyFilters = Mathf.Max(MaxCandidatesForHeavyFilters, 100);
 
             // Ensure user presets list is never null
             if (Scribe.mode == LoadSaveMode.LoadingVars && _userPresets == null)
@@ -141,12 +168,24 @@ namespace LandingZone
             LandingZoneMod.Instance?.WriteSettings();
         }
 
+        // Scroll position for settings window
+        private static Vector2 _scrollPosition = Vector2.zero;
+
+        // Estimated content height for scrollable area
+        private const float EstimatedContentHeight = 900f;
+
         public void DoSettingsWindowContents(Rect inRect)
         {
-            Listing_Standard listingStandard = new Listing_Standard();
-            listingStandard.Begin(inRect);
+            // Create scrollable area
+            Rect viewRect = new Rect(0f, 0f, inRect.width - 20f, EstimatedContentHeight);
+            Widgets.BeginScrollView(inRect, ref _scrollPosition, viewRect);
 
-            // Section: Performance Profile (Quick Apply)
+            Listing_Standard listingStandard = new Listing_Standard();
+            listingStandard.Begin(viewRect);
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Performance Profile (Quick Apply)
+            // ═══════════════════════════════════════════════════════════════
             listingStandard.Label("Performance Profile:");
             listingStandard.Gap(4f);
 
@@ -182,35 +221,29 @@ namespace LandingZone
             listingStandard.Label($"Current: {CurrentPerformanceProfile.ToLabel()} - {CurrentPerformanceProfile.GetTooltip()}");
             Text.Font = GameFont.Small;
 
-            listingStandard.Gap(12f);
+            listingStandard.GapLine(12f);
 
-            // Section: Performance Settings
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Features
+            // ═══════════════════════════════════════════════════════════════
+            listingStandard.Label("Features:");
+            listingStandard.Gap(4f);
             listingStandard.CheckboxLabeled("Auto-run search when world loads", ref AutoRunSearchOnWorldLoad);
             listingStandard.CheckboxLabeled("Allow cancel search (show Stop button)", ref AllowCancelSearch);
-
-            listingStandard.Gap(12f);
-
-            // Section: In-Game World Map
             listingStandard.CheckboxLabeled("Enable in-game world map", ref EnableInGameWorldMap);
-            listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
-            listingStandard.Label("Shows LandingZone controls when viewing the world map during gameplay.");
-            Text.Font = GameFont.Small;
-
-            listingStandard.Gap(12f);
-
-            // Section: Precompute Growing Days
-            listingStandard.CheckboxLabeled("Precompute growing days on world load (beta)", ref PrecomputeGrowingDaysOnLoad);
-            listingStandard.Gap(4f);
-            Text.Font = GameFont.Tiny;
-            GUI.color = new Color(1f, 0.85f, 0.5f); // Amber warning color
-            listingStandard.Label("May take several seconds on large worlds (500k+ tiles). Runs in background chunks to keep UI responsive.");
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listingStandard.Label("   Shows LandingZone controls when viewing the world map during gameplay.");
             GUI.color = Color.white;
-            listingStandard.Label("When enabled, Growing Days filter becomes instant after initial world load.");
             Text.Font = GameFont.Small;
 
-            listingStandard.Gap(8f);
+            listingStandard.GapLine(12f);
 
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Advanced Performance
+            // ═══════════════════════════════════════════════════════════════
+            listingStandard.Label("Advanced Performance:");
+            listingStandard.Gap(4f);
             listingStandard.Label($"Tiles processed per frame: {EvaluationChunkSize}");
             EvaluationChunkSize = Mathf.RoundToInt(listingStandard.Slider(EvaluationChunkSize, 50, 1000));
             listingStandard.Gap(4f);
@@ -240,18 +273,21 @@ namespace LandingZone
 
             listingStandard.Gap(12f);
 
-            // Max candidates for Heavy filters
-            listingStandard.Label($"Max candidates for Heavy filters: {MaxCandidatesForHeavyFilters}");
-            MaxCandidatesForHeavyFilters = Mathf.RoundToInt(listingStandard.Slider(MaxCandidatesForHeavyFilters, 100, 10000));
+            // Max candidates for Heavy filters (adaptive threshold tuning)
+            string heavyLabel = MaxCandidatesForHeavyFilters >= 500000 ? "Unlimited" : MaxCandidatesForHeavyFilters.ToString("N0");
+            listingStandard.Label($"Max candidates for Heavy filters: {heavyLabel}");
+            MaxCandidatesForHeavyFilters = Mathf.RoundToInt(listingStandard.Slider(MaxCandidatesForHeavyFilters, 100, 500000));
             listingStandard.Gap(4f);
             Text.Font = GameFont.Tiny;
-            listingStandard.Label("Heavy filters (Growing Days) deferred until top N candidates. Lower = faster. Higher = more thorough.");
+            listingStandard.Label("Affects adaptive k-of-n threshold. Higher = stricter gate enforcement. 500k+ = unlimited.");
             Text.Font = GameFont.Small;
 
-            listingStandard.Gap(12f);
+            listingStandard.GapLine(12f);
 
-            // Section: Scoring Weights
-            listingStandard.Label("Scoring Weight Preset:");
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Scoring
+            // ═══════════════════════════════════════════════════════════════
+            listingStandard.Label("Scoring:");
 
             if (listingStandard.ButtonTextLabeled("Current preset:", WeightPreset.ToLabel()))
             {
@@ -268,10 +304,12 @@ namespace LandingZone
             listingStandard.Label(WeightPreset.GetTooltip());
             Text.Font = GameFont.Small;
 
-            listingStandard.Gap(12f);
+            listingStandard.GapLine(12f);
 
-            // Section: Logging Level
-            listingStandard.Label("Logging Verbosity:");
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Logging & Debug
+            // ═══════════════════════════════════════════════════════════════
+            listingStandard.Label("Logging & Debug:");
 
             if (listingStandard.ButtonTextLabeled("Current level:", LogLevel.ToLabel()))
             {
@@ -288,7 +326,45 @@ namespace LandingZone
             listingStandard.Label(LogLevel.GetTooltip());
             Text.Font = GameFont.Small;
 
+            listingStandard.GapLine(12f);
+
+            // ═══════════════════════════════════════════════════════════════
+            // SECTION: Mutator Quality
+            // ═══════════════════════════════════════════════════════════════
+            listingStandard.Label("LandingZone_Settings_MutatorQualityHeader".Translate());
+
+            // Challenge Mode toggle
+            listingStandard.CheckboxLabeled("LandingZone_Settings_ChallengeMode".Translate(), ref InvertMutatorQuality);
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listingStandard.Label("LandingZone_Settings_ChallengeModeDesc".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listingStandard.Gap(8f);
+
+            // Configure Mutators button
+            if (listingStandard.ButtonText("LandingZone_Settings_ConfigureMutators".Translate()))
+            {
+                Find.WindowStack.Add(new Core.UI.Dialog_MutatorQualitySettings());
+            }
+
+            listingStandard.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listingStandard.Label("LandingZone_Settings_ConfigureMutatorsDesc".Translate());
+            int overrideCount = UserMutatorQualityOverrides?.Count ?? 0;
+            if (overrideCount > 0)
+            {
+                string plural = overrideCount == 1 ? "" : "s";
+                listingStandard.Label("LandingZone_Settings_CustomRatingsCount".Translate(overrideCount, plural));
+            }
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
             listingStandard.End();
+            Widgets.EndScrollView();
         }
     }
 

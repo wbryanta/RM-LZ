@@ -490,6 +490,8 @@ namespace LandingZone.Data
         private static (FilterSettings filters, string? error) DTOToFilterSettings(FilterTokenDTO dto)
         {
             var filters = new FilterSettings();
+            // Start from clean slate - don't inherit default Preferred values
+            filters.ClearAll();
 
             // Temperature filters
             if (dto.AverageTemperature != null)

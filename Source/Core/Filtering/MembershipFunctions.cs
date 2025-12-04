@@ -42,6 +42,11 @@ namespace LandingZone.Core.Filtering
             float rangeWidth = max - min;
             float margin = rangeWidth * marginMultiplier;
 
+            // Guard against division by zero when min == max (exact value match)
+            // Use a small epsilon margin for graceful falloff
+            const float MinMargin = 0.001f;
+            if (margin < MinMargin) margin = MinMargin;
+
             // Below minimum
             if (value < min)
             {

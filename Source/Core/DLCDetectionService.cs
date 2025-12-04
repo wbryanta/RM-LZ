@@ -125,5 +125,73 @@ namespace LandingZone.Core
 
             return string.Join(", ", installed);
         }
+
+        // ===== MOD DETECTION =====
+
+        /// <summary>
+        /// Cache for mod name checks to avoid repeated lookups.
+        /// </summary>
+        private static Dictionary<string, bool>? _modActiveCache;
+
+        /// <summary>
+        /// Checks if a mod is active based on name substring or known package IDs.
+        /// Supports common mod naming variations.
+        /// </summary>
+        public static bool IsModActive(string modName)
+        {
+            if (string.IsNullOrEmpty(modName))
+                return true; // No requirement = always available
+
+            // Initialize cache on first use
+            _modActiveCache ??= new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+            // Check cache first
+            if (_modActiveCache.TryGetValue(modName, out bool cached))
+                return cached;
+
+            bool isActive = CheckModActive(modName);
+            _modActiveCache[modName] = isActive;
+            return isActive;
+        }
+
+        private static bool CheckModActive(string modName)
+        {
+            // Normalize common abbreviations
+            string normalizedName = modName.ToLowerInvariant();
+
+            // Special handling for known mods
+            if (normalizedName.Contains("geo") && normalizedName.Contains("landform"))
+            {
+                // Check for Geological Landforms by package ID
+                return ModLister.GetActiveModWithIdentifier("m00nl1ght.GeologicalLandforms") != null;
+            }
+
+            if (normalizedName.Contains("alpha") && normalizedName.Contains("biome"))
+            {
+                return ModLister.GetActiveModWithIdentifier("sarg.alphabiomes") != null;
+            }
+
+            if (normalizedName.Contains("biomes") && normalizedName.Contains("core"))
+            {
+                return ModLister.GetActiveModWithIdentifier("BiomesTeam.BiomesCore") != null;
+            }
+
+            // Generic fallback: search by name substring
+            foreach (var mod in ModsConfig.ActiveModsInLoadOrder)
+            {
+                if (mod.Name != null && mod.Name.IndexOf(modName, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Clears the mod active cache (call when mod list might have changed).
+        /// </summary>
+        public static void ClearModCache()
+        {
+            _modActiveCache = null;
+        }
     }
 }

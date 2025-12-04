@@ -30,7 +30,7 @@ namespace LandingZone.Core.UI
         public override void DoWindowContents(Rect inRect)
         {
             // Calculate content height - keep generous to ensure all controls are visible
-            float contentHeight = 680f;  // Increased for new debug buttons
+            float contentHeight = 780f;  // Increased for bucket sync debug button
 
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
@@ -242,6 +242,45 @@ namespace LandingZone.Core.UI
             Text.Font = GameFont.Tiny;
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             listing.Label("LandingZone_DevTools_DumpOres_Desc".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            listing.Gap(12f);
+            listing.GapLine();
+            listing.Gap(8f);
+
+            // Bucket sync debug - dump workspace and filter settings for comparison
+            if (listing.ButtonText("[DEV] Dump Bucket Sync State"))
+            {
+                try
+                {
+                    // Dump FilterSettings from context
+                    var state = LandingZoneContext.State;
+                    if (state?.Preferences != null)
+                    {
+                        DevDiagnostics.DumpFilterSettingsState(state.Preferences.GetActiveFilters(), "Active FilterSettings");
+                    }
+                    else
+                    {
+                        Log.Warning("[LandingZone][DEV] LandingZoneContext.State or Preferences is null");
+                    }
+
+                    // Dump workspace bucket state (uses static accessor)
+                    DevDiagnostics.DumpWorkspaceBucketState();
+
+                    Messages.Message("[DEV] Bucket sync state dumped to Player.log", MessageTypeDefOf.TaskCompletion, false);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Error($"[LandingZone][DEV] Failed to dump bucket sync state: {ex}");
+                    Messages.Message("[DEV] Dump failed. See log.", MessageTypeDefOf.RejectInput, false);
+                }
+            }
+
+            listing.Gap(4f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            listing.Label("Dumps workspace buckets and FilterSettings for debugging sync issues.");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 

@@ -15,14 +15,13 @@ namespace LandingZone.Core.Filtering
     /// Use ComputeScoringWeights() and ComputeScoringScore() for new code.
     ///
     /// The legacy KAPPA-BASED methods (ComputeKappa, ComputeFinalScore) are still used
-    /// for upper-bound calculation in BitsetAggregator and as a fallback when
-    /// UseNewScoring=false in preferences.
+    /// for upper-bound calculation in BitsetAggregator.
     /// </summary>
     public static class ScoringWeights
     {
         // ============================================================
         // LEGACY KAPPA-BASED SCORING
-        // Used by: BitsetAggregator (upper bound calc), legacy K-OF-N fallback
+        // Used by: BitsetAggregator (upper bound calc)
         // ============================================================
 
         /// <summary>
@@ -149,11 +148,15 @@ namespace LandingZone.Core.Filtering
         /// Example (3 Priority, 5 Preferred, λ_mut=0.1):
         ///   α = 2·3 = 6, β = 5
         ///   λ_prio ≈ 0.49, λ_pref ≈ 0.41, λ_mut = 0.1
+        ///
+        /// SPECIAL CASE: When NO scoring filters are active (only MustHave/MustNotHave gates),
+        /// returns special sentinel (-1, -1, -1) to indicate "gates only" mode.
+        /// Callers should interpret this as: tiles that pass all gates get score=1.0.
         /// </summary>
         /// <param name="priorityCount">Number of Priority filters</param>
         /// <param name="preferredCount">Number of Preferred filters</param>
         /// <param name="mutatorWeight">Weight reserved for mutator score (default 0.1)</param>
-        /// <returns>(λ_prio, λ_pref, λ_mut) where sum = 1.0</returns>
+        /// <returns>(λ_prio, λ_pref, λ_mut) where sum = 1.0, or (-1,-1,-1) for gates-only mode</returns>
         public static (float lambdaPrio, float lambdaPref, float lambdaMut) ComputeScoringWeights(
             int priorityCount,
             int preferredCount,
@@ -161,9 +164,10 @@ namespace LandingZone.Core.Filtering
         {
             mutatorWeight = Mathf.Clamp01(mutatorWeight);
 
-            // Edge cases
+            // SPECIAL CASE: No scoring filters (only MustHave/MustNotHave gates)
+            // Return sentinel to indicate "gates only" mode - tiles passing all gates are perfect
             if (priorityCount == 0 && preferredCount == 0)
-                return (0f, 0f, 1f); // Only mutators contribute
+                return (-1f, -1f, -1f); // Sentinel for gates-only mode
 
             // Priority gets 2x weight per filter
             float alpha = 2f * priorityCount;
@@ -171,7 +175,7 @@ namespace LandingZone.Core.Filtering
             float sum = alpha + beta;
 
             if (sum == 0)
-                return (0f, 0f, 1f); // Only mutators
+                return (-1f, -1f, -1f); // Sentinel for gates-only mode
 
             // Normalize and reserve space for mutators
             float lambdaPrio = (1f - mutatorWeight) * alpha / sum;

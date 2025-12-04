@@ -19,6 +19,12 @@ namespace LandingZone.Core.Filtering
             _importance = importance;
         }
 
+        /// <summary>
+        /// Gets the underlying ISiteFilter for direct Apply() calls on survivor sets.
+        /// Used for efficient heavy gate evaluation on cheap survivors only.
+        /// </summary>
+        public ISiteFilter UnderlyingFilter => _filter;
+
         public string Id => _filter.Id;
 
         public FilterImportance Importance => _importance;

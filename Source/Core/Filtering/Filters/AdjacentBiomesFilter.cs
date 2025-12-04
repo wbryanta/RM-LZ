@@ -17,6 +17,9 @@ namespace LandingZone.Core.Filtering.Filters
         public string Id => "adjacent_biomes";
         public FilterHeaviness Heaviness => FilterHeaviness.Medium;
 
+        // Reusable list for neighbor queries (avoid allocations)
+        private static readonly List<PlanetTile> _neighborBuffer = new List<PlanetTile>(7);
+
         public IEnumerable<int> Apply(FilterContext context, IEnumerable<int> inputTiles)
         {
             var filters = context.Filters;
@@ -63,6 +66,7 @@ namespace LandingZone.Core.Filtering.Filters
 
         /// <summary>
         /// Gets all unique biome defNames adjacent to a specific tile.
+        /// Uses RimWorld's icosahedral grid neighbor API.
         /// </summary>
         private static IEnumerable<string> GetAdjacentBiomeDefNames(int tileId)
         {
@@ -70,35 +74,31 @@ namespace LandingZone.Core.Filtering.Filters
             if (worldGrid == null)
                 yield break;
 
-            var tile = worldGrid[tileId];
-            if (tile == null)
-                yield break;
+            // Get neighbors using RimWorld's icosahedral grid API
+            // PlanetTile has implicit conversion from int
+            _neighborBuffer.Clear();
+            worldGrid.GetTileNeighbors((PlanetTile)tileId, _neighborBuffer);
 
-            // Get all neighbor tiles and collect their unique biomes
+            // Collect unique biomes from neighbors
             var seenBiomes = new HashSet<string>();
 
-            // In RimWorld, we need to check neighboring tiles
-            // The WorldGrid has neighbor information, but we need to be careful about the API
-            // Using a temporary list approach similar to what we attempted with CoastalLakeFilter
-
-            // For now, use a simplified approach: check adjacent tiles in the world grid
-            // TODO: Verify this works correctly with RimWorld's icosahedral grid system
-
-            // RimWorld stores tile count in grid.TilesCount
-            // We can check neighbors by iterating through potential neighbors
-            // For a proper implementation, we'd use worldGrid.GetTileNeighbors
-
-            // Placeholder implementation - use PrimaryBiome property
-            // This avoids build errors while we clarify the neighbor access API
-            var primaryBiome = tile.PrimaryBiome;
-            if (primaryBiome != null && !seenBiomes.Contains(primaryBiome.defName))
+            foreach (var neighborTile in _neighborBuffer)
             {
-                seenBiomes.Add(primaryBiome.defName);
-                yield return primaryBiome.defName;
-            }
+                int neighborId = (int)neighborTile;
+                if (neighborId < 0 || neighborId >= worldGrid.TilesCount)
+                    continue;
 
-            // TODO: Properly implement neighbor biome detection
-            // Need to solve the GetTileNeighbors API issue we encountered in CoastalLakeFilter
+                var neighborSurfaceTile = worldGrid[neighborId];
+                if (neighborSurfaceTile == null)
+                    continue;
+
+                var biome = neighborSurfaceTile.PrimaryBiome;
+                if (biome != null && !seenBiomes.Contains(biome.defName))
+                {
+                    seenBiomes.Add(biome.defName);
+                    yield return biome.defName;
+                }
+            }
         }
 
         /// <summary>

@@ -5,9 +5,7 @@ using Verse;
 namespace LandingZone.Core
 {
     /// <summary>
-    /// Patches World.FinalizeInit to trigger tile cache precomputation on world load.
-    /// When PrecomputeGrowingDaysOnLoad is enabled, pre-caches all tile data
-    /// so Growing Days filter becomes instant (like a cheap filter).
+    /// Patches World.FinalizeInit to clear caches when a new world loads.
     /// </summary>
     [HarmonyPatch(typeof(World), "FinalizeInit")]
     internal static class WorldFinalizeInitPatch
@@ -17,12 +15,13 @@ namespace LandingZone.Core
             // Clear NaturalRockTypesIn cache for new world
             NaturalRockTypesCachePatch.ClearCache();
 
-            // Optionally start tile cache precomputation if enabled in settings
-            if (LandingZoneSettings.PrecomputeGrowingDaysOnLoad)
+            // Reset Advanced filters to empty (clean canvas for new world)
+            // User's choice: Advanced starts empty unless Remix is used
+            // NOTE: Don't clear ActivePreset - it refers to Simple mode's default preset
+            var prefs = LandingZoneContext.State?.Preferences;
+            if (prefs != null)
             {
-                var tileCount = __instance?.grid?.TilesCount ?? 0;
-                Log.Message($"[LandingZone] Precompute Growing Days enabled - starting background precomputation for {tileCount} tiles...");
-                LandingZoneContext.StartTileCachePrecomputation();
+                prefs.AdvancedFilters.ClearAll();
             }
         }
     }

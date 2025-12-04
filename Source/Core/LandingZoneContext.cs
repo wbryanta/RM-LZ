@@ -227,11 +227,31 @@ namespace LandingZone.Core
             return false;
         }
 
+        // Reusable list for neighbor queries (avoid allocations)
+        private static readonly List<RimWorld.Planet.PlanetTile> _neighborBuffer = new List<RimWorld.Planet.PlanetTile>(7);
+
         private static bool CheckTileHasAdjacentBiome(int tileId, string biomeName)
         {
-            // For adjacent biomes, we'd need to check neighbor tiles
-            // This is a simplified check - actual implementation would iterate neighbors
-            return false; // TODO: Implement proper neighbor biome check
+            var worldGrid = Find.WorldGrid;
+            if (worldGrid == null) return false;
+
+            // Get neighbors using RimWorld's icosahedral grid API
+            _neighborBuffer.Clear();
+            worldGrid.GetTileNeighbors((RimWorld.Planet.PlanetTile)tileId, _neighborBuffer);
+
+            // Check if any neighbor has the specified biome
+            foreach (var neighborTile in _neighborBuffer)
+            {
+                int neighborId = (int)neighborTile;
+                if (neighborId < 0 || neighborId >= worldGrid.TilesCount)
+                    continue;
+
+                var neighborSurfaceTile = worldGrid[neighborId];
+                if (neighborSurfaceTile?.PrimaryBiome?.defName == biomeName)
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool CheckSingleValueFilter(int tileId, string filterId)
@@ -350,6 +370,8 @@ namespace LandingZone.Core
             if (DevDiagnostics.PhaseADiagnosticsEnabled)
             {
                 Log.Message($"[LZ][DIAG] RequestEvaluation START: source={source}, context={contextType}, focus={focusOnComplete}, diagEnabled=true, timestamp={System.DateTime.Now:HH:mm:ss.fff}");
+                // Dump filter settings state at search time for debugging bucket sync issues
+                DevDiagnostics.DumpFilterSettingsState(State.Preferences?.GetActiveFilters(), $"Filters at Search ({source})");
             }
 
             EnsureEvaluationComponent();

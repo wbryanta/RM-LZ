@@ -347,5 +347,128 @@ namespace LandingZone.Core.Diagnostics
             // TODO: remove when a formal list is exposed; kept for reference
             return new HashSet<string>();
         }
+
+        /// <summary>
+        /// Dumps the current FilterSettings state to Player.log for debugging bucket sync issues.
+        /// Call this before/after search to verify workspace → FilterSettings sync is working.
+        /// </summary>
+        public static void DumpFilterSettingsState(Data.FilterSettings? filters, string label = "FilterSettings")
+        {
+            if (filters == null)
+            {
+                Log.Warning($"[LandingZone][DEV] DumpFilterSettingsState: {label} is null!");
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"[LandingZone][DEV] ===== {label} STATE DUMP =====");
+
+            // Growing Days (user reported this might be misbehaving)
+            sb.AppendLine($"Growing Days:");
+            sb.AppendLine($"  Importance: {filters.GrowingDaysImportance}");
+            sb.AppendLine($"  Range: {filters.GrowingDaysRange.min:F1} - {filters.GrowingDaysRange.max:F1}");
+            sb.AppendLine($"  IsHardGate: {filters.GrowingDaysImportance.IsHardGate()}");
+
+            // Hilliness (HashSet-based, special handling suspected)
+            sb.AppendLine($"Hilliness:");
+            sb.AppendLine($"  AllowedHilliness: {string.Join(", ", filters.AllowedHilliness)}");
+            sb.AppendLine($"  Count: {filters.AllowedHilliness.Count}");
+
+            // Rivers (container filter)
+            sb.AppendLine($"Rivers:");
+            sb.AppendLine($"  HasAnyImportance: {filters.Rivers.HasAnyImportance}");
+            sb.AppendLine($"  Operator: {filters.Rivers.Operator}");
+            sb.AppendLine($"  HasMustHave: {filters.Rivers.HasMustHave}");
+            if (filters.Rivers.HasAnyImportance)
+            {
+                foreach (var kvp in filters.Rivers.ItemImportance)
+                {
+                    sb.AppendLine($"    {kvp.Key} = {kvp.Value}");
+                }
+            }
+
+            // Roads (container filter)
+            sb.AppendLine($"Roads:");
+            sb.AppendLine($"  HasAnyImportance: {filters.Roads.HasAnyImportance}");
+            sb.AppendLine($"  Operator: {filters.Roads.Operator}");
+            sb.AppendLine($"  HasMustHave: {filters.Roads.HasMustHave}");
+            if (filters.Roads.HasAnyImportance)
+            {
+                foreach (var kvp in filters.Roads.ItemImportance)
+                {
+                    sb.AppendLine($"    {kvp.Key} = {kvp.Value}");
+                }
+            }
+
+            // Other important filters
+            sb.AppendLine($"Other Active Filters:");
+            if (filters.AverageTemperatureImportance != Data.FilterImportance.Ignored)
+                sb.AppendLine($"  AvgTemp: {filters.AverageTemperatureImportance}, Range: {filters.AverageTemperatureRange.min:F1}-{filters.AverageTemperatureRange.max:F1}");
+            if (filters.RainfallImportance != Data.FilterImportance.Ignored)
+                sb.AppendLine($"  Rainfall: {filters.RainfallImportance}, Range: {filters.RainfallRange.min:F0}-{filters.RainfallRange.max:F0}");
+            if (filters.CoastalImportance != Data.FilterImportance.Ignored)
+                sb.AppendLine($"  Coastal: {filters.CoastalImportance}");
+            if (filters.MapFeatures.HasAnyImportance)
+                sb.AppendLine($"  MapFeatures: {filters.MapFeatures}");
+            if (filters.Biomes.HasAnyImportance)
+                sb.AppendLine($"  Biomes: {filters.Biomes}");
+            if (filters.Stones.HasAnyImportance)
+                sb.AppendLine($"  Stones: {filters.Stones}");
+
+            sb.AppendLine($"MaxResults: {filters.MaxResults}");
+            sb.AppendLine($"CriticalStrictness: {filters.CriticalStrictness:F2}");
+
+            sb.AppendLine($"[LandingZone][DEV] ===== END {label} STATE DUMP =====");
+
+            Log.Message(sb.ToString());
+        }
+
+        /// <summary>
+        /// Dumps the current workspace bucket state for comparison with FilterSettings.
+        /// </summary>
+        public static void DumpWorkspaceBucketState()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("[LandingZone][DEV] ===== WORKSPACE BUCKET STATE =====");
+
+            var workspace = AdvancedModeUI.GetWorkspaceForDiagnostics();
+            if (workspace == null)
+            {
+                sb.AppendLine("  Workspace is null (Advanced mode not initialized yet)");
+                Log.Message(sb.ToString());
+                return;
+            }
+
+            // Dump chips in each bucket
+            var importanceLevels = new[]
+            {
+                (Data.FilterImportance.MustHave, "MUST_HAVE"),
+                (Data.FilterImportance.MustNotHave, "MUST_NOT_HAVE"),
+                (Data.FilterImportance.Priority, "PRIORITY"),
+                (Data.FilterImportance.Preferred, "PREFERRED"),
+                (Data.FilterImportance.Ignored, "IGNORED")
+            };
+
+            foreach (var (importance, label) in importanceLevels)
+            {
+                var chips = workspace.GetChipsInBucket(importance);
+                if (chips.Any())
+                {
+                    sb.AppendLine($"  [{label}]:");
+                    foreach (var chip in chips)
+                    {
+                        string chipInfo = $"    - {chip.FilterId}";
+                        if (!string.IsNullOrEmpty(chip.ValueDisplay))
+                            chipInfo += $" ({chip.ValueDisplay})";
+                        if (chip.IsHeavy)
+                            chipInfo += " [HEAVY]";
+                        sb.AppendLine(chipInfo);
+                    }
+                }
+            }
+
+            sb.AppendLine("[LandingZone][DEV] ===== END WORKSPACE BUCKET STATE =====");
+            Log.Message(sb.ToString());
+        }
     }
 }

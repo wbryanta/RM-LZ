@@ -55,27 +55,6 @@ namespace LandingZone.Core.UI
             listing.Begin(inRect);
             listing.Label("LandingZone_ResultsTitle".Translate(LandingZoneMod.Version));
             listing.GapLine();
-
-            var highlightState = LandingZoneContext.HighlightState;
-            bool showing = highlightState?.ShowBestSites ?? false;
-
-            Rect highlightButtonRect = listing.GetRect(30f);
-            if (Widgets.ButtonText(highlightButtonRect, (showing ? "LandingZone_HideHighlights" : "LandingZone_ShowHighlights").Translate()))
-            {
-                if (highlightState != null)
-                {
-                    highlightState.ShowBestSites = !showing;
-                    if (highlightState.ShowBestSites && !LandingZoneContext.HasMatches)
-                    {
-                        LandingZoneContext.RequestEvaluationWithWarning(EvaluationRequestSource.ShowBestSites, focusOnComplete: true);
-                    }
-                }
-            }
-
-            // Tooltip explaining highlight functionality
-            TooltipHandler.TipRegion(highlightButtonRect, "LandingZone_HighlightsTooltip".Translate());
-
-            listing.Gap(4f);
             if (LandingZoneContext.IsEvaluating)
             {
                 listing.Label("LandingZone_SearchingEllipsis".Translate((LandingZoneContext.EvaluationProgress * 100f).ToString("F0")));

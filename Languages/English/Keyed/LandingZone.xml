@@ -449,6 +449,34 @@
   <LandingZone_FilterCoastalOrRoads>Coastal OR Roads</LandingZone_FilterCoastalOrRoads>
   <LandingZone_FilterCoastalOrRoadsDesc>Trade caravans and ships can reach you</LandingZone_FilterCoastalOrRoadsDesc>
 
+  <!-- Base Filter Names (for gate descriptions) -->
+  <LandingZone_FilterAverageTemperature>Average Temperature</LandingZone_FilterAverageTemperature>
+  <LandingZone_FilterMinimumTemperature>Minimum Temperature</LandingZone_FilterMinimumTemperature>
+  <LandingZone_FilterMaximumTemperature>Maximum Temperature</LandingZone_FilterMaximumTemperature>
+  <LandingZone_FilterGrowingDays>Growing Days</LandingZone_FilterGrowingDays>
+  <LandingZone_FilterPollution>Pollution</LandingZone_FilterPollution>
+  <LandingZone_FilterForageability>Forageability</LandingZone_FilterForageability>
+  <LandingZone_FilterForageableFood>Forageable Food</LandingZone_FilterForageableFood>
+  <LandingZone_FilterElevation>Elevation</LandingZone_FilterElevation>
+  <LandingZone_FilterSwampiness>Swampiness</LandingZone_FilterSwampiness>
+  <LandingZone_FilterGrazeability>Grazeability</LandingZone_FilterGrazeability>
+  <LandingZone_FilterAnimalDensity>Animal Density</LandingZone_FilterAnimalDensity>
+  <LandingZone_FilterFishPopulation>Fish Population</LandingZone_FilterFishPopulation>
+  <LandingZone_FilterPlantDensity>Plant Density</LandingZone_FilterPlantDensity>
+  <LandingZone_FilterMovementDifficulty>Movement Difficulty</LandingZone_FilterMovementDifficulty>
+  <LandingZone_FilterCoastal>Coastal</LandingZone_FilterCoastal>
+  <LandingZone_FilterCoastalLake>Coastal Lake</LandingZone_FilterCoastalLake>
+  <LandingZone_FilterFeature>World Feature</LandingZone_FilterFeature>
+  <LandingZone_FilterLandmark>Landmark</LandingZone_FilterLandmark>
+
+  <!-- Climate Filter Presets -->
+  <LandingZone_FilterModerateClimate>Moderate Climate</LandingZone_FilterModerateClimate>
+  <LandingZone_FilterModerateClimateDesc>Avoid extreme temperatures</LandingZone_FilterModerateClimateDesc>
+  <LandingZone_FilterExtremeClimate>Extreme Climate</LandingZone_FilterExtremeClimate>
+  <LandingZone_FilterExtremeClimateDesc>Challenge mode - harsh conditions</LandingZone_FilterExtremeClimateDesc>
+  <LandingZone_FilterUltraRareFeatures>Ultra-Rare Features</LandingZone_FilterUltraRareFeatures>
+  <LandingZone_FilterUltraRareFeaturesDesc>Extremely rare map features (may return 0 results)</LandingZone_FilterUltraRareFeaturesDesc>
+
   <!-- Dev Tools -->
   <LandingZone_DevTools_WindowTitle>Developer Tools</LandingZone_DevTools_WindowTitle>
   <LandingZone_DevTools_DevModeOnly>Dev Mode only - hidden in release builds</LandingZone_DevTools_DevModeOnly>
@@ -853,8 +881,6 @@
   <LandingZone_Tooltip_Hilliness>Terrain elevation type - select allowed</LandingZone_Tooltip_Hilliness>
   <LandingZone_Tooltip_Caves>Map feature: Underground cave system</LandingZone_Tooltip_Caves>
   <LandingZone_Tooltip_Mountain>Map feature: Mountainous terrain</LandingZone_Tooltip_Mountain>
-  <LandingZone_Tooltip_Elevation>Tile height in meters above sea level</LandingZone_Tooltip_Elevation>
-  <LandingZone_Tooltip_Swampiness>How marshy/wet the terrain is</LandingZone_Tooltip_Swampiness>
   <LandingZone_Tooltip_MoveDifficulty>Terrain traversal penalty multiplier</LandingZone_Tooltip_MoveDifficulty>
   <LandingZone_Tooltip_Mutator>Geological Landforms map feature</LandingZone_Tooltip_Mutator>
 
@@ -892,5 +918,88 @@
 
   <!-- Special Filter Tooltips -->
   <LandingZone_Tooltip_Landmark>World map landmark features (ruins, structures).\n\nProvides interesting exploration opportunities and potential loot.</LandingZone_Tooltip_Landmark>
+
+  <!-- ========================================
+       Ribbon Helpers / Status Text
+       ======================================== -->
+
+  <!-- Top button tooltips -->
+  <LandingZone_ViewTopMatches>View top {0} matches</LandingZone_ViewTopMatches>
+  <LandingZone_NoMatchesRunSearch>No matches yet - run a search first</LandingZone_NoMatchesRunSearch>
+
+  <!-- Bookmark icon tooltips -->
+  <LandingZone_RemoveBookmark>Remove bookmark from this tile</LandingZone_RemoveBookmark>
+  <LandingZone_AddBookmark>Bookmark this tile for later reference</LandingZone_AddBookmark>
+  <LandingZone_SelectTileToBookmark>Select a tile to bookmark it</LandingZone_SelectTileToBookmark>
+
+  <!-- Bookmark manager icon tooltips -->
+  <LandingZone_ViewManageBookmarks>View and manage {0} bookmarked tiles</LandingZone_ViewManageBookmarks>
+  <LandingZone_OpenBookmarkManagerEmpty>Open bookmark manager (no bookmarks yet)</LandingZone_OpenBookmarkManagerEmpty>
+
+  <!-- Status text -->
+  <LandingZone_AnalyzingWorld>Analyzing world... {0}% ({1}/{2} tiles)</LandingZone_AnalyzingWorld>
+  <LandingZone_SearchingPercent>Searching... {0}%</LandingZone_SearchingPercent>
+  <LandingZone_NoMatchesClickSearch>No matches yet - click Search to find settlements</LandingZone_NoMatchesClickSearch>
+  <LandingZone_NoMatchesWithStats>No matches yet | {0}</LandingZone_NoMatchesWithStats>
+
+  <!-- Bookmark manager confirmations -->
+  <LandingZone_ClearAllBookmarksConfirm>Are you sure you want to delete all bookmarks? This cannot be undone.</LandingZone_ClearAllBookmarksConfirm>
+
+  <!-- Mutator source badges -->
+  <LandingZone_MutatorSourceMod>[MOD]</LandingZone_MutatorSourceMod>
+  <LandingZone_MutatorSourceDLC>[DLC]</LandingZone_MutatorSourceDLC>
+  <LandingZone_DLCRequiredSuffix>(DLC Required)</LandingZone_DLCRequiredSuffix>
+  <LandingZone_RequiresDLC>Requires</LandingZone_RequiresDLC>
+  <LandingZone_AddedByMod>Added by</LandingZone_AddedByMod>
+
+  <!-- Preset validation -->
+  <LandingZone_PresetMissingCritical>Critical features unavailable (mod not loaded):</LandingZone_PresetMissingCritical>
+  <LandingZone_PresetMissingOptional>Optional features unavailable (mod not loaded):</LandingZone_PresetMissingOptional>
+
+  <!-- Hilliness filter validation -->
+  <LandingZone_Hilliness_AllSelected>Hilliness filter requires at least one type to be excluded. Click the chip to deselect unwanted types.</LandingZone_Hilliness_AllSelected>
+
+  <!-- Default preset feature -->
+  <LandingZone_DefaultPresetIndicator>Default preset - automatically applied when loading a new world</LandingZone_DefaultPresetIndicator>
+  <LandingZone_SetAsDefault>Set as Default</LandingZone_SetAsDefault>
+  <LandingZone_AlreadyDefault>✓ Already Default</LandingZone_AlreadyDefault>
+  <LandingZone_DefaultPresetSet>{0} is now your default preset</LandingZone_DefaultPresetSet>
+
+  <!-- Mutator Quality Settings (Mod Settings) -->
+  <LandingZone_Settings_MutatorQualityHeader>Mutator Quality Ratings:</LandingZone_Settings_MutatorQualityHeader>
+  <LandingZone_Settings_ChallengeMode>Challenge Mode (invert ratings)</LandingZone_Settings_ChallengeMode>
+  <LandingZone_Settings_ChallengeModeDesc>Swaps good/bad ratings - harsh environments score higher.</LandingZone_Settings_ChallengeModeDesc>
+  <LandingZone_Settings_ConfigureMutators>Configure Mutator Ratings...</LandingZone_Settings_ConfigureMutators>
+  <LandingZone_Settings_ConfigureMutatorsDesc>Customize how each mutator affects tile quality scores.</LandingZone_Settings_ConfigureMutatorsDesc>
+  <LandingZone_Settings_CustomRatingsCount>({0} custom rating{1} applied)</LandingZone_Settings_CustomRatingsCount>
+
+  <!-- Mutator Quality Dialog -->
+  <LandingZone_MutatorDialog_Title>Mutator Quality Ratings</LandingZone_MutatorDialog_Title>
+  <LandingZone_MutatorDialog_Subtitle>Customize how each mutator affects tile quality. Drag sliders or click values.</LandingZone_MutatorDialog_Subtitle>
+  <LandingZone_MutatorDialog_ResetAll>Reset All</LandingZone_MutatorDialog_ResetAll>
+  <LandingZone_MutatorDialog_ResetAllConfirm>All mutator ratings reset to defaults.</LandingZone_MutatorDialog_ResetAllConfirm>
+  <LandingZone_MutatorDialog_SearchPlaceholder>Search mutators...</LandingZone_MutatorDialog_SearchPlaceholder>
+  <LandingZone_MutatorDialog_OnlyOverrides>Only overrides</LandingZone_MutatorDialog_OnlyOverrides>
+  <LandingZone_MutatorDialog_CustomCount>{0} ({1} custom)</LandingZone_MutatorDialog_CustomCount>
+  <LandingZone_MutatorDialog_DefaultIndicator>(def)</LandingZone_MutatorDialog_DefaultIndicator>
+
+  <!-- Mutator Categories -->
+  <LandingZone_MutatorCategory_Climate>Climate</LandingZone_MutatorCategory_Climate>
+  <LandingZone_MutatorCategory_WaterFeatures>Water Features</LandingZone_MutatorCategory_WaterFeatures>
+  <LandingZone_MutatorCategory_Elevation>Elevation</LandingZone_MutatorCategory_Elevation>
+  <LandingZone_MutatorCategory_ResourceModifiers>Resource Modifiers</LandingZone_MutatorCategory_ResourceModifiers>
+  <LandingZone_MutatorCategory_FloraWildlife>Flora &amp; Wildlife</LandingZone_MutatorCategory_FloraWildlife>
+  <LandingZone_MutatorCategory_TerrainTypes>Terrain Types</LandingZone_MutatorCategory_TerrainTypes>
+  <LandingZone_MutatorCategory_RuinsSalvage>Ruins &amp; Salvage</LandingZone_MutatorCategory_RuinsSalvage>
+  <LandingZone_MutatorCategory_AbandonedColonies>Abandoned Colonies</LandingZone_MutatorCategory_AbandonedColonies>
+  <LandingZone_MutatorCategory_Hazards>Hazards</LandingZone_MutatorCategory_Hazards>
+  <LandingZone_MutatorCategory_Other>Other</LandingZone_MutatorCategory_Other>
+
+  <!-- Preset Save Dialog (Overwrite Confirmation) -->
+  <LandingZone_PresetOverwriteConfirm>Preset '{0}' already exists. Overwrite?</LandingZone_PresetOverwriteConfirm>
+  <LandingZone_Overwrite>Overwrite</LandingZone_Overwrite>
+  <LandingZone_Rename>Rename</LandingZone_Rename>
+  <LandingZone_PresetOverwritten>Preset '{0}' overwritten.</LandingZone_PresetOverwritten>
+  <LandingZone_PresetSaveFailed>Failed to save preset.</LandingZone_PresetSaveFailed>
 
 </LanguageData>

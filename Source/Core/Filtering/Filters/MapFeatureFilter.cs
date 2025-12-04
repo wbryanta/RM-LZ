@@ -619,8 +619,8 @@ namespace LandingZone.Core.Filtering.Filters
             /// </summary>
             public string BadgeText => Type switch
             {
-                MutatorSourceType.DLC => "[DLC]",
-                MutatorSourceType.Mod => "[MOD]",
+                MutatorSourceType.DLC => "LandingZone_MutatorSourceDLC".Translate(),
+                MutatorSourceType.Mod => "LandingZone_MutatorSourceMod".Translate(),
                 _ => ""
             };
 

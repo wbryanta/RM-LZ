@@ -34,6 +34,36 @@ namespace LandingZone.Core.UI
 
         public override Vector2 InitialSize => new Vector2(960f, 720f); // 50% wider for breathing room
 
+        protected override void SetInitialSizeAndPosition()
+        {
+            base.SetInitialSizeAndPosition();
+
+            // Position window above the ribbon (which sits above the gizmo grid)
+            // In-game ribbon is at: screenHeight - 134 (gizmo offset + margin) - ~100 (ribbon height)
+            // World gen ribbon is at: screenHeight - ~100
+            // Position window bottom to sit above the ribbon with a small gap
+            const float ribbonEstimatedHeight = 110f;
+            const float gizmoGridOffset = 134f; // 124 + 10 margin
+            const float windowGap = 10f;
+
+            // Calculate window position: center horizontally, bottom edge above ribbon
+            float windowBottom = (float)Verse.UI.screenHeight - gizmoGridOffset - ribbonEstimatedHeight - windowGap;
+            float windowTop = windowBottom - InitialSize.y;
+
+            // Ensure window doesn't go off the top of the screen
+            if (windowTop < 10f)
+            {
+                windowTop = 10f;
+            }
+
+            windowRect = new Rect(
+                ((float)Verse.UI.screenWidth - InitialSize.x) / 2f,
+                windowTop,
+                InitialSize.x,
+                InitialSize.y
+            );
+        }
+
         public override void PreClose()
         {
             // Both Simple and Advanced modes modify FilterSettings directly - no persistence needed

@@ -101,6 +101,10 @@ namespace LandingZone.Core.UI
         private static FilterImportance? _containerPopupBucket;
         private static Rect _containerPopupAnchorRect;
 
+        // Bucket scroll view state - needed to convert chip rects to window coords for popups
+        private static Rect _bucketAreaRect;
+        private static Vector2 _lastBucketScrollPosition;
+
         // Detailed tooltip popup state - tracks which filter is showing its detailed tooltip
         private static string? _detailedTooltipFilterId;
         private static Rect _detailedTooltipAnchorRect;
@@ -111,6 +115,15 @@ namespace LandingZone.Core.UI
         private const float ContainerPopupWidth = 200f;
         private const float ContainerPopupItemHeight = 24f;
         private const float ContainerPopupSectionHeight = 20f;  // Height for mod section headers
+
+        /// <summary>
+        /// Forces the workspace to re-synchronize from the current FilterSettings.
+        /// Call this after programmatically modifying AdvancedFilters (e.g., Remix, Load Preset).
+        /// </summary>
+        public static void InvalidateWorkspace()
+        {
+            _workspace = null; // Will be recreated on next DrawBucketWorkspace call
+        }
 
         /// <summary>
         /// Draws the bucket workspace interface.
@@ -354,6 +367,20 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
+        /// Called when user modifies filters in Advanced mode.
+        /// Clears ActivePreset so search button shows "Search (Advanced)" instead of preset name.
+        /// </summary>
+        private static void OnFiltersModified()
+        {
+            var preferences = LandingZoneContext.State?.Preferences;
+            if (preferences?.ActivePreset != null)
+            {
+                preferences.ActivePreset = null;
+            }
+            _cachedTileEstimate = ""; // Invalidate estimate
+        }
+
+        /// <summary>
         /// Handles global drag events.
         /// </summary>
         private static void HandleDragEvents(Rect inRect)
@@ -438,11 +465,18 @@ namespace LandingZone.Core.UI
                     {
                         // Move to different bucket (first clause)
                         _workspace.MoveChip(_draggedChipId, targetBucket);
+
+                        // Sync container importance to FilterSettings if this is a container chip
+                        SyncContainerChipToFilterSettings(_draggedChipId, targetBucket);
+
+                        OnFiltersModified(); // User changed filters - clear preset tracking
                     }
                     else if (differentClause && targetClauseId.HasValue)
                     {
                         // Move to different clause within same bucket
                         _workspace.MoveChipToClause(_draggedChipId, targetClauseId.Value);
+
+                        OnFiltersModified(); // User changed filters - clear preset tracking
                     }
 
                     // Clear selection since we moved the chip
@@ -464,7 +498,11 @@ namespace LandingZone.Core.UI
                             foreach (var chip in group.Chips.ToList())
                             {
                                 _workspace.MoveChip(chip.FilterId, targetBucket);
+
+                                // Sync container importance for any container chips in the group
+                                SyncContainerChipToFilterSettings(chip.FilterId, targetBucket);
                             }
+                            OnFiltersModified(); // User changed filters - clear preset tracking
                         }
                     }
                     else if (differentClause && targetClauseId.HasValue)
@@ -477,6 +515,7 @@ namespace LandingZone.Core.UI
                             {
                                 _workspace.MoveChipToClause(chip.FilterId, targetClauseId.Value);
                             }
+                            OnFiltersModified(); // User changed filters - clear preset tracking
                         }
                     }
                 }
@@ -672,58 +711,89 @@ namespace LandingZone.Core.UI
 
         /// <summary>
         /// Calculates the actual content height needed for the palette based on expanded/collapsed categories.
+        /// Must exactly mirror the drawing logic in DrawPaletteCategory and DrawSubGroupSeparator.
+        /// Uses class-level constants to ensure consistency with drawing code.
         /// </summary>
         private static float CalculatePaletteContentHeight()
         {
-            const float CategoryHeaderHeight = 24f;
-            const float FilterItemHeight = 24f;
-            const float CategorySpacing = 8f;
+            // Use class constants - these MUST match the drawing code!
+            // CategoryHeaderHeight = 22f (class constant)
+            // ChipHeight = 26f (class constant)
+            // SubGroupSeparatorHeight = 18f (in DrawSubGroupSeparator)
             const float SubGroupSeparatorHeight = 18f;
+            const float PostHeaderGap = 2f;       // listing.Gap(2f) after header
+            const float CollapsedCategoryGap = 4f; // listing.Gap(4f) when collapsed
+            const float PostFilterGap = 2f;       // listing.Gap(2f) after each filter
+            const float CategoryEndGap = 6f;      // listing.Gap(6f) at end of expanded category
 
             float totalHeight = 0f;
 
-            var categories = new (string key, List<PaletteFilter> filters)[]
+            // Filter each category by runtime availability (hide mutators from unloaded mods)
+            var categories = new List<(string key, List<PaletteFilter> filters)>
             {
-                ("Climate", GetClimatePaletteFilters()),
-                ("Geography_Natural", GetGeographyNaturalPaletteFilters()),
-                ("Geography_Resources", GetGeographyResourcesPaletteFilters()),
-                ("Geography_Artificial", GetGeographyArtificialPaletteFilters()),
-                ("Mod_Filters", GetModFiltersPaletteFilters())
+                ("Climate", FilterByRuntime(GetClimatePaletteFilters())),
+                ("Geography_Natural", FilterByRuntime(GetGeographyNaturalPaletteFilters())),
+                ("Geography_Resources", FilterByRuntime(GetGeographyResourcesPaletteFilters())),
+                ("Geography_Artificial", FilterByRuntime(GetGeographyArtificialPaletteFilters())),
             };
+
+            // Add Mod_Filters only if there are mod filters to show
+            var modFilters = GetModFiltersPaletteFilters(); // Already runtime-based
+            if (modFilters.Count > 0)
+            {
+                categories.Add(("Mod_Filters", modFilters));
+            }
 
             foreach (var (key, filters) in categories)
             {
+                // Category header (uses class constant CategoryHeaderHeight = 22f)
                 totalHeight += CategoryHeaderHeight;
+                totalHeight += PostHeaderGap;
 
-                if (!_collapsedCategories.Contains(key))
+                if (_collapsedCategories.Contains(key))
                 {
-                    // Track sub-groups and collapsed state
+                    // Collapsed category: just the gap
+                    totalHeight += CollapsedCategoryGap;
+                }
+                else
+                {
+                    // Expanded category: track sub-groups properly
                     string? lastSubGroup = null;
                     foreach (var filter in filters)
                     {
-                        // Add sub-group separator height when sub-group changes
-                        if (filter.SubGroup != lastSubGroup && filter.SubGroup != null)
+                        // Check if sub-group changed
+                        bool subGroupChanged = filter.SubGroup != lastSubGroup && filter.SubGroup != null;
+                        bool exitingSubGroup = filter.SubGroup == null && lastSubGroup != null;
+
+                        if (subGroupChanged)
                         {
+                            // Add sub-group separator
                             totalHeight += SubGroupSeparatorHeight;
                             lastSubGroup = filter.SubGroup;
                         }
+                        else if (exitingSubGroup)
+                        {
+                            lastSubGroup = null;
+                        }
 
-                        // Skip filter if its sub-group is collapsed
+                        // Check if filter is visible (sub-group not collapsed)
                         if (filter.SubGroup != null)
                         {
                             string collapseKey = $"{key}:{filter.SubGroup}";
                             if (_collapsedSubGroups.Contains(collapseKey))
-                                continue;
+                                continue; // Skip - sub-group is collapsed
                         }
 
-                        totalHeight += FilterItemHeight;
+                        // Filter row + gap after (ChipHeight + PostFilterGap)
+                        totalHeight += ChipHeight + PostFilterGap;
                     }
-                }
 
-                totalHeight += CategorySpacing;
+                    // Gap at end of expanded category
+                    totalHeight += CategoryEndGap;
+                }
             }
 
-            return totalHeight + 20f; // Buffer for padding
+            return totalHeight + 40f; // Buffer for padding at bottom
         }
 
         /// <summary>
@@ -769,12 +839,18 @@ namespace LandingZone.Core.UI
             var listing = new Listing_Standard { ColumnWidth = viewRect.width };
             listing.Begin(viewRect);
 
-            // Draw each category
-            DrawPaletteCategory(listing, filters, "Climate", GetClimatePaletteFilters());
-            DrawPaletteCategory(listing, filters, "Geography_Natural", GetGeographyNaturalPaletteFilters());
-            DrawPaletteCategory(listing, filters, "Geography_Resources", GetGeographyResourcesPaletteFilters());
-            DrawPaletteCategory(listing, filters, "Geography_Artificial", GetGeographyArtificialPaletteFilters());
-            DrawPaletteCategory(listing, filters, "Mod_Filters", GetModFiltersPaletteFilters());
+            // Draw each category (filtered by runtime availability to hide mutators from unloaded mods)
+            DrawPaletteCategory(listing, filters, "Climate", FilterByRuntime(GetClimatePaletteFilters()));
+            DrawPaletteCategory(listing, filters, "Geography_Natural", FilterByRuntime(GetGeographyNaturalPaletteFilters()));
+            DrawPaletteCategory(listing, filters, "Geography_Resources", FilterByRuntime(GetGeographyResourcesPaletteFilters()));
+            DrawPaletteCategory(listing, filters, "Geography_Artificial", FilterByRuntime(GetGeographyArtificialPaletteFilters()));
+
+            // Only show Mod_Filters if there are any mod-added filters
+            var modFilters = GetModFiltersPaletteFilters(); // Already runtime-based
+            if (modFilters.Count > 0)
+            {
+                DrawPaletteCategory(listing, filters, "Mod_Filters", modFilters);
+            }
 
             listing.End();
             Widgets.EndScrollView();
@@ -856,6 +932,7 @@ namespace LandingZone.Core.UI
 
         /// <summary>
         /// Gets all palette filters across all categories for search.
+        /// Filters out filters not available in current runtime (mod/DLC not loaded, mutator not present).
         /// </summary>
         private static List<PaletteFilter> GetAllPaletteFilters()
         {
@@ -865,7 +942,9 @@ namespace LandingZone.Core.UI
             all.AddRange(GetGeographyResourcesPaletteFilters());
             all.AddRange(GetGeographyArtificialPaletteFilters());
             all.AddRange(GetModFiltersPaletteFilters());
-            return all;
+
+            // Filter out filters not available in current runtime
+            return all.Where(f => IsFilterAvailable(f)).ToList();
         }
 
         /// <summary>
@@ -879,11 +958,33 @@ namespace LandingZone.Core.UI
             // Build combined search results
             var results = new List<SearchResult>();
 
-            // 1. Direct filter matches (palette filters)
+            // 1. Direct filter matches (palette filters) - check label and search aliases
             foreach (var filter in allFilters)
             {
                 bool isStartsWith = filter.Label.ToLowerInvariant().StartsWith(query);
                 bool isContains = filter.Label.ToLowerInvariant().Contains(query);
+
+                // Check search aliases from MutatorOverlays
+                if (!isStartsWith && !isContains && filter.Kind == FilterKind.Mutator && !string.IsNullOrEmpty(filter.MutatorDefName))
+                {
+                    if (MutatorOverlays.TryGetValue(filter.MutatorDefName!, out var overlay) && overlay.SearchAliases != null)
+                    {
+                        foreach (var alias in overlay.SearchAliases)
+                        {
+                            if (alias.ToLowerInvariant().StartsWith(query))
+                            {
+                                isStartsWith = true;
+                                break;
+                            }
+                            if (alias.ToLowerInvariant().Contains(query))
+                            {
+                                isContains = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (isStartsWith || isContains)
                 {
                     results.Add(new SearchResult(filter, isStartsWith));
@@ -1035,6 +1136,47 @@ namespace LandingZone.Core.UI
         {
             var results = new List<SearchResult>();
 
+            // Hilliness container (enum values)
+            var hillinessOptions = new[] {
+                (Hilliness.Flat, "Flat"),
+                (Hilliness.SmallHills, "Small Hills"),
+                (Hilliness.LargeHills, "Large Hills"),
+                (Hilliness.Mountainous, "Mountainous")
+            };
+            foreach (var (hilliness, label) in hillinessOptions)
+            {
+                bool isStartsWith = label.ToLowerInvariant().StartsWith(query);
+                bool isContains = label.ToLowerInvariant().Contains(query);
+                if (isStartsWith || isContains)
+                {
+                    results.Add(new SearchResult(label, "Hilliness", "hilliness", ContainerType.Hilliness, hilliness.ToString(), isStartsWith));
+                }
+            }
+
+            // Rivers container
+            foreach (var riverDef in Filtering.Filters.RiverFilter.GetAllRiverTypes())
+            {
+                string label = riverDef.label.CapitalizeFirst();
+                bool isStartsWith = label.ToLowerInvariant().StartsWith(query);
+                bool isContains = label.ToLowerInvariant().Contains(query);
+                if (isStartsWith || isContains)
+                {
+                    results.Add(new SearchResult(label, "Rivers", "rivers", ContainerType.Rivers, riverDef.defName, isStartsWith));
+                }
+            }
+
+            // Biomes container
+            foreach (var biomeDef in DefDatabase<BiomeDef>.AllDefsListForReading.Where(b => b.canBuildBase))
+            {
+                string label = biomeDef.label.CapitalizeFirst();
+                bool isStartsWith = label.ToLowerInvariant().StartsWith(query);
+                bool isContains = label.ToLowerInvariant().Contains(query);
+                if (isStartsWith || isContains)
+                {
+                    results.Add(new SearchResult(label, "Biomes", "biomes", ContainerType.Biomes, biomeDef.defName, isStartsWith));
+                }
+            }
+
             // Stones container
             foreach (var (defName, label, _) in GetStoneTypesWithMod())
             {
@@ -1054,6 +1196,17 @@ namespace LandingZone.Core.UI
                 if (isStartsWith || isContains)
                 {
                     results.Add(new SearchResult(label, "Roads", "roads", ContainerType.Roads, defName, isStartsWith));
+                }
+            }
+
+            // Stockpiles container
+            foreach (var (defName, label, _) in GetStockpileTypes())
+            {
+                bool isStartsWith = label.ToLowerInvariant().StartsWith(query);
+                bool isContains = label.ToLowerInvariant().Contains(query);
+                if (isStartsWith || isContains)
+                {
+                    results.Add(new SearchResult(label, "Stockpiles", "stockpiles", ContainerType.Stockpiles, defName, isStartsWith));
                 }
             }
 
@@ -1152,7 +1305,7 @@ namespace LandingZone.Core.UI
                     containerFilter.Category
                 );
                 _workspace?.AddChip(newChip, FilterImportance.Preferred);
-                _cachedTileEstimate = "";
+                OnFiltersModified(); // User changed filters - clear preset tracking
             }
 
             // Set highlight on the container
@@ -1174,13 +1327,14 @@ namespace LandingZone.Core.UI
         {
             const float SubGroupSeparatorHeight = 18f;
             float y = 0f;
+            // Filter each category by runtime availability (hide mutators from unloaded mods)
             var categories = new (string key, List<PaletteFilter> filters)[]
             {
-                ("Climate", GetClimatePaletteFilters()),
-                ("Geography_Natural", GetGeographyNaturalPaletteFilters()),
-                ("Geography_Resources", GetGeographyResourcesPaletteFilters()),
-                ("Geography_Artificial", GetGeographyArtificialPaletteFilters()),
-                ("Mod_Filters", GetModFiltersPaletteFilters())
+                ("Climate", FilterByRuntime(GetClimatePaletteFilters())),
+                ("Geography_Natural", FilterByRuntime(GetGeographyNaturalPaletteFilters())),
+                ("Geography_Resources", FilterByRuntime(GetGeographyResourcesPaletteFilters())),
+                ("Geography_Artificial", FilterByRuntime(GetGeographyArtificialPaletteFilters())),
+                ("Mod_Filters", GetModFiltersPaletteFilters()) // Already runtime-based
             };
 
             foreach (var (key, filters) in categories)
@@ -1339,7 +1493,48 @@ namespace LandingZone.Core.UI
                 // Filter label - shrink to make room for source indicator and (i) icon
                 bool hasTooltip = !string.IsNullOrEmpty(pf.TooltipBrief) || !string.IsNullOrEmpty(pf.TooltipDetailed);
                 float infoIconWidth = hasTooltip ? 18f : 0f;
-                bool hasSourceIndicator = !string.IsNullOrEmpty(pf.RequiredDLC);
+
+                // Source detection for DLC/MOD badges
+                string? sourceBadge = null;
+                string? sourceTooltip = null;
+                if (pf.Kind == FilterKind.Mutator && !string.IsNullOrEmpty(pf.MutatorDefName))
+                {
+                    // Priority 1: Static DLC annotation (explicit, curated)
+                    if (!string.IsNullOrEmpty(pf.RequiredDLC))
+                    {
+                        sourceBadge = "DLC";
+                        sourceTooltip = $"{"LandingZone_RequiresDLC".Translate()} {pf.RequiredDLC}";
+                    }
+                    // Priority 2: Static Mod annotation (explicit, curated)
+                    else if (!string.IsNullOrEmpty(pf.RequiredMod))
+                    {
+                        sourceBadge = "MOD";
+                        sourceTooltip = $"{"LandingZone_AddedByMod".Translate()} {pf.RequiredMod}";
+                    }
+                    // Priority 3: Dynamic detection (runtime, for uncurated mod mutators)
+                    else
+                    {
+                        var sourceInfo = MapFeatureFilter.GetMutatorSource(pf.MutatorDefName!);
+                        if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.DLC)
+                        {
+                            sourceBadge = "DLC";
+                            sourceTooltip = $"{"LandingZone_RequiresDLC".Translate()} {sourceInfo.SourceName}";
+                        }
+                        else if (sourceInfo.Type == MapFeatureFilter.MutatorSourceType.Mod)
+                        {
+                            sourceBadge = "MOD";
+                            sourceTooltip = $"{"LandingZone_AddedByMod".Translate()} {sourceInfo.SourceName}";
+                        }
+                    }
+                }
+                else if (!string.IsNullOrEmpty(pf.RequiredDLC))
+                {
+                    // Static DLC requirement for non-mutator filters
+                    sourceBadge = "DLC";
+                    sourceTooltip = $"{"LandingZone_RequiresDLC".Translate()} {pf.RequiredDLC}";
+                }
+
+                bool hasSourceIndicator = sourceBadge != null;
                 float sourceIndicatorWidth = hasSourceIndicator ? 28f : 0f;
                 var filterLabelRect = new Rect(filterRect.x + 4f, filterRect.y, filterRect.width - 90f - infoIconWidth - sourceIndicatorWidth, filterRect.height);
                 Text.Font = GameFont.Tiny;
@@ -1357,18 +1552,22 @@ namespace LandingZone.Core.UI
                 Text.Anchor = TextAnchor.UpperLeft;
                 Text.Font = GameFont.Small;
 
-                // Source indicator (DLC label) between filter name and (i) icon
+                // Source indicator (DLC/MOD label) between filter name and (i) icon
                 if (hasSourceIndicator)
                 {
                     var sourceRect = new Rect(filterLabelRect.xMax + 2f, filterRect.y, sourceIndicatorWidth - 2f, filterRect.height);
                     Text.Font = GameFont.Tiny;
                     Text.Anchor = TextAnchor.MiddleCenter;
-                    GUI.color = new Color(0.55f, 0.55f, 0.55f);
-                    Widgets.Label(sourceRect, "DLC");
+                    // DLC = gray, MOD = blue-ish
+                    GUI.color = sourceBadge == "MOD"
+                        ? new Color(0.45f, 0.55f, 0.65f)
+                        : new Color(0.55f, 0.55f, 0.55f);
+                    Widgets.Label(sourceRect, sourceBadge);
                     GUI.color = Color.white;
                     Text.Anchor = TextAnchor.UpperLeft;
                     Text.Font = GameFont.Small;
-                    TooltipHandler.TipRegion(sourceRect, pf.RequiredDLC);
+                    if (sourceTooltip != null)
+                        TooltipHandler.TipRegion(sourceRect, sourceTooltip);
                 }
 
                 // (i) info icon for detailed tooltip - position after source indicator if present
@@ -1431,7 +1630,7 @@ namespace LandingZone.Core.UI
                     {
                         // Click to remove from workspace
                         _workspace?.RemoveChip(pf.Id);
-                        _cachedTileEstimate = ""; // Invalidate estimate
+                        OnFiltersModified(); // User changed filters - clear preset tracking
                     }
                     GUI.color = Color.white;
                     TooltipHandler.TipRegion(buttonRect, "LandingZone_Workspace_RemoveTooltip".Translate());
@@ -1552,6 +1751,7 @@ namespace LandingZone.Core.UI
                         pf.ValueDisplay
                     );
                     _workspace?.AddChip(chip, importance);
+                    OnFiltersModified(); // User changed filters - clear preset tracking
 
                     // Show warning for heavy filters in hard gates
                     if (pf.IsHeavy && importance.IsHardGate())
@@ -1569,7 +1769,54 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
+        /// Calculates the rendered width of a chip, including formatted label and all indicators.
+        /// This is the single source of truth for chip width calculation, used by both
+        /// CalculateBucketContentHeight and DrawClauseChips to ensure consistent wrapping.
+        /// </summary>
+        private static float CalculateChipWidth(BucketWorkspace.FilterChip chip)
+        {
+            var lookup = GetPaletteFilterLookup();
+            bool hasRange = lookup.TryGetValue(chip.FilterId, out var paletteFilter) && paletteFilter.HasRange;
+            bool isContainer = paletteFilter?.Kind == FilterKind.Container && paletteFilter.ContainerKind != null;
+
+            // Build display label with range value or container state (matches DrawSingleChip logic)
+            string displayLabel = chip.Label;
+            var state = LandingZoneContext.State;
+            if (state?.Preferences != null)
+            {
+                var filters = state.Preferences.GetActiveFilters();
+                if (isContainer && paletteFilter != null)
+                {
+                    displayLabel = FormatContainerChipLabel(chip.Label, paletteFilter.ContainerKind!.Value, filters);
+                }
+                else if (hasRange && paletteFilter != null)
+                {
+                    var range = GetFilterRange(chip.FilterId, filters);
+                    displayLabel = FormatChipLabelWithRange(chip.Label, range, paletteFilter);
+                }
+            }
+
+            // Calculate width based on formatted label (matches DrawSingleChip lines 2344-2348)
+            float textWidth = Text.CalcSize(displayLabel).x;
+            float chipWidth = textWidth + 24f;
+            if (chip.IsHeavy) chipWidth += 20f;
+            if (hasRange || isContainer) chipWidth += 20f; // Space for range/container indicator
+
+            return chipWidth;
+        }
+
+        /// <summary>
+        /// Calculates the rendered width of an OR group chip.
+        /// </summary>
+        private static float CalculateOrGroupWidth(BucketWorkspace.OrGroup group)
+        {
+            string label = group.GetDisplayLabel();
+            return Text.CalcSize(label).x + 32f; // OR indicator + padding
+        }
+
+        /// <summary>
         /// Calculates the content height needed for a bucket based on its chips.
+        /// Uses CalculateChipWidth to ensure consistent wrapping with actual rendering.
         /// </summary>
         private static float CalculateBucketContentHeight(BucketWorkspace.ImportanceBucket bucket, float availableWidth)
         {
@@ -1598,12 +1845,11 @@ namespace LandingZone.Core.UI
                     float itemWidth;
                     if (item is BucketWorkspace.OrGroup group)
                     {
-                        string label = string.Join(" | ", group.Chips.Select(c => c.Label));
-                        itemWidth = Text.CalcSize(label).x + 32f + 24f; // OR group chip + delete button
+                        itemWidth = CalculateOrGroupWidth(group);
                     }
                     else if (item is BucketWorkspace.FilterChip chip)
                     {
-                        itemWidth = Text.CalcSize(chip.Label).x + 24f;
+                        itemWidth = CalculateChipWidth(chip);
                     }
                     else
                     {
@@ -1635,98 +1881,61 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Draws the four importance buckets with hybrid expansion.
+        /// Draws the four importance buckets with dynamic heights and single outer scroll.
+        /// Each bucket expands to fit its content - no per-bucket scrollbars.
         /// </summary>
         private static void DrawBuckets(Rect rect, FilterSettings filters)
         {
             var contentRect = rect;
 
-            // Legend at top
+            // Legend at top (fixed, outside scroll)
             var legendRect = new Rect(contentRect.x, contentRect.y, contentRect.width, LegendHeight);
             DrawLegend(legendRect);
 
-            // Calculate available space for buckets
-            float bucketsY = legendRect.yMax + 8f;
-            float bucketAreaHeight = contentRect.height - LegendHeight - LogicSummaryHeight - 24f;
-            float gapsBetweenBuckets = 3 * 6f; // 3 gaps between 4 buckets
-
-            // Phase 1: Calculate desired heights for each bucket
-            var buckets = BucketWorkspace.AllBuckets.ToList();
-            var desiredHeights = new Dictionary<FilterImportance, float>();
-            var contentHeights = new Dictionary<FilterImportance, float>();
-
-            foreach (var bucket in buckets)
-            {
-                float contentHeight = CalculateBucketContentHeight(bucket, contentRect.width);
-                contentHeights[bucket.Importance] = contentHeight;
-
-                // Desired = header + toolbar + content + padding
-                float desired = BucketHeaderHeight + BucketToolbarHeight + contentHeight + BucketOverhead;
-
-                // Apply minimum - let distribution algorithm handle max allocation
-                desired = Mathf.Max(desired, BucketMinCollapsedHeight);
-                desiredHeights[bucket.Importance] = desired;
-            }
-
-            // Phase 2: Distribute available space - prioritize buckets with content
-            float availableForBuckets = bucketAreaHeight - gapsBetweenBuckets;
-            var finalHeights = new Dictionary<FilterImportance, float>();
-
-            // Identify empty vs non-empty buckets
-            var emptyBuckets = buckets.Where(b => contentHeights[b.Importance] <= 0).ToList();
-            var nonEmptyBuckets = buckets.Where(b => contentHeights[b.Importance] > 0).ToList();
-
-            // Empty buckets get minimum height
-            float spaceForEmpty = emptyBuckets.Count * BucketMinCollapsedHeight;
-            foreach (var bucket in emptyBuckets)
-            {
-                finalHeights[bucket.Importance] = BucketMinCollapsedHeight;
-            }
-
-            // Remaining space goes to non-empty buckets
-            float remainingSpace = availableForBuckets - spaceForEmpty;
-
-            if (nonEmptyBuckets.Count > 0)
-            {
-                float totalDesiredNonEmpty = nonEmptyBuckets.Sum(b => desiredHeights[b.Importance]);
-
-                if (totalDesiredNonEmpty <= remainingSpace)
-                {
-                    // Plenty of space - give them what they want, distribute extra proportionally
-                    float extraSpace = remainingSpace - totalDesiredNonEmpty;
-                    foreach (var bucket in nonEmptyBuckets)
-                    {
-                        float proportionalExtra = extraSpace / nonEmptyBuckets.Count;
-                        finalHeights[bucket.Importance] = desiredHeights[bucket.Importance] + proportionalExtra;
-                    }
-                }
-                else
-                {
-                    // Not enough space - scale down proportionally based on content, respect minimums
-                    float scale = remainingSpace / totalDesiredNonEmpty;
-                    foreach (var bucket in nonEmptyBuckets)
-                    {
-                        float scaled = desiredHeights[bucket.Importance] * scale;
-                        finalHeights[bucket.Importance] = Mathf.Max(scaled, BucketMinCollapsedHeight);
-                    }
-                }
-            }
-
-            // Phase 3: Draw buckets with calculated heights
-            float y = bucketsY;
-            foreach (var bucket in buckets)
-            {
-                float bucketHeight = finalHeights[bucket.Importance];
-                bool needsScroll = contentHeights[bucket.Importance] > (bucketHeight - BucketHeaderHeight - BucketToolbarHeight - BucketOverhead);
-
-                var bucketRect = new Rect(contentRect.x, y, contentRect.width, bucketHeight);
-                DrawBucket(bucketRect, bucket, filters, needsScroll, contentHeights[bucket.Importance]);
-                y += bucketHeight + 6f;
-            }
-
-            // Logic summary at bottom
+            // Logic summary at bottom (fixed, outside scroll)
             var summaryRect = new Rect(contentRect.x, contentRect.yMax - LogicSummaryHeight - 8f, contentRect.width, LogicSummaryHeight);
             DrawLogicSummary(summaryRect);
+
+            // Scrollable bucket area between legend and summary
+            float bucketsY = legendRect.yMax + 8f;
+            float bucketAreaHeight = summaryRect.y - bucketsY - 8f;
+            var bucketAreaRect = new Rect(contentRect.x, bucketsY, contentRect.width, bucketAreaHeight);
+
+            // Store for popup coordinate conversion (chip rects are in scroll-content space)
+            _bucketAreaRect = bucketAreaRect;
+            _lastBucketScrollPosition = _bucketScrollPosition;
+
+            // Phase 1: Calculate natural heights for each bucket
+            var buckets = BucketWorkspace.AllBuckets.ToList();
+            var naturalHeights = new Dictionary<FilterImportance, float>();
+            const float gapBetweenBuckets = 6f;
+
+            foreach (var bucket in buckets)
+            {
+                float contentHeight = CalculateBucketContentHeight(bucket, contentRect.width - 20f); // Account for scroll bar
+                // Natural height = header + toolbar + content + padding, minimum for empty buckets
+                float natural = BucketHeaderHeight + BucketToolbarHeight + contentHeight + BucketOverhead;
+                natural = Mathf.Max(natural, BucketMinCollapsedHeight);
+                naturalHeights[bucket.Importance] = natural;
+            }
+
+            // Phase 2: Calculate total content height for scroll view
+            float totalContentHeight = naturalHeights.Values.Sum() + (buckets.Count - 1) * gapBetweenBuckets;
+
+            // Phase 3: Draw buckets in single scroll view
+            var viewRect = new Rect(0f, 0f, bucketAreaRect.width - 16f, totalContentHeight);
+            _bucketScrollPosition = GUI.BeginScrollView(bucketAreaRect, _bucketScrollPosition, viewRect);
+
+            float y = 0f;
+            foreach (var bucket in buckets)
+            {
+                float bucketHeight = naturalHeights[bucket.Importance];
+                var bucketRect = new Rect(0f, y, viewRect.width, bucketHeight);
+                DrawBucket(bucketRect, bucket, filters);
+                y += bucketHeight + gapBetweenBuckets;
+            }
+
+            GUI.EndScrollView();
         }
 
         /// <summary>
@@ -1753,10 +1962,9 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
-        /// Draws a single importance bucket with optional scroll support.
+        /// Draws a single importance bucket at its natural height (no per-bucket scroll).
         /// </summary>
-        private static void DrawBucket(Rect rect, BucketWorkspace.ImportanceBucket bucket, FilterSettings filters,
-            bool needsScroll = false, float contentHeight = 0f)
+        private static void DrawBucket(Rect rect, BucketWorkspace.ImportanceBucket bucket, FilterSettings filters)
         {
             // Drop target detection for bucket-level drops
             bool isDropTarget = false;
@@ -1818,35 +2026,9 @@ namespace LandingZone.Core.UI
             var toolbarRect = new Rect(rect.x + 8f, rect.y + 34f, rect.width - 16f, BucketToolbarHeight);
             DrawBucketToolbar(toolbarRect, bucket.Importance);
 
-            // Clauses area - with optional scroll
+            // Clauses area - draw directly at natural height (outer scroll handles overflow)
             var clausesRect = new Rect(rect.x + 8f, rect.y + 34f + BucketToolbarHeight + 2f, rect.width - 16f, rect.height - 34f - BucketToolbarHeight - 10f);
-
-            if (needsScroll && contentHeight > clausesRect.height)
-            {
-                // Initialize scroll position for this bucket if not present
-                if (!_bucketScrollPositions.ContainsKey(bucket.Importance))
-                {
-                    _bucketScrollPositions[bucket.Importance] = Vector2.zero;
-                }
-
-                // Create view and content rects for scroll
-                var viewRect = new Rect(0f, 0f, clausesRect.width - 16f, contentHeight + 10f);
-
-                var scrollPos = _bucketScrollPositions[bucket.Importance];
-                scrollPos = GUI.BeginScrollView(clausesRect, scrollPos, viewRect);
-                _bucketScrollPositions[bucket.Importance] = scrollPos;
-
-                // Draw clauses within scroll view (offset to 0,0)
-                var innerClausesRect = new Rect(0f, 0f, viewRect.width, viewRect.height);
-                DrawBucketClauses(innerClausesRect, bucket);
-
-                GUI.EndScrollView();
-            }
-            else
-            {
-                // No scroll needed - draw directly
-                DrawBucketClauses(clausesRect, bucket);
-            }
+            DrawBucketClauses(clausesRect, bucket);
 
             // Tooltip
             TooltipHandler.TipRegion(rect, bucket.Tooltip);
@@ -2031,20 +2213,15 @@ namespace LandingZone.Core.UI
             foreach (var item in items)
             {
                 // Calculate item width BEFORE drawing to check if we need to wrap
+                // Uses helper functions to ensure consistent width calculation with CalculateBucketContentHeight
                 float itemWidth;
                 if (item is BucketWorkspace.OrGroup grp)
                 {
-                    string label = grp.GetDisplayLabel();
-                    itemWidth = Text.CalcSize(label).x + 32f; // OR indicator + padding
+                    itemWidth = CalculateOrGroupWidth(grp);
                 }
                 else if (item is BucketWorkspace.FilterChip chp)
                 {
-                    itemWidth = Text.CalcSize(chp.Label).x + 24f;
-                    var lookup = GetPaletteFilterLookup();
-                    if (lookup.TryGetValue(chp.FilterId, out var pf) && (pf.HasRange || pf.Kind == FilterKind.Container))
-                    {
-                        itemWidth += 20f; // Range/container indicator
-                    }
+                    itemWidth = CalculateChipWidth(chp);
                 }
                 else
                 {
@@ -2352,7 +2529,12 @@ namespace LandingZone.Core.UI
                                 {
                                     _containerPopupChipId = chip.FilterId;
                                     _containerPopupBucket = importance;
-                                    _containerPopupAnchorRect = chipRect;
+                                    // Convert chip rect from scroll-content space to window space
+                                    _containerPopupAnchorRect = new Rect(
+                                        _bucketAreaRect.x + chipRect.x,
+                                        _bucketAreaRect.y + chipRect.y - _lastBucketScrollPosition.y,
+                                        chipRect.width,
+                                        chipRect.height);
                                     // Close range editor if open
                                     _rangeEditorChipId = null;
                                     _rangeEditorBucket = null;
@@ -2370,7 +2552,12 @@ namespace LandingZone.Core.UI
                                 {
                                     _rangeEditorChipId = chip.FilterId;
                                     _rangeEditorBucket = importance;
-                                    _rangeEditorAnchorRect = chipRect;
+                                    // Convert chip rect from scroll-content space to window space
+                                    _rangeEditorAnchorRect = new Rect(
+                                        _bucketAreaRect.x + chipRect.x,
+                                        _bucketAreaRect.y + chipRect.y - _lastBucketScrollPosition.y,
+                                        chipRect.width,
+                                        chipRect.height);
                                     // Close container popup if open
                                     _containerPopupChipId = null;
                                     _containerPopupBucket = null;
@@ -2405,6 +2592,7 @@ namespace LandingZone.Core.UI
                 {
                     _workspace?.RemoveChip(chip.FilterId);
                     _selectedChipIds.Remove(chip.FilterId);
+                    OnFiltersModified(); // User changed filters - clear preset tracking
                     evt.Use();
                 }
             }
@@ -2577,8 +2765,8 @@ namespace LandingZone.Core.UI
             SyncFilterToWorkspace(filters, "coastal", "Ocean Coastal", filters.CoastalImportance, false, "Geography");
             SyncFilterToWorkspace(filters, "coastal_lake", "Lake Coastal", filters.CoastalLakeImportance, false, "Geography");
             SyncFilterToWorkspace(filters, "water_access", "Water Access", filters.WaterAccessImportance, false, "Geography");
-            SyncContainerToWorkspace(filters, "river", "Rivers", ContainerType.Rivers, "Geography");
-            SyncContainerToWorkspace(filters, "road", "Roads", ContainerType.Roads, "Geography");
+            SyncContainerToWorkspace(filters, "rivers", "Rivers", ContainerType.Rivers, "Geography");
+            SyncContainerToWorkspace(filters, "roads", "Roads", ContainerType.Roads, "Geography");
 
             // Geography mutators - water features
             SyncMutatorToWorkspace(filters, "mutator_river", "River", "River", "Geography");
@@ -2635,7 +2823,7 @@ namespace LandingZone.Core.UI
             SyncMutatorToWorkspace(filters, "mutator_obsidian", "Obsidian Deposits", "ObsidianDeposits", "Geography");
 
             // Resources filters
-            SyncContainerToWorkspace(filters, "stone", "Natural Stones", ContainerType.Stones, "Resources");
+            SyncContainerToWorkspace(filters, "stones", "Natural Stones", ContainerType.Stones, "Resources");
             SyncFilterToWorkspace(filters, "forageability", "Forageability", filters.ForageImportance, false, "Resources");
             SyncFilterToWorkspace(filters, "graze", "Grazeable", filters.GrazeImportance, true, "Resources");
             SyncFilterToWorkspace(filters, "animal_density", "Animal Density", filters.AnimalDensityImportance, false, "Resources");
@@ -2646,7 +2834,7 @@ namespace LandingZone.Core.UI
             SyncContainerToWorkspace(filters, "mineral_ores", "Mineral Rich", ContainerType.MineralRich, "Resources");
 
             // Features filters
-            SyncContainerToWorkspace(filters, "stockpile", "Stockpiles", ContainerType.Stockpiles, "Features");
+            SyncContainerToWorkspace(filters, "stockpiles", "Stockpiles", ContainerType.Stockpiles, "Features");
             SyncFilterToWorkspace(filters, "landmark", "Landmarks", filters.LandmarkImportance, false, "Features");
         }
 
@@ -2804,6 +2992,115 @@ namespace LandingZone.Core.UI
                 return FilterImportance.Preferred;
 
             return FilterImportance.Preferred;
+        }
+
+        /// <summary>
+        /// Maps container chip IDs to their ContainerType for reverse lookup.
+        /// </summary>
+        private static readonly Dictionary<string, ContainerType> ContainerChipMapping = new()
+        {
+            { "biomes", ContainerType.Biomes },
+            { "hilliness", ContainerType.Hilliness },
+            { "rivers", ContainerType.Rivers },   // Must match PaletteFilter ID "rivers" (not "river")
+            { "roads", ContainerType.Roads },     // Must match PaletteFilter ID "roads" (not "road")
+            { "stones", ContainerType.Stones },   // Must match PaletteFilter ID "stones"
+            { "plant_grove", ContainerType.PlantGrove },
+            { "animal_habitat", ContainerType.AnimalHabitat },
+            { "mineral_ores", ContainerType.MineralRich },
+            { "stockpiles", ContainerType.Stockpiles }  // Must match PaletteFilter ID
+        };
+
+        /// <summary>
+        /// Gets all available item defNames for a container type.
+        /// Used when syncing container chips that have no items explicitly configured.
+        /// </summary>
+        private static IEnumerable<string> GetAllContainerItemDefNames(ContainerType containerType)
+        {
+            return containerType switch
+            {
+                ContainerType.Rivers => Filtering.Filters.RiverFilter.GetAllRiverTypes().Select(r => r.defName),
+                ContainerType.Roads => GetRoadTypesWithMod().Select(r => r.defName),
+                ContainerType.Stones => GetStoneTypesWithMod().Select(s => s.defName),
+                ContainerType.Stockpiles => GetStockpileTypes().Select(s => s.defName),
+                ContainerType.PlantGrove => GetPlantGroveTypesWithMod().Select(p => p.defName),
+                ContainerType.AnimalHabitat => GetAnimalHabitatTypesWithMod().Select(a => a.defName),
+                ContainerType.MineralRich => GetMineralOreTypesWithMod().Select(m => m.defName),
+                ContainerType.Biomes => GetBiomeTypesWithMod().Select(b => b.defName),
+                _ => Enumerable.Empty<string>()
+            };
+        }
+
+        /// <summary>
+        /// Syncs container chip importance to the underlying FilterSettings.
+        /// When a container chip (Rivers, Stones, Biomes, etc.) is dragged to a new bucket,
+        /// this updates ALL configured items in that container to the new importance.
+        ///
+        /// KEY FIX: If the container has NO items configured (showing "(None)"), we now
+        /// interpret this as "apply bucket importance to ALL items". This matches user intent
+        /// when dragging an empty container chip - they want "any river" or "any stone" etc.
+        /// to have MustHave/MustNotHave importance.
+        /// </summary>
+        private static void SyncContainerChipToFilterSettings(string chipId, FilterImportance newImportance)
+        {
+            if (!ContainerChipMapping.TryGetValue(chipId, out var containerType))
+                return;  // Not a container chip, nothing to sync
+
+            var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
+            if (filters == null) return;
+
+            // Special handling for Hilliness (HashSet-based, not IndividualImportanceContainer)
+            if (containerType == ContainerType.Hilliness)
+            {
+                // When dragged to MustHave/MustNotHave with all 4 types, show notice
+                // Having all 4 types means "no filter" which defeats the purpose
+                if ((newImportance == FilterImportance.MustHave || newImportance == FilterImportance.MustNotHave)
+                    && filters.AllowedHilliness.Count == 4)
+                {
+                    Messages.Message("LandingZone_Hilliness_AllSelected".Translate(), MessageTypeDefOf.RejectInput, false);
+                }
+                return;
+            }
+
+            // Get the container and update all non-Ignored items
+            var container = containerType switch
+            {
+                ContainerType.Rivers => filters.Rivers,
+                ContainerType.Roads => filters.Roads,
+                ContainerType.Stones => filters.Stones,
+                ContainerType.Stockpiles => filters.Stockpiles,
+                ContainerType.PlantGrove => filters.PlantGrove,
+                ContainerType.AnimalHabitat => filters.AnimalHabitat,
+                ContainerType.MineralRich => filters.MineralOres,
+                ContainerType.Biomes => filters.Biomes,
+                _ => null
+            };
+
+            if (container == null) return;
+
+            // Collect items to update (all items with non-Ignored importance)
+            var itemsToUpdate = container.ItemImportance
+                .Where(kvp => kvp.Value != FilterImportance.Ignored)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            // KEY FIX: If no items are configured yet, sync ALL available items
+            // This handles the case where user drags a container chip showing "(None)" to a bucket
+            // User intent: "I want any river/stone/etc to be required" (or excluded)
+            if (itemsToUpdate.Count == 0)
+            {
+                itemsToUpdate = GetAllContainerItemDefNames(containerType).ToList();
+                Log.Message($"[LandingZone] Container '{chipId}' has no items configured - syncing ALL {itemsToUpdate.Count} available items to {newImportance}");
+            }
+
+            if (itemsToUpdate.Count == 0) return;  // No items available at all (shouldn't happen)
+
+            // Apply the new importance to all items
+            foreach (var item in itemsToUpdate)
+            {
+                container.SetImportance(item, newImportance);
+            }
+
+            Log.Message($"[LandingZone] Container '{chipId}' moved to {newImportance}: updated {itemsToUpdate.Count} item(s)");
         }
 
         /// <summary>
@@ -3037,8 +3334,7 @@ namespace LandingZone.Core.UI
                 case "plant_density": filters.PlantDensityRange = range; break;
             }
 
-            // Invalidate tile estimate cache when range changes
-            _cachedTileEstimate = "";
+            OnFiltersModified(); // User changed filters - clear preset tracking
         }
 
         /// <summary>
@@ -3370,12 +3666,7 @@ namespace LandingZone.Core.UI
                 popupRect.y = _rangeEditorAnchorRect.y - popupHeight - 2f;
             }
 
-            // Draw popup background with click-blocker
-            // Draw an invisible button first to consume mouse events and prevent click-through
-            if (GUI.Button(popupRect, "", GUI.skin.label))
-            {
-                // Button clicked on popup background - do nothing but consume the event
-            }
+            // Draw popup background
             Widgets.DrawBoxSolid(popupRect, new Color(0.1f, 0.1f, 0.12f, 0.98f));
             Widgets.DrawBox(popupRect);
 
@@ -3383,6 +3674,8 @@ namespace LandingZone.Core.UI
             DrawInlineRangeEditor(innerRect, _rangeEditorChipId, filters);
 
             // Handle click outside popup to close
+            // NOTE: We do NOT use GUI.Button as click-blocker for range popups because
+            // it would consume slider drag events. The slider controls need mouse events.
             Event evt = Event.current;
             if (evt.type == EventType.MouseDown && !popupRect.Contains(evt.mousePosition))
             {
@@ -3544,22 +3837,25 @@ namespace LandingZone.Core.UI
                 popupWidth,
                 popupHeight);
 
-            // Clamp to screen
+            // Clamp to screen bounds (all four edges)
             if (popupRect.xMax > Verse.UI.screenWidth)
             {
                 popupRect.x = _detailedTooltipAnchorRect.x - popupWidth - 4f;
+            }
+            if (popupRect.x < 0)
+            {
+                popupRect.x = 4f;
             }
             if (popupRect.yMax > Verse.UI.screenHeight)
             {
                 popupRect.y = Verse.UI.screenHeight - popupHeight - 10f;
             }
-
-            // Draw popup background with click-blocker
-            // Draw an invisible button first to consume mouse events and prevent click-through
-            if (GUI.Button(popupRect, "", GUI.skin.label))
+            if (popupRect.y < 0)
             {
-                // Button clicked on popup background - do nothing but consume the event
+                popupRect.y = 4f;
             }
+
+            // Draw popup background
             Widgets.DrawBoxSolid(popupRect, new Color(0.1f, 0.1f, 0.13f, 0.98f));
             Widgets.DrawBox(popupRect);
 
@@ -3592,12 +3888,22 @@ namespace LandingZone.Core.UI
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
 
-            // Handle click outside popup to close
+            // Handle mouse events for popup
             Event evt = Event.current;
-            if (evt.type == EventType.MouseDown && !popupRect.Contains(evt.mousePosition))
+            if (evt.type == EventType.MouseDown)
             {
-                _detailedTooltipFilterId = null;
-                evt.Use();
+                if (!popupRect.Contains(evt.mousePosition))
+                {
+                    // Click outside popup - close it
+                    _detailedTooltipFilterId = null;
+                    evt.Use();
+                }
+                else if (!closeRect.Contains(evt.mousePosition))
+                {
+                    // Click inside popup but not on close button - consume event to prevent click-through
+                    evt.Use();
+                }
+                // Click on close button is handled by Widgets.ButtonText above
             }
         }
 
@@ -4827,9 +5133,16 @@ namespace LandingZone.Core.UI
             // DLC requirement (e.g., "Anomaly", "Biotech", "Ideology")
             public string? RequiredDLC { get; }
 
+            // Mod requirement (e.g., "Geological Landforms")
+            public string? RequiredMod { get; }
+
+            // Search aliases for discoverability (e.g., "Biome Transition" for MixedBiome)
+            public string[]? SearchAliases { get; }
+
             // Regular importance-based filter
             public PaletteFilter(string id, string label, string category, bool isHeavy = false, string? valueDisplay = null,
-                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null, string? requiredDLC = null)
+                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null,
+                string? requiredDLC = null, string? requiredMod = null, string[]? searchAliases = null)
             {
                 Id = id;
                 Label = label;
@@ -4842,12 +5155,15 @@ namespace LandingZone.Core.UI
                 TooltipBrief = tooltipBrief;
                 TooltipDetailed = tooltipDetailed;
                 RequiredDLC = requiredDLC;
+                RequiredMod = requiredMod;
+                SearchAliases = searchAliases;
             }
 
             // Range-based filter
             public PaletteFilter(string id, string label, string category, float rangeMin, float rangeMax,
                 string? unit = null, bool isHeavy = false, float[]? discreteSteps = null,
-                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null, string? requiredDLC = null)
+                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null,
+                string? requiredDLC = null, string? requiredMod = null, string[]? searchAliases = null)
             {
                 Id = id;
                 Label = label;
@@ -4864,11 +5180,14 @@ namespace LandingZone.Core.UI
                 TooltipBrief = tooltipBrief;
                 TooltipDetailed = tooltipDetailed;
                 RequiredDLC = requiredDLC;
+                RequiredMod = requiredMod;
+                SearchAliases = searchAliases;
             }
 
             // Mutator filter (MapFeature-based)
             public PaletteFilter(string id, string label, string category, string mutatorDefName, bool isHeavy = false,
-                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null, string? requiredDLC = null)
+                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null,
+                string? requiredDLC = null, string? requiredMod = null, string[]? searchAliases = null)
             {
                 Id = id;
                 Label = label;
@@ -4881,11 +5200,14 @@ namespace LandingZone.Core.UI
                 TooltipBrief = tooltipBrief;
                 TooltipDetailed = tooltipDetailed;
                 RequiredDLC = requiredDLC;
+                RequiredMod = requiredMod;
+                SearchAliases = searchAliases;
             }
 
             // Container filter (Rivers, Hilliness with popup selector)
             public PaletteFilter(string id, string label, string category, ContainerType containerKind, bool isHeavy = false,
-                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null, string? requiredDLC = null)
+                string? tooltipBrief = null, string? tooltipDetailed = null, string? subGroup = null,
+                string? requiredDLC = null, string? requiredMod = null, string[]? searchAliases = null)
             {
                 Id = id;
                 Label = label;
@@ -4898,6 +5220,8 @@ namespace LandingZone.Core.UI
                 TooltipBrief = tooltipBrief;
                 TooltipDetailed = tooltipDetailed;
                 RequiredDLC = requiredDLC;
+                RequiredMod = requiredMod;
+                SearchAliases = searchAliases;
             }
 
             // Container type for Container kind filters
@@ -4929,6 +5253,154 @@ namespace LandingZone.Core.UI
             MineralRich,  // IndividualImportanceContainer<string> with ore defNames (OR-only)
             Biomes        // IndividualImportanceContainer<string> with biome defNames (OR-only)
         }
+
+        // ============================================================================
+        // MUTATOR OVERLAY SYSTEM
+        // Provides curated metadata for runtime-discovered mutators
+        // ============================================================================
+
+        /// <summary>
+        /// Curated metadata for mutators. Applied on top of runtime-discovered mutators.
+        /// Provides friendly labels, category grouping, tooltips, and search aliases.
+        /// </summary>
+        private readonly struct MutatorOverlay
+        {
+            public string Label { get; }
+            public string SubGroup { get; }
+            public string? TooltipBrief { get; }
+            public string[]? SearchAliases { get; }
+
+            public MutatorOverlay(string label, string subGroup, string? tooltipBrief = null, string[]? searchAliases = null)
+            {
+                Label = label;
+                SubGroup = subGroup;
+                TooltipBrief = tooltipBrief;
+                SearchAliases = searchAliases;
+            }
+        }
+
+        /// <summary>
+        /// Curated overlays for known mutators. Key = defName, Value = display metadata.
+        /// Mutators not in this dictionary will use auto-generated labels and go to "Other" group.
+        /// </summary>
+        private static readonly Dictionary<string, MutatorOverlay> MutatorOverlays = new()
+        {
+            // ==================== CLIMATE ====================
+            { "SunnyMutator", new MutatorOverlay("Sunny", "Climate", "Increased solar panel efficiency") },
+            { "FoggyMutator", new MutatorOverlay("Foggy", "Climate", "Reduced visibility and solar efficiency") },
+            { "WindyMutator", new MutatorOverlay("Windy", "Climate", "Increased wind turbine efficiency") },
+            { "WetClimate", new MutatorOverlay("Wet Climate", "Climate", "Higher humidity and rainfall") },
+            { "Pollution_Increased", new MutatorOverlay("Pollution+", "Climate", "Higher pollution levels") },
+
+            // ==================== WATER FEATURES ====================
+            { "River", new MutatorOverlay("River", "Water Features", "River crossing the map") },
+            { "RiverDelta", new MutatorOverlay("River Delta", "Water Features", "River mouth with delta formation") },
+            { "RiverConfluence", new MutatorOverlay("Confluence", "Water Features", "Multiple rivers meeting") },
+            { "RiverIsland", new MutatorOverlay("River Island", "Water Features", "Island in river") },
+            { "Headwater", new MutatorOverlay("Headwater", "Water Features", "River source/spring") },
+            { "Lake", new MutatorOverlay("Lake", "Water Features", "Large body of fresh water") },
+            { "LakeWithIsland", new MutatorOverlay("Lake w/ Island", "Water Features") },
+            { "LakeWithIslands", new MutatorOverlay("Lake w/ Islands", "Water Features") },
+            { "Lakeshore", new MutatorOverlay("Lakeshore", "Water Features") },
+            { "Pond", new MutatorOverlay("Pond", "Water Features", "Small body of water") },
+            { "Fjord", new MutatorOverlay("Fjord", "Water Features", "Narrow coastal inlet") },
+            { "Bay", new MutatorOverlay("Bay", "Water Features", "Coastal bay") },
+            { "Coast", new MutatorOverlay("Coast", "Water Features", "Ocean coastline") },
+            { "Harbor", new MutatorOverlay("Harbor", "Water Features", "Natural harbor formation") },
+            { "Cove", new MutatorOverlay("Cove", "Water Features", "Sheltered coastal area") },
+            { "Peninsula", new MutatorOverlay("Peninsula", "Water Features") },
+            { "Archipelago", new MutatorOverlay("Archipelago", "Water Features", "Chain of islands") },
+            { "CoastalAtoll", new MutatorOverlay("Coastal Atoll", "Water Features") },
+            { "CoastalIsland", new MutatorOverlay("Coastal Island", "Water Features") },
+            { "Iceberg", new MutatorOverlay("Iceberg", "Water Features") },
+
+            // ==================== ELEVATION ====================
+            { "Mountain", new MutatorOverlay("Mountain", "Elevation", "Mountainous terrain") },
+            { "Valley", new MutatorOverlay("Valley", "Elevation", "Valley between mountains") },
+            { "Basin", new MutatorOverlay("Basin", "Elevation", "Low-lying area") },
+            { "Plateau", new MutatorOverlay("Plateau", "Elevation", "Elevated flat terrain") },
+            { "Hollow", new MutatorOverlay("Hollow", "Elevation", "Depression in terrain") },
+            { "Caves", new MutatorOverlay("Caves", "Elevation", "Underground caves for defense/storage") },
+            { "Cavern", new MutatorOverlay("Cavern", "Elevation", "Large underground chamber") },
+            { "CaveLakes", new MutatorOverlay("Cave Lakes", "Elevation", "Underground lakes") },
+            { "LavaCaves", new MutatorOverlay("Lava Caves", "Elevation", "Caves with lava") },
+            { "IceCaves", new MutatorOverlay("Ice Caves", "Elevation", "Frozen underground caves") },
+            { "Cliffs", new MutatorOverlay("Cliffs", "Elevation", "Steep cliff faces") },
+            { "Chasm", new MutatorOverlay("Chasm", "Elevation", "Deep fissure in ground") },
+            { "Crevasse", new MutatorOverlay("Crevasse", "Elevation", "Ice/rock crack") },
+
+            // ==================== GROUND ====================
+            { "Sandy", new MutatorOverlay("Sandy", "Ground", "Sandy terrain") },
+            { "Muddy", new MutatorOverlay("Muddy", "Ground", "Muddy terrain") },
+            { "Marshy", new MutatorOverlay("Marshy", "Ground", "Marsh/bog terrain") },
+            { "Wetland", new MutatorOverlay("Wetland", "Ground", "Wetland ecosystem") },
+            { "Dunes", new MutatorOverlay("Dunes", "Ground", "Sand dunes") },
+            { "IceDunes", new MutatorOverlay("Ice Dunes", "Ground", "Frozen sand formations") },
+            { "Oasis", new MutatorOverlay("Oasis", "Ground", "Desert oasis with water") },
+            { "DryGround", new MutatorOverlay("Dry Ground", "Ground", "Arid terrain") },
+            { "DryLake", new MutatorOverlay("Dry Lake", "Ground", "Dried lake bed") },
+
+            // ==================== SPECIAL ====================
+            { "ToxicLake", new MutatorOverlay("Toxic Lake", "Special", "Polluted water body") },
+            { "LavaFlow", new MutatorOverlay("Lava Flow", "Special", "Active lava stream") },
+            { "LavaCrater", new MutatorOverlay("Lava Crater", "Special", "Volcanic crater") },
+            { "LavaLake", new MutatorOverlay("Lava Lake", "Special", "Lake of molten lava") },
+            { "HotSprings", new MutatorOverlay("Hot Springs", "Special", "Natural hot springs for heating") },
+            { "MixedBiome", new MutatorOverlay("Mixed Biome", "Special", "Tile at biome boundary", new[] { "Biome Transition", "Biome Edge" }) },
+            { "ObsidianDeposits", new MutatorOverlay("Obsidian Deposits", "Special", "Volcanic glass deposits") },
+            { "TerraformingScar", new MutatorOverlay("Terraforming Scar", "Special", "Ancient terraforming remnant") },
+
+            // ==================== RESOURCES ====================
+            { "Fertile", new MutatorOverlay("Fertile Soil", "Resources", "Better soil for farming") },
+            { "SteamGeysers_Increased", new MutatorOverlay("Steam Geysers+", "Resources", "Extra geothermal power sources") },
+            { "AnimalLife_Increased", new MutatorOverlay("Animal Life+", "Resources", "More wildlife") },
+            { "AnimalLife_Decreased", new MutatorOverlay("Animal Life-", "Resources", "Less wildlife") },
+            { "PlantLife_Increased", new MutatorOverlay("Plant Life+", "Resources", "More vegetation") },
+            { "PlantLife_Decreased", new MutatorOverlay("Plant Life-", "Resources", "Less vegetation") },
+            { "Fish_Increased", new MutatorOverlay("Fish+", "Resources", "More fish available") },
+            { "Fish_Decreased", new MutatorOverlay("Fish-", "Resources", "Less fish available") },
+            { "WildPlants", new MutatorOverlay("Wild Plants", "Resources", "Extra wild plants for foraging") },
+            { "WildTropicalPlants", new MutatorOverlay("Wild Tropical Plants", "Resources", "Tropical plant species") },
+            { "AnimalHabitat", new MutatorOverlay("Animal Habitat", "Resources", "Rich wildlife habitat") },
+            { "PlantGrove", new MutatorOverlay("Plant Grove", "Resources", "Dense plant growth") },
+            { "MineralRich", new MutatorOverlay("Mineral Rich", "Resources", "Extra ore deposits") },
+            { "ArcheanTrees", new MutatorOverlay("Archean Trees", "Resources", "Ancient tree species") },
+
+            // ==================== SALVAGE ====================
+            { "Junkyard", new MutatorOverlay("Junkyard", "Salvage", "Salvageable materials") },
+            { "Stockpile", new MutatorOverlay("Stockpile", "Salvage", "Abandoned supply cache") },
+            { "AncientRuins", new MutatorOverlay("Ancient Ruins", "Salvage", "Pre-war ruins with loot") },
+            { "AncientRuins_Frozen", new MutatorOverlay("Ancient Ruins (Frozen)", "Salvage", "Ice-preserved ruins") },
+            { "AncientWarehouse", new MutatorOverlay("Ancient Warehouse", "Salvage", "Large supply cache") },
+
+            // ==================== STRUCTURES ====================
+            { "AncientGarrison", new MutatorOverlay("Ancient Garrison", "Structures", "Military installation") },
+            { "AncientQuarry", new MutatorOverlay("Ancient Quarry", "Structures", "Mining operation") },
+            { "AncientChemfuelRefinery", new MutatorOverlay("Chemfuel Refinery", "Structures", "Fuel processing plant") },
+            { "AncientLaunchSite", new MutatorOverlay("Launch Site", "Structures", "Rocket launch facility") },
+            { "AncientUplink", new MutatorOverlay("Ancient Uplink", "Structures", "Communication array") },
+
+            // ==================== SETTLEMENTS ====================
+            { "AbandonedColonyOutlander", new MutatorOverlay("Abandoned (Outlander)", "Settlements", "Abandoned outlander colony") },
+            { "AbandonedColonyTribal", new MutatorOverlay("Abandoned (Tribal)", "Settlements", "Abandoned tribal settlement") },
+            { "AncientInfestedSettlement", new MutatorOverlay("Infested Settlement", "Settlements", "Bug-infested ruins") },
+
+            // ==================== ENVIRONMENTAL ====================
+            { "AncientHeatVent", new MutatorOverlay("Heat Vent", "Environmental", "Geothermal heat source") },
+            { "AncientSmokeVent", new MutatorOverlay("Smoke Vent", "Environmental", "Volcanic smoke emission") },
+            { "AncientToxVent", new MutatorOverlay("Toxic Vent", "Environmental", "Toxic gas emission") },
+            { "InsectMegahive", new MutatorOverlay("Insect Megahive", "Environmental", "Massive insect colony") },
+        };
+
+        /// <summary>
+        /// Category display order for mutator groups in palette.
+        /// Groups not in this list appear at the end alphabetically.
+        /// </summary>
+        private static readonly string[] MutatorGroupOrder = new[]
+        {
+            "Climate", "Water Features", "Elevation", "Ground", "Special",
+            "Resources", "Salvage", "Structures", "Settlements", "Environmental", "Other"
+        };
 
         // Growing days discrete steps: 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60 (Full-Year)
         private static readonly float[] GrowingDaysSteps = { 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60 };
@@ -4977,66 +5449,135 @@ namespace LandingZone.Core.UI
             new PaletteFilter("rivers", "Rivers", "Geography_Natural", ContainerType.Rivers,
                 tooltipBrief: "LandingZone_Tooltip_Rivers", tooltipDetailed: "LandingZone_TooltipDetail_Rivers", subGroup: "Water Access"),
 
-            // Water Features (mutators)
-            new PaletteFilter("mutator_river", "River", "Geography_Natural", "River",
-                tooltipBrief: "LandingZone_Tooltip_River", tooltipDetailed: "LandingZone_TooltipDetail_River", subGroup: "Water Features"),
-            new PaletteFilter("mutator_river_delta", "River Delta", "Geography_Natural", "RiverDelta", subGroup: "Water Features"),
-            new PaletteFilter("mutator_river_confluence", "Confluence", "Geography_Natural", "RiverConfluence", subGroup: "Water Features"),
-            new PaletteFilter("mutator_river_island", "River Island", "Geography_Natural", "RiverIsland", subGroup: "Water Features"),
-            new PaletteFilter("mutator_headwater", "Headwater", "Geography_Natural", "Headwater", subGroup: "Water Features"),
-            new PaletteFilter("mutator_lake", "Lake", "Geography_Natural", "Lake", subGroup: "Water Features"),
-            new PaletteFilter("mutator_lake_island", "Lake w/ Island", "Geography_Natural", "LakeWithIsland", subGroup: "Water Features"),
-            new PaletteFilter("mutator_lake_islands", "Lake w/ Islands", "Geography_Natural", "LakeWithIslands", subGroup: "Water Features"),
-            new PaletteFilter("mutator_lakeshore", "Lakeshore", "Geography_Natural", "Lakeshore", subGroup: "Water Features"),
-            new PaletteFilter("mutator_pond", "Pond", "Geography_Natural", "Pond", subGroup: "Water Features"),
-            new PaletteFilter("mutator_fjord", "Fjord", "Geography_Natural", "Fjord", subGroup: "Water Features"),
-            new PaletteFilter("mutator_bay", "Bay", "Geography_Natural", "Bay", subGroup: "Water Features"),
-            new PaletteFilter("mutator_coast", "Coast", "Geography_Natural", "Coast", subGroup: "Water Features"),
-            new PaletteFilter("mutator_harbor", "Harbor", "Geography_Natural", "Harbor", subGroup: "Water Features"),
-            new PaletteFilter("mutator_cove", "Cove", "Geography_Natural", "Cove", subGroup: "Water Features"),
-            new PaletteFilter("mutator_peninsula", "Peninsula", "Geography_Natural", "Peninsula", subGroup: "Water Features"),
-            new PaletteFilter("mutator_archipelago", "Archipelago", "Geography_Natural", "Archipelago", subGroup: "Water Features"),
-            new PaletteFilter("mutator_coastal_atoll", "Coastal Atoll", "Geography_Natural", "CoastalAtoll", subGroup: "Water Features"),
-            new PaletteFilter("mutator_coastal_island", "Coastal Island", "Geography_Natural", "CoastalIsland", subGroup: "Water Features"),
-            new PaletteFilter("mutator_iceberg", "Iceberg", "Geography_Natural", "Iceberg", subGroup: "Water Features"),
+            // Water Features (mutators) - These are Geological Landforms map generation features
+            new PaletteFilter("mutator_river", "River (Landform)", "Geography_Natural", "River",
+                tooltipBrief: "LandingZone_Tooltip_River", tooltipDetailed: "LandingZone_TooltipDetail_River", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_river_delta", "River Delta", "Geography_Natural", "RiverDelta", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_river_confluence", "Confluence", "Geography_Natural", "RiverConfluence", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_river_island", "River Island", "Geography_Natural", "RiverIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_headwater", "Headwater", "Geography_Natural", "Headwater", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_lake", "Lake", "Geography_Natural", "Lake", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_lake_island", "Lake w/ Island", "Geography_Natural", "LakeWithIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_lake_islands", "Lake w/ Islands", "Geography_Natural", "LakeWithIslands", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_lakeshore", "Lakeshore", "Geography_Natural", "Lakeshore", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_pond", "Pond", "Geography_Natural", "Pond", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_fjord", "Fjord", "Geography_Natural", "Fjord", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_bay", "Bay", "Geography_Natural", "Bay", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_coast", "Coast", "Geography_Natural", "Coast", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_harbor", "Harbor", "Geography_Natural", "Harbor", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_cove", "Cove", "Geography_Natural", "Cove", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_peninsula", "Peninsula", "Geography_Natural", "Peninsula", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_archipelago", "Archipelago", "Geography_Natural", "Archipelago", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_coastal_atoll", "Coastal Atoll", "Geography_Natural", "CoastalAtoll", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_coastal_island", "Coastal Island", "Geography_Natural", "CoastalIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_iceberg", "Iceberg", "Geography_Natural", "Iceberg", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+            // Geological Landforms - Water Features
+            new PaletteFilter("mutator_gl_atoll", "Atoll", "Geography_Natural", "GL_Atoll",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Ring-shaped coral reef"),
+            new PaletteFilter("mutator_gl_island", "Island", "Geography_Natural", "GL_Island",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Isolated landmass"),
+            new PaletteFilter("mutator_gl_skerry", "Skerry", "Geography_Natural", "GL_Skerry",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Small rocky island"),
+            new PaletteFilter("mutator_gl_tombolo", "Tombolo", "Geography_Natural", "GL_Tombolo",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Sand bar connecting island"),
+            new PaletteFilter("mutator_gl_landbridge", "Land Bridge", "Geography_Natural", "GL_Landbridge",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Natural land connection"),
+            new PaletteFilter("mutator_gl_cove_island", "Cove with Island", "Geography_Natural", "GL_CoveWithIsland",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Sheltered cove with island"),
+            new PaletteFilter("mutator_gl_secluded_cove", "Secluded Cove", "Geography_Natural", "GL_SecludedCove",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Hidden coastal inlet"),
+            new PaletteFilter("mutator_gl_river_source", "River Source", "Geography_Natural", "GL_RiverSource",
+                subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Origin point of river"),
 
-            // Elevation Features (mutators)
-            new PaletteFilter("mutator_mountain", "Mountain", "Geography_Natural", "Mountain",
-                tooltipBrief: "LandingZone_Tooltip_Mountain", tooltipDetailed: "LandingZone_TooltipDetail_Mountain", subGroup: "Elevation"),
+            // Elevation Features (mutators) - These are Geological Landforms map generation features
+            new PaletteFilter("mutator_mountain", "Mountain (Landform)", "Geography_Natural", "Mountain",
+                tooltipBrief: "LandingZone_Tooltip_Mountain", tooltipDetailed: "LandingZone_TooltipDetail_Mountain", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
             new PaletteFilter("mutator_valley", "Valley", "Geography_Natural", "Valley",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
             new PaletteFilter("mutator_basin", "Basin", "Geography_Natural", "Basin",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
             new PaletteFilter("mutator_plateau", "Plateau", "Geography_Natural", "Plateau",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
             new PaletteFilter("mutator_hollow", "Hollow", "Geography_Natural", "Hollow",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
             new PaletteFilter("mutator_caves", "Caves", "Geography_Natural", "Caves",
-                tooltipBrief: "LandingZone_Tooltip_Caves", tooltipDetailed: "LandingZone_TooltipDetail_Caves", subGroup: "Elevation"),
-            new PaletteFilter("mutator_cavern", "Cavern", "Geography_Natural", "Cavern", subGroup: "Elevation"),
-            new PaletteFilter("mutator_cave_lakes", "Cave Lakes", "Geography_Natural", "CaveLakes", subGroup: "Elevation"),
-            new PaletteFilter("mutator_lava_caves", "Lava Caves", "Geography_Natural", "LavaCaves", subGroup: "Elevation"),
-            new PaletteFilter("mutator_cliffs", "Cliffs", "Geography_Natural", "Cliffs", subGroup: "Elevation"),
-            new PaletteFilter("mutator_chasm", "Chasm", "Geography_Natural", "Chasm", subGroup: "Elevation"),
-            new PaletteFilter("mutator_crevasse", "Crevasse", "Geography_Natural", "Crevasse", subGroup: "Elevation"),
+                tooltipBrief: "LandingZone_Tooltip_Caves", tooltipDetailed: "LandingZone_TooltipDetail_Caves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_cavern", "Cavern", "Geography_Natural", "Cavern", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_cave_lakes", "Cave Lakes", "Geography_Natural", "CaveLakes", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_lava_caves", "Lava Caves", "Geography_Natural", "LavaCaves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_ice_caves", "Ice Caves", "Geography_Natural", "IceCaves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_cliffs", "Cliffs", "Geography_Natural", "Cliffs", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_chasm", "Chasm", "Geography_Natural", "Chasm", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_crevasse", "Crevasse", "Geography_Natural", "Crevasse", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+            // Geological Landforms - Elevation
+            new PaletteFilter("mutator_gl_canyon", "Canyon", "Geography_Natural", "GL_Canyon",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Deep river-carved gorge"),
+            new PaletteFilter("mutator_gl_gorge", "Gorge", "Geography_Natural", "GL_Gorge",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Narrow steep valley"),
+            new PaletteFilter("mutator_gl_rift", "Rift", "Geography_Natural", "GL_Rift",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Tectonic fissure"),
+            new PaletteFilter("mutator_gl_caldera", "Caldera", "Geography_Natural", "GL_Caldera",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Volcanic crater basin"),
+            new PaletteFilter("mutator_gl_crater", "Crater", "Geography_Natural", "GL_Crater",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Impact crater"),
+            new PaletteFilter("mutator_gl_cirque", "Cirque", "Geography_Natural", "GL_Cirque",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Glacial amphitheater"),
+            new PaletteFilter("mutator_gl_glacier", "Glacier", "Geography_Natural", "GL_Glacier",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Massive ice formation"),
+            new PaletteFilter("mutator_gl_lone_mountain", "Lone Mountain", "Geography_Natural", "GL_LoneMountain",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Isolated peak"),
+            new PaletteFilter("mutator_gl_secluded_valley", "Secluded Valley", "Geography_Natural", "GL_SecludedValley",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Hidden valley"),
+            new PaletteFilter("mutator_gl_sinkhole", "Sinkhole", "Geography_Natural", "GL_Sinkhole",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Ground collapse depression"),
+            new PaletteFilter("mutator_gl_cave_entrance", "Cave Entrance", "Geography_Natural", "GL_CaveEntrance",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Surface access to caves"),
+            new PaletteFilter("mutator_gl_surface_cave", "Surface Cave", "Geography_Natural", "GL_SurfaceCave",
+                subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Exposed cave system"),
 
-            // Ground Conditions (mutators)
-            new PaletteFilter("mutator_sandy", "Sandy", "Geography_Natural", "Sandy", subGroup: "Ground"),
-            new PaletteFilter("mutator_muddy", "Muddy", "Geography_Natural", "Muddy", subGroup: "Ground"),
-            new PaletteFilter("mutator_marshy", "Marshy", "Geography_Natural", "Marshy", subGroup: "Ground"),
-            new PaletteFilter("mutator_wetland", "Wetland", "Geography_Natural", "Wetland", subGroup: "Ground"),
-            new PaletteFilter("mutator_dunes", "Dunes", "Geography_Natural", "Dunes", subGroup: "Ground"),
-            new PaletteFilter("mutator_oasis", "Oasis", "Geography_Natural", "Oasis", subGroup: "Ground"),
-            new PaletteFilter("mutator_dry_ground", "Dry Ground", "Geography_Natural", "DryGround", subGroup: "Ground"),
-            new PaletteFilter("mutator_dry_lake", "Dry Lake", "Geography_Natural", "DryLake", subGroup: "Ground"),
+            // Ground Conditions (mutators) - These are Geological Landforms map generation features
+            new PaletteFilter("mutator_sandy", "Sandy", "Geography_Natural", "Sandy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_muddy", "Muddy", "Geography_Natural", "Muddy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_marshy", "Marshy", "Geography_Natural", "Marshy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_wetland", "Wetland", "Geography_Natural", "Wetland", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_dunes", "Dunes", "Geography_Natural", "Dunes", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_ice_dunes", "Ice Dunes", "Geography_Natural", "IceDunes", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_oasis", "Oasis", "Geography_Natural", "Oasis", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_dry_ground", "Dry Ground", "Geography_Natural", "DryGround", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_dry_lake", "Dry Lake", "Geography_Natural", "DryLake", subGroup: "Ground", requiredMod: "Geo. Landforms"),
 
             // Special/Hazards (mutators)
             new PaletteFilter("mutator_toxic_lake", "Toxic Lake", "Geography_Natural", "ToxicLake", subGroup: "Special"),
             new PaletteFilter("mutator_lava_flow", "Lava Flow", "Geography_Natural", "LavaFlow", subGroup: "Special"),
             new PaletteFilter("mutator_lava_crater", "Lava Crater", "Geography_Natural", "LavaCrater", subGroup: "Special"),
+            new PaletteFilter("mutator_lava_lake", "Lava Lake", "Geography_Natural", "LavaLake", subGroup: "Special"),
             new PaletteFilter("mutator_hot_springs", "Hot Springs", "Geography_Natural", "HotSprings", subGroup: "Special"),
             new PaletteFilter("mutator_mixed_biome", "Mixed Biome", "Geography_Natural", "MixedBiome", subGroup: "Special"),
             new PaletteFilter("mutator_obsidian", "Obsidian Deposits", "Geography_Natural", "ObsidianDeposits", subGroup: "Special"),
+            // Geological Landforms - Special
+            new PaletteFilter("mutator_gl_biome_transitions", "Biome Transitions", "Geography_Natural", "GL_BiomeTransitions",
+                subGroup: "Special", requiredMod: "Geological Landforms", tooltipBrief: "Multiple biomes on single tile",
+                searchAliases: new[] { "Biome Edge", "Multi-Biome" }),
+            new PaletteFilter("mutator_gl_badlands", "Badlands", "Geography_Natural", "GL_Badlands",
+                subGroup: "Special", requiredMod: "Geological Landforms", tooltipBrief: "Eroded rocky terrain"),
+            new PaletteFilter("mutator_gl_desert_plateau", "Desert Plateau", "Geography_Natural", "GL_DesertPlateau",
+                subGroup: "Special", requiredMod: "Geological Landforms", tooltipBrief: "Elevated desert terrain"),
+            new PaletteFilter("mutator_gl_swamp_hill", "Swamp Hill", "Geography_Natural", "GL_SwampHill",
+                subGroup: "Special", requiredMod: "Geological Landforms", tooltipBrief: "Elevated wetland"),
+
+            // Alpha Biomes - Ground/Hazards
+            new PaletteFilter("mutator_ab_tar_lakes", "Tar Lakes", "Geography_Natural", "AB_TarLakes",
+                subGroup: "Special", requiredMod: "Alpha Biomes", tooltipBrief: "Lakes of tar"),
+            new PaletteFilter("mutator_ab_propane_lakes", "Propane Lakes", "Geography_Natural", "AB_PropaneLakes",
+                subGroup: "Special", requiredMod: "Alpha Biomes", tooltipBrief: "Flammable propane pools"),
+            new PaletteFilter("mutator_ab_quicksand", "Quicksand Pits", "Geography_Natural", "AB_QuicksandPits",
+                subGroup: "Special", requiredMod: "Alpha Biomes", tooltipBrief: "Dangerous quicksand areas"),
+            new PaletteFilter("mutator_ab_magma_vents", "Magma Vents", "Geography_Natural", "AB_MagmaVents",
+                subGroup: "Special", requiredMod: "Alpha Biomes", tooltipBrief: "Active magma vents"),
+            new PaletteFilter("mutator_ab_magmatic_quagmire", "Magmatic Quagmire", "Geography_Natural", "AB_MagmaticQuagmire",
+                subGroup: "Special", requiredMod: "Alpha Biomes", tooltipBrief: "Volcanic mud terrain"),
+            new PaletteFilter("mutator_ab_sterile_ground", "Sterile Ground", "Geography_Natural", "AB_SterileGround",
+                subGroup: "Ground", requiredMod: "Alpha Biomes", tooltipBrief: "Infertile terrain"),
         };
 
         private static List<PaletteFilter> GetGeographyResourcesPaletteFilters() => new()
@@ -5066,6 +5607,22 @@ namespace LandingZone.Core.UI
             new PaletteFilter("plant_grove", "Plant Grove", "Geography_Resources", ContainerType.PlantGrove, subGroup: "Modifiers"),
             new PaletteFilter("animal_habitat", "Animal Habitat", "Geography_Resources", ContainerType.AnimalHabitat, subGroup: "Modifiers"),
             new PaletteFilter("mutator_archean_trees", "Archean Trees", "Geography_Resources", "ArcheanTrees", subGroup: "Modifiers", requiredDLC: "Anomaly"),
+
+            // Alpha Biomes - Resource Modifiers (requiredMod filters only show when mod is active)
+            new PaletteFilter("mutator_ab_golden_trees", "Golden Trees", "Geography_Resources", "AB_GoldenTrees",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Trees that produce gold"),
+            new PaletteFilter("mutator_ab_luminescent_trees", "Luminescent Trees", "Geography_Resources", "AB_LuminescentTrees",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Glowing trees"),
+            new PaletteFilter("mutator_ab_techno_trees", "Techno Trees", "Geography_Resources", "AB_TechnoTrees",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Technology-infused trees"),
+            new PaletteFilter("mutator_ab_flesh_trees", "Flesh Trees", "Geography_Resources", "AB_FleshTrees",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Organic horror trees"),
+            new PaletteFilter("mutator_ab_healing_springs", "Healing Springs", "Geography_Resources", "AB_HealingSprings",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Springs with healing properties"),
+            new PaletteFilter("mutator_ab_mutagenic_springs", "Mutagenic Springs", "Geography_Resources", "AB_MutagenicSprings",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Springs with mutagenic effects"),
+            new PaletteFilter("mutator_ab_geothermal_hotspots", "Geothermal Hotspots", "Geography_Resources", "AB_GeothermalHotspots",
+                subGroup: "Modifiers", requiredMod: "Alpha Biomes", tooltipBrief: "Extra geothermal activity"),
         };
 
         private static List<PaletteFilter> GetGeographyArtificialPaletteFilters() => new()
@@ -5083,6 +5640,13 @@ namespace LandingZone.Core.UI
             new PaletteFilter("mutator_ancient_ruins", "Ancient Ruins", "Geography_Artificial", "AncientRuins", subGroup: "Salvage"),
             new PaletteFilter("mutator_ancient_ruins_frozen", "Ancient Ruins (Frozen)", "Geography_Artificial", "AncientRuins_Frozen", subGroup: "Salvage"),
             new PaletteFilter("mutator_ancient_warehouse", "Ancient Warehouse", "Geography_Artificial", "AncientWarehouse", subGroup: "Salvage"),
+            // Alpha Biomes - Salvage
+            new PaletteFilter("mutator_ab_giant_fossils", "Giant Fossils", "Geography_Artificial", "AB_GiantFossils",
+                subGroup: "Salvage", requiredMod: "Alpha Biomes", tooltipBrief: "Ancient creature remains"),
+            new PaletteFilter("mutator_ab_derelict_archonexus", "Derelict Archonexus", "Geography_Artificial", "AB_DerelictArchonexus",
+                subGroup: "Salvage", requiredMod: "Alpha Biomes", tooltipBrief: "Abandoned archotech structure"),
+            new PaletteFilter("mutator_ab_derelict_clusters", "Derelict Clusters", "Geography_Artificial", "AB_DerelictClusters",
+                subGroup: "Salvage", requiredMod: "Alpha Biomes", tooltipBrief: "Clusters of abandoned tech"),
 
             // Structures - Ancient installations
             new PaletteFilter("mutator_ancient_garrison", "Ancient Garrison", "Geography_Artificial", "AncientGarrison", subGroup: "Structures"),
@@ -5105,13 +5669,123 @@ namespace LandingZone.Core.UI
         };
 
         /// <summary>
-        /// Returns placeholder list for mod-added filters.
-        /// Will be dynamically populated based on loaded mods in a future update.
+        /// Dynamically generates palette filters for mod-added mutators not in static definitions.
+        /// Discovers mutators from runtime world scan that aren't covered by static palette.
         /// </summary>
-        private static List<PaletteFilter> GetModFiltersPaletteFilters() => new()
+        private static List<PaletteFilter> GetModFiltersPaletteFilters()
         {
-            // Placeholder - dynamically populated based on detected mod content
-        };
+            var result = new List<PaletteFilter>();
+
+            // Get all mutators present in the current world
+            var runtimeMutators = MapFeatureFilter.GetRuntimeMutators().ToHashSet();
+            if (runtimeMutators.Count == 0)
+                return result; // No world loaded yet
+
+            // Collect all mutator defNames already defined in static palette
+            var staticMutators = new HashSet<string>();
+            foreach (var filter in GetClimatePaletteFilters().Concat(GetGeographyNaturalPaletteFilters())
+                .Concat(GetGeographyResourcesPaletteFilters()).Concat(GetGeographyArtificialPaletteFilters()))
+            {
+                if (filter.Kind == FilterKind.Mutator && !string.IsNullOrEmpty(filter.MutatorDefName))
+                    staticMutators.Add(filter.MutatorDefName!);
+            }
+
+            // Also exclude mutators that are represented by Container filters (popup UI)
+            // These have their own UI and shouldn't appear as separate chips in Mod_Filters
+            var containerRepresentedMutators = new HashSet<string>
+            {
+                "AnimalHabitat",  // Represented by ContainerType.AnimalHabitat
+                "PlantGrove",     // Represented by ContainerType.PlantGrove
+                "MineralRich",    // Represented by ContainerType.MineralRich
+                "Stockpile",      // Represented by ContainerType.Stockpiles
+            };
+
+            // Find runtime mutators not in static palette and not Container-represented
+            var modMutators = runtimeMutators
+                .Except(staticMutators)
+                .Except(containerRepresentedMutators)
+                .OrderBy(m => m).ToList();
+
+            foreach (var defName in modMutators)
+            {
+                // Use overlay if available, otherwise generate from defName
+                string label;
+                string subGroup;
+                string? tooltipBrief = null;
+
+                if (MutatorOverlays.TryGetValue(defName, out var overlay))
+                {
+                    label = overlay.Label;
+                    subGroup = overlay.SubGroup;
+                    tooltipBrief = overlay.TooltipBrief;
+                }
+                else
+                {
+                    // Auto-generate label from defName: "GL_RiverDelta" → "GL River Delta"
+                    label = System.Text.RegularExpressions.Regex.Replace(defName, "([a-z])([A-Z])", "$1 $2")
+                        .Replace("_", " ");
+                    subGroup = "Other";
+                }
+
+                // Create mutator palette filter
+                var paletteId = $"mutator_{defName.ToLowerInvariant()}";
+                result.Add(new PaletteFilter(paletteId, label, "Mod_Filters", defName,
+                    tooltipBrief: tooltipBrief, subGroup: subGroup));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Checks if a mutator is available in the current runtime (world loaded, mod provides it).
+        /// Used to hide unavailable filters from palette.
+        /// </summary>
+        private static bool IsMutatorAvailable(string? mutatorDefName)
+        {
+            if (string.IsNullOrEmpty(mutatorDefName))
+                return true; // Not a mutator filter
+
+            return MapFeatureFilter.IsRuntimeMutator(mutatorDefName!);
+        }
+
+        /// <summary>
+        /// Filters a list of palette filters, removing filters not available in current runtime.
+        /// Checks: (1) mutator availability, (2) required DLC, (3) required mod.
+        /// </summary>
+        private static List<PaletteFilter> FilterByRuntime(List<PaletteFilter> filters)
+        {
+            return filters.Where(f => IsFilterAvailable(f)).ToList();
+        }
+
+        /// <summary>
+        /// Checks if a filter is available in the current runtime.
+        /// Validates: mutator existence, DLC requirements, and mod requirements.
+        /// </summary>
+        private static bool IsFilterAvailable(PaletteFilter filter)
+        {
+            // Check DLC requirement
+            if (!string.IsNullOrEmpty(filter.RequiredDLC))
+            {
+                if (!DLCDetectionService.IsDLCAvailable(filter.RequiredDLC!))
+                    return false;
+            }
+
+            // Check mod requirement
+            if (!string.IsNullOrEmpty(filter.RequiredMod))
+            {
+                if (!DLCDetectionService.IsModActive(filter.RequiredMod!))
+                    return false;
+            }
+
+            // Check mutator availability (for mutator-type filters only)
+            if (filter.Kind == FilterKind.Mutator)
+            {
+                if (!IsMutatorAvailable(filter.MutatorDefName))
+                    return false;
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Resets the workspace to reload from settings.
