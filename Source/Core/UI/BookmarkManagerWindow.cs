@@ -82,8 +82,9 @@ namespace LandingZone.Core.UI
                 return;
             }
 
-            // Calculate content height
+            // Calculate content height (guard against zero height corrupting scroll view)
             float contentHeight = manager.Bookmarks.Count * (RowHeight + 5f);
+            if (contentHeight < 50f) contentHeight = 50f;
             Rect viewRect = new Rect(0f, 0f, rect.width - ScrollbarWidth, contentHeight);
             Rect scrollRect = rect;
 

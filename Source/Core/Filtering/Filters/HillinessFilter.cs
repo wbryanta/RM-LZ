@@ -20,8 +20,9 @@ namespace LandingZone.Core.Filtering.Filters
             var filters = context.Filters;
             var allowed = filters.AllowedHilliness;
 
-            // If all hilliness types are allowed (count == 4), no filtering needed
-            if (allowed.Count == 4)
+            // If no hilliness restriction (count == 0 or 4), no filtering needed
+            // Count=0 means "cleared/no filter", Count=4 means "all types allowed"
+            if (allowed.Count == 0 || allowed.Count == 4)
                 return inputTiles;
 
             // K-of-N architecture: Hilliness is always Critical when restricted (count < 4)

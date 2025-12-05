@@ -274,16 +274,21 @@ namespace LandingZone.Core.Filtering
 
             // 1. If Rivers has Critical items, exclude river-related mutators
             //    (user required a river, so having one shouldn't be a bonus)
-            if (filters.Rivers.HasCritical)
+            if (filters.Rivers?.HasCritical == true)
             {
                 foreach (var mutator in RiverRelatedMutators)
                     excluded.Add(mutator);
             }
 
             // 2. Exclude MapFeatures Critical items directly (they're mutator defNames)
-            foreach (var feature in filters.MapFeatures.GetCriticalItems())
+            // Defensive null check for corrupted save states
+            var criticalFeatures = filters.MapFeatures?.GetCriticalItems();
+            if (criticalFeatures != null)
             {
-                excluded.Add(feature);
+                foreach (var feature in criticalFeatures)
+                {
+                    excluded.Add(feature);
+                }
             }
 
             return excluded;

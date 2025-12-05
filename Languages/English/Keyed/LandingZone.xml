@@ -123,6 +123,7 @@
   <LandingZone_Filter_LifeWildlife_Subtitle>Life &amp; Wildlife Modifiers (animal/plant/fish abundance):</LandingZone_Filter_LifeWildlife_Subtitle>
   <LandingZone_Filter_NaturalStones_Title>Natural Stones</LandingZone_Filter_NaturalStones_Title>
   <LandingZone_Filter_NaturalStones_Subtitle>Natural Stones (construction materials):</LandingZone_Filter_NaturalStones_Subtitle>
+  <LandingZone_Filter_MinStoneTypes>Minimum Stone Types (any X types)</LandingZone_Filter_MinStoneTypes>
   <LandingZone_Filter_SpecialSites_Title>Special Sites</LandingZone_Filter_SpecialSites_Title>
   <LandingZone_Filter_SpecialSites_Subtitle>Special Sites (ancient ruins, exotic features):</LandingZone_Filter_SpecialSites_Subtitle>
   <LandingZone_Filter_Stockpiles_Title>Stockpiles</LandingZone_Filter_Stockpiles_Title>

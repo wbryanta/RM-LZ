@@ -15,6 +15,9 @@ namespace LandingZone.Core
             // Clear NaturalRockTypesIn cache for new world
             NaturalRockTypesCachePatch.ClearCache();
 
+            // Clear relaxed match cache to prevent stale tile data from previous world
+            LandingZoneContext.ClearRelaxedMatchCache();
+
             // Reset Advanced filters to empty (clean canvas for new world)
             // User's choice: Advanced starts empty unless Remix is used
             // NOTE: Don't clear ActivePreset - it refers to Simple mode's default preset

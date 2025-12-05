@@ -151,7 +151,10 @@ namespace LandingZone.Core.Filtering
                 // Geography filters
                 "elevation" => settings.ElevationImportance,
                 "movement_difficulty" => settings.MovementDifficultyImportance,
-                "hilliness" => settings.AllowedHilliness.Count < 4 ? FilterImportance.MustHave : FilterImportance.Ignored,
+                // Count=0 means "no filter" (cleared), Count=1-3 means restricted, Count=4 means "any"
+                "hilliness" => settings.AllowedHilliness.Count > 0 && settings.AllowedHilliness.Count < 4
+                    ? FilterImportance.MustHave
+                    : FilterImportance.Ignored,
                 "coastal" => settings.CoastalImportance,
                 "coastal_lake" => settings.CoastalLakeImportance,
                 "water_access" => settings.WaterAccessImportance, // Coastal OR any river

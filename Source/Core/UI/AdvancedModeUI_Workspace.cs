@@ -60,6 +60,7 @@ namespace LandingZone.Core.UI
         // Scroll positions
         private static Vector2 _paletteScrollPosition = Vector2.zero;
         private static Vector2 _bucketScrollPosition = Vector2.zero;
+        private static Vector2 _containerPopupScrollPosition = Vector2.zero;
         private static Dictionary<FilterImportance, Vector2> _bucketScrollPositions = new();
 
         // Hybrid bucket height constants
@@ -98,6 +99,7 @@ namespace LandingZone.Core.UI
 
         // Container popup state - tracks which chip is showing its container popup
         private static string? _containerPopupChipId;
+        private static string? _lastContainerPopupChipId; // Track changes to reset scroll position
         private static FilterImportance? _containerPopupBucket;
         private static Rect _containerPopupAnchorRect;
 
@@ -1491,8 +1493,9 @@ namespace LandingZone.Core.UI
                 }
 
                 // Filter label - shrink to make room for source indicator and (i) icon
+                // Always reserve space for (i) icon to keep MOD badges aligned consistently
                 bool hasTooltip = !string.IsNullOrEmpty(pf.TooltipBrief) || !string.IsNullOrEmpty(pf.TooltipDetailed);
-                float infoIconWidth = hasTooltip ? 18f : 0f;
+                float infoIconWidth = 18f; // Always reserve space for alignment
 
                 // Source detection for DLC/MOD badges
                 string? sourceBadge = null;
@@ -1629,6 +1632,7 @@ namespace LandingZone.Core.UI
                     if (Widgets.ButtonText(buttonRect, bucket?.Label ?? "?", drawBackground: true))
                     {
                         // Click to remove from workspace
+                        ClearChipFromFilterSettings(pf.Id);  // Clear from FilterSettings to prevent ghost filters
                         _workspace?.RemoveChip(pf.Id);
                         OnFiltersModified(); // User changed filters - clear preset tracking
                     }
@@ -2590,6 +2594,7 @@ namespace LandingZone.Core.UI
                 // Right-click to remove
                 if (evt.type == EventType.MouseDown && evt.button == 1)
                 {
+                    ClearChipFromFilterSettings(chip.FilterId);  // Clear from FilterSettings to prevent ghost filters
                     _workspace?.RemoveChip(chip.FilterId);
                     _selectedChipIds.Remove(chip.FilterId);
                     OnFiltersModified(); // User changed filters - clear preset tracking
@@ -2818,9 +2823,46 @@ namespace LandingZone.Core.UI
             SyncMutatorToWorkspace(filters, "mutator_toxic_lake", "Toxic Lake", "ToxicLake", "Geography");
             SyncMutatorToWorkspace(filters, "mutator_lava_flow", "Lava Flow", "LavaFlow", "Geography");
             SyncMutatorToWorkspace(filters, "mutator_lava_crater", "Lava Crater", "LavaCrater", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_lava_lake", "Lava Lake", "LavaLake", "Geography");
             SyncMutatorToWorkspace(filters, "mutator_hot_springs", "Hot Springs", "HotSprings", "Geography");
             SyncMutatorToWorkspace(filters, "mutator_mixed_biome", "Mixed Biome", "MixedBiome", "Geography");
             SyncMutatorToWorkspace(filters, "mutator_obsidian", "Obsidian Deposits", "ObsidianDeposits", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ice_caves", "Ice Caves", "IceCaves", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ice_dunes", "Ice Dunes", "IceDunes", "Geography");
+
+            // Geography mutators - Geological Landforms mod (GL_)
+            SyncMutatorToWorkspace(filters, "mutator_gl_atoll", "Atoll", "GL_Atoll", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_island", "Island", "GL_Island", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_skerry", "Skerry", "GL_Skerry", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_tombolo", "Tombolo", "GL_Tombolo", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_landbridge", "Land Bridge", "GL_Landbridge", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_cove_island", "Cove with Island", "GL_CoveWithIsland", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_secluded_cove", "Secluded Cove", "GL_SecludedCove", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_river_source", "River Source", "GL_RiverSource", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_canyon", "Canyon", "GL_Canyon", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_gorge", "Gorge", "GL_Gorge", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_rift", "Rift", "GL_Rift", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_caldera", "Caldera", "GL_Caldera", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_crater", "Crater", "GL_Crater", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_cirque", "Cirque", "GL_Cirque", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_glacier", "Glacier", "GL_Glacier", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_lone_mountain", "Lone Mountain", "GL_LoneMountain", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_secluded_valley", "Secluded Valley", "GL_SecludedValley", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_sinkhole", "Sinkhole", "GL_Sinkhole", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_cave_entrance", "Cave Entrance", "GL_CaveEntrance", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_surface_cave", "Surface Cave", "GL_SurfaceCave", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_biome_transitions", "Biome Transitions", "GL_BiomeTransitions", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_badlands", "Badlands", "GL_Badlands", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_desert_plateau", "Desert Plateau", "GL_DesertPlateau", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_gl_swamp_hill", "Swamp Hill", "GL_SwampHill", "Geography");
+
+            // Geography mutators - Alpha Biomes mod (AB_)
+            SyncMutatorToWorkspace(filters, "mutator_ab_tar_lakes", "Tar Lakes", "AB_TarLakes", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ab_propane_lakes", "Propane Lakes", "AB_PropaneLakes", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ab_quicksand", "Quicksand Pits", "AB_QuicksandPits", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ab_magma_vents", "Magma Vents", "AB_MagmaVents", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ab_magmatic_quagmire", "Magmatic Quagmire", "AB_MagmaticQuagmire", "Geography");
+            SyncMutatorToWorkspace(filters, "mutator_ab_sterile_ground", "Sterile Ground", "AB_SterileGround", "Geography");
 
             // Resources filters
             SyncContainerToWorkspace(filters, "stones", "Natural Stones", ContainerType.Stones, "Resources");
@@ -2833,9 +2875,61 @@ namespace LandingZone.Core.UI
             SyncContainerToWorkspace(filters, "animal_habitat", "Animal Habitat", ContainerType.AnimalHabitat, "Resources");
             SyncContainerToWorkspace(filters, "mineral_ores", "Mineral Rich", ContainerType.MineralRich, "Resources");
 
+            // Resource mutators (previously missing - caused Fertile Soil and others to not show in workspace)
+            SyncMutatorToWorkspace(filters, "mutator_fertile", "Fertile Soil", "Fertile", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_steam_geysers", "Steam Geysers+", "SteamGeysers_Increased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_animal_life_up", "Animal Life+", "AnimalLife_Increased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_animal_life_down", "Animal Life-", "AnimalLife_Decreased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_plant_life_up", "Plant Life+", "PlantLife_Increased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_plant_life_down", "Plant Life-", "PlantLife_Decreased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_fish_up", "Fish+", "Fish_Increased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_fish_down", "Fish-", "Fish_Decreased", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_wild_plants", "Wild Plants", "WildPlants", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_wild_tropical", "Wild Tropical Plants", "WildTropicalPlants", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_archean_trees", "Archean Trees", "ArcheanTrees", "Resources");
+
+            // Alpha Biomes mod mutators
+            SyncMutatorToWorkspace(filters, "mutator_ab_golden_trees", "Golden Trees", "AB_GoldenTrees", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_luminescent_trees", "Luminescent Trees", "AB_LuminescentTrees", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_techno_trees", "Techno Trees", "AB_TechnoTrees", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_flesh_trees", "Flesh Trees", "AB_FleshTrees", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_healing_springs", "Healing Springs", "AB_HealingSprings", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_mutagenic_springs", "Mutagenic Springs", "AB_MutagenicSprings", "Resources");
+            SyncMutatorToWorkspace(filters, "mutator_ab_geothermal_hotspots", "Geothermal Hotspots", "AB_GeothermalHotspots", "Resources");
+
             // Features filters
             SyncContainerToWorkspace(filters, "stockpiles", "Stockpiles", ContainerType.Stockpiles, "Features");
             SyncFilterToWorkspace(filters, "landmark", "Landmarks", filters.LandmarkImportance, false, "Features");
+
+            // Features mutators - Salvage
+            SyncMutatorToWorkspace(filters, "mutator_junkyard", "Junkyard", "Junkyard", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_ruins", "Ancient Ruins", "AncientRuins", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_ruins_frozen", "Ancient Ruins (Frozen)", "AncientRuins_Frozen", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_warehouse", "Ancient Warehouse", "AncientWarehouse", "Features");
+
+            // Features mutators - Structures
+            SyncMutatorToWorkspace(filters, "mutator_ancient_garrison", "Ancient Garrison", "AncientGarrison", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_quarry", "Ancient Quarry", "AncientQuarry", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_refinery", "Chemfuel Refinery", "AncientChemfuelRefinery", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_launch_site", "Launch Site", "AncientLaunchSite", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_uplink", "Ancient Uplink", "AncientUplink", "Features");
+
+            // Features mutators - Settlements
+            SyncMutatorToWorkspace(filters, "mutator_abandoned_outlander", "Abandoned (Outlander)", "AbandonedColonyOutlander", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_abandoned_tribal", "Abandoned (Tribal)", "AbandonedColonyTribal", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_infested", "Infested Settlement", "AncientInfestedSettlement", "Features");
+
+            // Features mutators - Environmental
+            SyncMutatorToWorkspace(filters, "mutator_ancient_heat_vent", "Heat Vent", "AncientHeatVent", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_smoke_vent", "Smoke Vent", "AncientSmokeVent", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ancient_tox_vent", "Toxic Vent", "AncientToxVent", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_terraforming_scar", "Terraforming Scar", "TerraformingScar", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_insect_megahive", "Insect Megahive", "InsectMegahive", "Features");
+
+            // Features mutators - Alpha Biomes mod
+            SyncMutatorToWorkspace(filters, "mutator_ab_giant_fossils", "Giant Fossils", "AB_GiantFossils", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ab_derelict_archonexus", "Derelict Archonexus", "AB_DerelictArchonexus", "Features");
+            SyncMutatorToWorkspace(filters, "mutator_ab_derelict_clusters", "Derelict Clusters", "AB_DerelictClusters", "Features");
         }
 
         private static void SyncFilterToWorkspace(FilterSettings filters, string id, string label, FilterImportance importance, bool isHeavy, string category)
@@ -3104,6 +3198,97 @@ namespace LandingZone.Core.UI
         }
 
         /// <summary>
+        /// Clears a chip's filter from FilterSettings when the chip is removed from workspace.
+        /// This ensures FilterSettings stays in sync with visible workspace state.
+        /// Fixes bug where right-click chip removal left "ghost filters" still active.
+        /// </summary>
+        private static void ClearChipFromFilterSettings(string chipId)
+        {
+            var filters = LandingZoneContext.State?.Preferences?.GetActiveFilters();
+            if (filters == null) return;
+
+            // Check if this is a container chip (Rivers, Roads, Stones, etc.)
+            if (ContainerChipMapping.TryGetValue(chipId, out var containerType))
+            {
+                ClearContainerFilter(filters, containerType);
+                return;
+            }
+
+            // Check if this is a mutator chip via PaletteFilter lookup
+            var lookup = GetPaletteFilterLookup();
+            if (lookup.TryGetValue(chipId, out var paletteFilter) &&
+                paletteFilter.Kind == FilterKind.Mutator &&
+                !string.IsNullOrEmpty(paletteFilter.MutatorDefName))
+            {
+                filters.MapFeatures.SetImportance(paletteFilter.MutatorDefName!, FilterImportance.Ignored);
+                return;
+            }
+
+            // Simple filter - set importance to Ignored
+            switch (chipId)
+            {
+                // Climate
+                case "average_temperature": filters.AverageTemperatureImportance = FilterImportance.Ignored; break;
+                case "minimum_temperature": filters.MinimumTemperatureImportance = FilterImportance.Ignored; break;
+                case "maximum_temperature": filters.MaximumTemperatureImportance = FilterImportance.Ignored; break;
+                case "rainfall": filters.RainfallImportance = FilterImportance.Ignored; break;
+                case "growing_days": filters.GrowingDaysImportance = FilterImportance.Ignored; break;
+                case "pollution": filters.PollutionImportance = FilterImportance.Ignored; break;
+
+                // Geography - terrain
+                case "elevation": filters.ElevationImportance = FilterImportance.Ignored; break;
+                case "swampiness": filters.SwampinessImportance = FilterImportance.Ignored; break;
+                case "movement_difficulty": filters.MovementDifficultyImportance = FilterImportance.Ignored; break;
+
+                // Geography - water access
+                case "coastal": filters.CoastalImportance = FilterImportance.Ignored; break;
+                case "coastal_lake": filters.CoastalLakeImportance = FilterImportance.Ignored; break;
+                case "water_access": filters.WaterAccessImportance = FilterImportance.Ignored; break;
+
+                // Resources
+                case "forageability": filters.ForageImportance = FilterImportance.Ignored; break;
+                case "graze": filters.GrazeImportance = FilterImportance.Ignored; break;
+                case "animal_density": filters.AnimalDensityImportance = FilterImportance.Ignored; break;
+                case "fish_population": filters.FishPopulationImportance = FilterImportance.Ignored; break;
+                case "plant_density": filters.PlantDensityImportance = FilterImportance.Ignored; break;
+
+                // Features
+                case "landmark": filters.LandmarkImportance = FilterImportance.Ignored; break;
+                case "adjacent_biomes": filters.AdjacentBiomes.ItemImportance.Clear(); break;
+            }
+        }
+
+        /// <summary>
+        /// Clears all items in a container filter to Ignored.
+        /// </summary>
+        private static void ClearContainerFilter(FilterSettings filters, ContainerType containerType)
+        {
+            // Special handling for Hilliness (HashSet-based, not IndividualImportanceContainer)
+            if (containerType == ContainerType.Hilliness)
+            {
+                filters.AllowedHilliness.Clear();
+                return;
+            }
+
+            var container = containerType switch
+            {
+                ContainerType.Rivers => filters.Rivers,
+                ContainerType.Roads => filters.Roads,
+                ContainerType.Stones => filters.Stones,
+                ContainerType.Stockpiles => filters.Stockpiles,
+                ContainerType.PlantGrove => filters.PlantGrove,
+                ContainerType.AnimalHabitat => filters.AnimalHabitat,
+                ContainerType.MineralRich => filters.MineralOres,
+                ContainerType.Biomes => filters.Biomes,
+                _ => null
+            };
+
+            // IndividualImportanceContainer treats missing items as Ignored
+            // So clearing the dictionary effectively sets all items to Ignored
+            container?.ItemImportance.Clear();
+        }
+
+        /// <summary>
         /// Syncs FilterSettings from workspace state.
         /// </summary>
         private static void SyncSettingsFromWorkspace(FilterSettings filters)
@@ -3186,9 +3371,46 @@ namespace LandingZone.Core.UI
             SyncMutatorFromWorkspace(filters, "mutator_toxic_lake", "ToxicLake");
             SyncMutatorFromWorkspace(filters, "mutator_lava_flow", "LavaFlow");
             SyncMutatorFromWorkspace(filters, "mutator_lava_crater", "LavaCrater");
+            SyncMutatorFromWorkspace(filters, "mutator_lava_lake", "LavaLake");
             SyncMutatorFromWorkspace(filters, "mutator_hot_springs", "HotSprings");
             SyncMutatorFromWorkspace(filters, "mutator_mixed_biome", "MixedBiome");
             SyncMutatorFromWorkspace(filters, "mutator_obsidian", "ObsidianDeposits");
+            SyncMutatorFromWorkspace(filters, "mutator_ice_caves", "IceCaves");
+            SyncMutatorFromWorkspace(filters, "mutator_ice_dunes", "IceDunes");
+
+            // Geography mutators - Geological Landforms mod (GL_)
+            SyncMutatorFromWorkspace(filters, "mutator_gl_atoll", "GL_Atoll");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_island", "GL_Island");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_skerry", "GL_Skerry");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_tombolo", "GL_Tombolo");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_landbridge", "GL_Landbridge");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_cove_island", "GL_CoveWithIsland");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_secluded_cove", "GL_SecludedCove");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_river_source", "GL_RiverSource");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_canyon", "GL_Canyon");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_gorge", "GL_Gorge");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_rift", "GL_Rift");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_caldera", "GL_Caldera");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_crater", "GL_Crater");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_cirque", "GL_Cirque");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_glacier", "GL_Glacier");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_lone_mountain", "GL_LoneMountain");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_secluded_valley", "GL_SecludedValley");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_sinkhole", "GL_Sinkhole");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_cave_entrance", "GL_CaveEntrance");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_surface_cave", "GL_SurfaceCave");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_biome_transitions", "GL_BiomeTransitions");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_badlands", "GL_Badlands");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_desert_plateau", "GL_DesertPlateau");
+            SyncMutatorFromWorkspace(filters, "mutator_gl_swamp_hill", "GL_SwampHill");
+
+            // Geography mutators - Alpha Biomes mod (AB_)
+            SyncMutatorFromWorkspace(filters, "mutator_ab_tar_lakes", "AB_TarLakes");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_propane_lakes", "AB_PropaneLakes");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_quicksand", "AB_QuicksandPits");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_magma_vents", "AB_MagmaVents");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_magmatic_quagmire", "AB_MagmaticQuagmire");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_sterile_ground", "AB_SterileGround");
 
             // Resources filters
             filters.ForageImportance = _workspace.GetChipImportance("forageability") ?? FilterImportance.Ignored;
@@ -3197,8 +3419,60 @@ namespace LandingZone.Core.UI
             filters.FishPopulationImportance = _workspace.GetChipImportance("fish_population") ?? FilterImportance.Ignored;
             filters.PlantDensityImportance = _workspace.GetChipImportance("plant_density") ?? FilterImportance.Ignored;
 
+            // Resource mutators (previously missing - caused Fertile Soil and others to not sync)
+            SyncMutatorFromWorkspace(filters, "mutator_fertile", "Fertile");
+            SyncMutatorFromWorkspace(filters, "mutator_steam_geysers", "SteamGeysers_Increased");
+            SyncMutatorFromWorkspace(filters, "mutator_animal_life_up", "AnimalLife_Increased");
+            SyncMutatorFromWorkspace(filters, "mutator_animal_life_down", "AnimalLife_Decreased");
+            SyncMutatorFromWorkspace(filters, "mutator_plant_life_up", "PlantLife_Increased");
+            SyncMutatorFromWorkspace(filters, "mutator_plant_life_down", "PlantLife_Decreased");
+            SyncMutatorFromWorkspace(filters, "mutator_fish_up", "Fish_Increased");
+            SyncMutatorFromWorkspace(filters, "mutator_fish_down", "Fish_Decreased");
+            SyncMutatorFromWorkspace(filters, "mutator_wild_plants", "WildPlants");
+            SyncMutatorFromWorkspace(filters, "mutator_wild_tropical", "WildTropicalPlants");
+            SyncMutatorFromWorkspace(filters, "mutator_archean_trees", "ArcheanTrees");
+
+            // Alpha Biomes mod mutators
+            SyncMutatorFromWorkspace(filters, "mutator_ab_golden_trees", "AB_GoldenTrees");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_luminescent_trees", "AB_LuminescentTrees");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_techno_trees", "AB_TechnoTrees");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_flesh_trees", "AB_FleshTrees");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_healing_springs", "AB_HealingSprings");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_mutagenic_springs", "AB_MutagenicSprings");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_geothermal_hotspots", "AB_GeothermalHotspots");
+
             // Features filters
             filters.LandmarkImportance = _workspace.GetChipImportance("landmark") ?? FilterImportance.Ignored;
+
+            // Features mutators - Salvage
+            SyncMutatorFromWorkspace(filters, "mutator_junkyard", "Junkyard");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_ruins", "AncientRuins");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_ruins_frozen", "AncientRuins_Frozen");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_warehouse", "AncientWarehouse");
+
+            // Features mutators - Structures
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_garrison", "AncientGarrison");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_quarry", "AncientQuarry");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_refinery", "AncientChemfuelRefinery");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_launch_site", "AncientLaunchSite");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_uplink", "AncientUplink");
+
+            // Features mutators - Settlements
+            SyncMutatorFromWorkspace(filters, "mutator_abandoned_outlander", "AbandonedColonyOutlander");
+            SyncMutatorFromWorkspace(filters, "mutator_abandoned_tribal", "AbandonedColonyTribal");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_infested", "AncientInfestedSettlement");
+
+            // Features mutators - Environmental
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_heat_vent", "AncientHeatVent");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_smoke_vent", "AncientSmokeVent");
+            SyncMutatorFromWorkspace(filters, "mutator_ancient_tox_vent", "AncientToxVent");
+            SyncMutatorFromWorkspace(filters, "mutator_terraforming_scar", "TerraformingScar");
+            SyncMutatorFromWorkspace(filters, "mutator_insect_megahive", "InsectMegahive");
+
+            // Features mutators - Alpha Biomes mod
+            SyncMutatorFromWorkspace(filters, "mutator_ab_giant_fossils", "AB_GiantFossils");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_derelict_archonexus", "AB_DerelictArchonexus");
+            SyncMutatorFromWorkspace(filters, "mutator_ab_derelict_clusters", "AB_DerelictClusters");
         }
 
         /// <summary>
@@ -3718,11 +3992,43 @@ namespace LandingZone.Core.UI
                 _ => 100f
             };
 
+            // Calculate available screen space and clamp popup height
+            const float screenMargin = 10f;
+            const float headerHeight = 26f; // Header + close button area (outside scroll)
+            float contentHeight = popupHeight;
+            float availableBelow = Verse.UI.screenHeight - _containerPopupAnchorRect.yMax - 2f - screenMargin;
+            float availableAbove = _containerPopupAnchorRect.y - screenMargin;
+
+            // Determine if popup should appear above or below anchor
+            bool flipAbove = availableBelow < 200f && availableAbove > availableBelow;
+            float maxAvailableHeight = flipAbove ? availableAbove : availableBelow;
+
+            // Clamp popup height to available space (minimum 150 to be usable)
+            float clampedHeight = Mathf.Clamp(popupHeight, 100f, maxAvailableHeight);
+            bool needsScroll = popupHeight > clampedHeight;
+
+            // Reset scroll position when popup changes
+            if (_containerPopupChipId != _lastContainerPopupChipId)
+            {
+                _containerPopupScrollPosition = Vector2.zero;
+                _lastContainerPopupChipId = _containerPopupChipId;
+            }
+
             var popupRect = new Rect(
                 _containerPopupAnchorRect.x,
-                _containerPopupAnchorRect.yMax + 2f,
+                flipAbove ? _containerPopupAnchorRect.y - clampedHeight - 2f : _containerPopupAnchorRect.yMax + 2f,
                 ContainerPopupWidth,
-                popupHeight);
+                clampedHeight);
+
+            // Clamp horizontal position to screen bounds
+            if (popupRect.xMax > Verse.UI.screenWidth - screenMargin)
+            {
+                popupRect.x = Verse.UI.screenWidth - screenMargin - popupRect.width;
+            }
+            if (popupRect.x < screenMargin)
+            {
+                popupRect.x = screenMargin;
+            }
 
             // Draw popup background with click-blocker
             // Draw an invisible button first to consume mouse events and prevent click-through
@@ -3736,7 +4042,7 @@ namespace LandingZone.Core.UI
             var innerRect = popupRect.ContractedBy(6f);
             float y = innerRect.y;
 
-            // Header with close button
+            // Header with close button (always visible, outside scroll area)
             var headerRect = new Rect(innerRect.x, y, innerRect.width - 24f, 18f);
             var closeRect = new Rect(innerRect.xMax - 20f, y, 20f, 18f);
 
@@ -3753,42 +4059,61 @@ namespace LandingZone.Core.UI
             }
             y += 20f;
 
-            // Draw checkboxes based on container type
+            // Scroll view for content if needed
+            float scrollAreaHeight = innerRect.height - headerHeight;
+            var scrollOuterRect = new Rect(innerRect.x, y, innerRect.width, scrollAreaHeight);
+            var scrollViewRect = new Rect(0f, 0f, innerRect.width - (needsScroll ? 16f : 0f), contentHeight - headerHeight);
+
+            if (needsScroll)
+            {
+                Widgets.BeginScrollView(scrollOuterRect, ref _containerPopupScrollPosition, scrollViewRect);
+                y = 0f; // Reset y for scroll view local coordinates
+            }
+            float contentX = needsScroll ? 0f : innerRect.x;
+            float contentWidth = needsScroll ? scrollViewRect.width : innerRect.width;
+
+            // Draw checkboxes based on container type (use scroll-aware coordinates)
             if (containerType == ContainerType.Rivers)
             {
-                y = DrawRiversPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawRiversPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.Roads)
             {
-                y = DrawRoadsPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawRoadsPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.Hilliness)
             {
-                y = DrawHillinessPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawHillinessPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.Stones)
             {
-                y = DrawStonesPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawStonesPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.Stockpiles)
             {
-                y = DrawStockpilesPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawStockpilesPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.PlantGrove)
             {
-                y = DrawPlantGrovePopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawPlantGrovePopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.AnimalHabitat)
             {
-                y = DrawAnimalHabitatPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawAnimalHabitatPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.MineralRich)
             {
-                y = DrawMineralOresPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawMineralOresPopupContent(contentX, y, contentWidth, filters);
             }
             else if (containerType == ContainerType.Biomes)
             {
-                y = DrawBiomesPopupContent(innerRect.x, y, innerRect.width, filters);
+                y = DrawBiomesPopupContent(contentX, y, contentWidth, filters);
+            }
+
+            // End scroll view if we started one
+            if (needsScroll)
+            {
+                Widgets.EndScrollView();
             }
 
             Text.Anchor = TextAnchor.UpperLeft;
@@ -5451,26 +5776,26 @@ namespace LandingZone.Core.UI
 
             // Water Features (mutators) - These are Geological Landforms map generation features
             new PaletteFilter("mutator_river", "River (Landform)", "Geography_Natural", "River",
-                tooltipBrief: "LandingZone_Tooltip_River", tooltipDetailed: "LandingZone_TooltipDetail_River", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_river_delta", "River Delta", "Geography_Natural", "RiverDelta", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_river_confluence", "Confluence", "Geography_Natural", "RiverConfluence", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_river_island", "River Island", "Geography_Natural", "RiverIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_headwater", "Headwater", "Geography_Natural", "Headwater", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_lake", "Lake", "Geography_Natural", "Lake", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_lake_island", "Lake w/ Island", "Geography_Natural", "LakeWithIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_lake_islands", "Lake w/ Islands", "Geography_Natural", "LakeWithIslands", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_lakeshore", "Lakeshore", "Geography_Natural", "Lakeshore", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_pond", "Pond", "Geography_Natural", "Pond", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_fjord", "Fjord", "Geography_Natural", "Fjord", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_bay", "Bay", "Geography_Natural", "Bay", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_coast", "Coast", "Geography_Natural", "Coast", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_harbor", "Harbor", "Geography_Natural", "Harbor", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_cove", "Cove", "Geography_Natural", "Cove", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_peninsula", "Peninsula", "Geography_Natural", "Peninsula", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_archipelago", "Archipelago", "Geography_Natural", "Archipelago", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_coastal_atoll", "Coastal Atoll", "Geography_Natural", "CoastalAtoll", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_coastal_island", "Coastal Island", "Geography_Natural", "CoastalIsland", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_iceberg", "Iceberg", "Geography_Natural", "Iceberg", subGroup: "Water Features", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_River", tooltipDetailed: "LandingZone_TooltipDetail_River", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_river_delta", "River Delta", "Geography_Natural", "RiverDelta", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_river_confluence", "Confluence", "Geography_Natural", "RiverConfluence", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_river_island", "River Island", "Geography_Natural", "RiverIsland", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_headwater", "Headwater", "Geography_Natural", "Headwater", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_lake", "Lake", "Geography_Natural", "Lake", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_lake_island", "Lake w/ Island", "Geography_Natural", "LakeWithIsland", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_lake_islands", "Lake w/ Islands", "Geography_Natural", "LakeWithIslands", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_lakeshore", "Lakeshore", "Geography_Natural", "Lakeshore", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_pond", "Pond", "Geography_Natural", "Pond", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_fjord", "Fjord", "Geography_Natural", "Fjord", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_bay", "Bay", "Geography_Natural", "Bay", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_coast", "Coast", "Geography_Natural", "Coast", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_harbor", "Harbor", "Geography_Natural", "Harbor", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_cove", "Cove", "Geography_Natural", "Cove", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_peninsula", "Peninsula", "Geography_Natural", "Peninsula", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_archipelago", "Archipelago", "Geography_Natural", "Archipelago", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_coastal_atoll", "Coastal Atoll", "Geography_Natural", "CoastalAtoll", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_coastal_island", "Coastal Island", "Geography_Natural", "CoastalIsland", subGroup: "Water Features", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_iceberg", "Iceberg", "Geography_Natural", "Iceberg", subGroup: "Water Features", requiredMod: "Geological Landforms"),
             // Geological Landforms - Water Features
             new PaletteFilter("mutator_gl_atoll", "Atoll", "Geography_Natural", "GL_Atoll",
                 subGroup: "Water Features", requiredMod: "Geological Landforms", tooltipBrief: "Ring-shaped coral reef"),
@@ -5491,24 +5816,24 @@ namespace LandingZone.Core.UI
 
             // Elevation Features (mutators) - These are Geological Landforms map generation features
             new PaletteFilter("mutator_mountain", "Mountain (Landform)", "Geography_Natural", "Mountain",
-                tooltipBrief: "LandingZone_Tooltip_Mountain", tooltipDetailed: "LandingZone_TooltipDetail_Mountain", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Mountain", tooltipDetailed: "LandingZone_TooltipDetail_Mountain", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             new PaletteFilter("mutator_valley", "Valley", "Geography_Natural", "Valley",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             new PaletteFilter("mutator_basin", "Basin", "Geography_Natural", "Basin",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             new PaletteFilter("mutator_plateau", "Plateau", "Geography_Natural", "Plateau",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             new PaletteFilter("mutator_hollow", "Hollow", "Geography_Natural", "Hollow",
-                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Mutator", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             new PaletteFilter("mutator_caves", "Caves", "Geography_Natural", "Caves",
-                tooltipBrief: "LandingZone_Tooltip_Caves", tooltipDetailed: "LandingZone_TooltipDetail_Caves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_cavern", "Cavern", "Geography_Natural", "Cavern", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_cave_lakes", "Cave Lakes", "Geography_Natural", "CaveLakes", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_lava_caves", "Lava Caves", "Geography_Natural", "LavaCaves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_ice_caves", "Ice Caves", "Geography_Natural", "IceCaves", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_cliffs", "Cliffs", "Geography_Natural", "Cliffs", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_chasm", "Chasm", "Geography_Natural", "Chasm", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_crevasse", "Crevasse", "Geography_Natural", "Crevasse", subGroup: "Elevation", requiredMod: "Geo. Landforms"),
+                tooltipBrief: "LandingZone_Tooltip_Caves", tooltipDetailed: "LandingZone_TooltipDetail_Caves", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_cavern", "Cavern", "Geography_Natural", "Cavern", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_cave_lakes", "Cave Lakes", "Geography_Natural", "CaveLakes", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_lava_caves", "Lava Caves", "Geography_Natural", "LavaCaves", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_ice_caves", "Ice Caves", "Geography_Natural", "IceCaves", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_cliffs", "Cliffs", "Geography_Natural", "Cliffs", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_chasm", "Chasm", "Geography_Natural", "Chasm", subGroup: "Elevation", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_crevasse", "Crevasse", "Geography_Natural", "Crevasse", subGroup: "Elevation", requiredMod: "Geological Landforms"),
             // Geological Landforms - Elevation
             new PaletteFilter("mutator_gl_canyon", "Canyon", "Geography_Natural", "GL_Canyon",
                 subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Deep river-carved gorge"),
@@ -5536,15 +5861,15 @@ namespace LandingZone.Core.UI
                 subGroup: "Elevation", requiredMod: "Geological Landforms", tooltipBrief: "Exposed cave system"),
 
             // Ground Conditions (mutators) - These are Geological Landforms map generation features
-            new PaletteFilter("mutator_sandy", "Sandy", "Geography_Natural", "Sandy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_muddy", "Muddy", "Geography_Natural", "Muddy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_marshy", "Marshy", "Geography_Natural", "Marshy", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_wetland", "Wetland", "Geography_Natural", "Wetland", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_dunes", "Dunes", "Geography_Natural", "Dunes", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_ice_dunes", "Ice Dunes", "Geography_Natural", "IceDunes", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_oasis", "Oasis", "Geography_Natural", "Oasis", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_dry_ground", "Dry Ground", "Geography_Natural", "DryGround", subGroup: "Ground", requiredMod: "Geo. Landforms"),
-            new PaletteFilter("mutator_dry_lake", "Dry Lake", "Geography_Natural", "DryLake", subGroup: "Ground", requiredMod: "Geo. Landforms"),
+            new PaletteFilter("mutator_sandy", "Sandy", "Geography_Natural", "Sandy", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_muddy", "Muddy", "Geography_Natural", "Muddy", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_marshy", "Marshy", "Geography_Natural", "Marshy", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_wetland", "Wetland", "Geography_Natural", "Wetland", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_dunes", "Dunes", "Geography_Natural", "Dunes", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_ice_dunes", "Ice Dunes", "Geography_Natural", "IceDunes", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_oasis", "Oasis", "Geography_Natural", "Oasis", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_dry_ground", "Dry Ground", "Geography_Natural", "DryGround", subGroup: "Ground", requiredMod: "Geological Landforms"),
+            new PaletteFilter("mutator_dry_lake", "Dry Lake", "Geography_Natural", "DryLake", subGroup: "Ground", requiredMod: "Geological Landforms"),
 
             // Special/Hazards (mutators)
             new PaletteFilter("mutator_toxic_lake", "Toxic Lake", "Geography_Natural", "ToxicLake", subGroup: "Special"),

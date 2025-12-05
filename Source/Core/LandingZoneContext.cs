@@ -102,6 +102,16 @@ namespace LandingZone.Core
         }
 
         /// <summary>
+        /// Clears the relaxed match cache. Called on world change to prevent stale data.
+        /// </summary>
+        public static void ClearRelaxedMatchCache()
+        {
+            _relaxedMatchCache.Clear();
+            IsRelaxedSearchResult = false;
+            OriginalRequirements = null;
+        }
+
+        /// <summary>
         /// Evaluates a tile against the original requirements to determine which are satisfied.
         /// </summary>
         private static Data.RelaxedMatchInfo EvaluateTileAgainstOriginalRequirements(int tileId)

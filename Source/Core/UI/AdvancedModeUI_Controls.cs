@@ -601,7 +601,7 @@ namespace LandingZone.Core.UI
 
                         listing.Gap(5f);
                         bool useStoneCount = filters.UseStoneCount;
-                        listing.CheckboxLabeled("Minimum Stone Types (any X types)", ref useStoneCount);
+                        listing.CheckboxLabeled("LandingZone_Filter_MinStoneTypes".Translate(), ref useStoneCount);
                         filters.UseStoneCount = useStoneCount;
                         if (filters.UseStoneCount)
                         {

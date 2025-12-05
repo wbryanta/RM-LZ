@@ -41,6 +41,9 @@ namespace LandingZone.Core.UI
             if (_decodedPreset != null)
                 estimatedHeight += 100f;
 
+            // Guard against zero/negative height corrupting scroll view
+            if (estimatedHeight < 50f) estimatedHeight = 50f;
+
             var viewRect = new Rect(0f, 0f, inRect.width - 16f, estimatedHeight);
             Widgets.BeginScrollView(inRect, ref _scrollPosition, viewRect);
 

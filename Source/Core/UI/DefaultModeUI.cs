@@ -493,8 +493,8 @@ namespace LandingZone.Core.UI
                     if (options.Count > 0)
                     {
                         Find.WindowStack.Add(new FloatMenu(options));
-                        Event.current.Use();
                     }
+                    Event.current.Use(); // Always consume right-click to prevent event leaking
                 }
                 // Left-click: Apply preset
                 else if (Widgets.ButtonInvisible(rect))

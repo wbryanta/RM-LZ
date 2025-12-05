@@ -104,6 +104,8 @@ namespace LandingZone.Core.UI
             float scrollHeight = inRect.height - 120f; // Leave room for close button
             Rect scrollRect = new Rect(inRect.x, scrollStartY, inRect.width, scrollHeight);
             float contentHeight = CalculateContentHeight();
+            // Guard against zero/negative height corrupting scroll view
+            if (contentHeight < 50f) contentHeight = 50f;
             Rect viewRect = new Rect(0f, 0f, scrollRect.width - 16f, contentHeight);
 
             Widgets.BeginScrollView(scrollRect, ref _scrollPosition, viewRect);

@@ -662,6 +662,7 @@ namespace LandingZone.Core.Filtering
                         );
 
                         _candidates = fallbackAggregator.GetCandidates(_strictness, maxCandidates);
+                        _cursor = 0; // Reset cursor for new candidate list from fallback tier
 
                         if (_candidates.Count > 0)
                         {
