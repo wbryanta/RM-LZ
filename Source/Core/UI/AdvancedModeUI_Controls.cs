@@ -866,8 +866,8 @@ namespace LandingZone.Core.UI
                         {
                             var operatorRect = listing.GetRect(30f);
                             var operatorLabel = filters.AdjacentBiomes.Operator == ImportanceOperator.OR
-                                ? "Match: ANY of the selected biomes"
-                                : "Match: ALL of the selected biomes";
+                                ? "LandingZone_MatchAny_Biomes".Translate()
+                                : "LandingZone_MatchAll_Biomes".Translate();
 
                             if (Widgets.ButtonText(operatorRect, operatorLabel))
                             {

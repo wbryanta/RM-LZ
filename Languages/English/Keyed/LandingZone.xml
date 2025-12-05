@@ -133,6 +133,8 @@
   <LandingZone_Filter_AdjacentBiomes_Title>Adjacent Biomes</LandingZone_Filter_AdjacentBiomes_Title>
   <LandingZone_Filter_AdjacentBiomes_Header>Adjacent Biomes:</LandingZone_Filter_AdjacentBiomes_Header>
   <LandingZone_Filter_AdjacentBiomes_Subtitle>(Affects weather patterns from neighboring tiles)</LandingZone_Filter_AdjacentBiomes_Subtitle>
+  <LandingZone_MatchAny_Biomes>Match: ANY of the selected biomes</LandingZone_MatchAny_Biomes>
+  <LandingZone_MatchAll_Biomes>Match: ALL of the selected biomes</LandingZone_MatchAll_Biomes>
   <LandingZone_Filter_ResultLimit_Title>Number of top-scored tiles to return from search</LandingZone_Filter_ResultLimit_Title>
   <LandingZone_Filter_CriticalAdaptive_Title>Critical Filtering</LandingZone_Filter_CriticalAdaptive_Title>
   <LandingZone_Filter_CriticalAdaptive_Subtitle1>Stage A uses intelligent k-of-n fallback to keep candidate count reasonable.</LandingZone_Filter_CriticalAdaptive_Subtitle1>
