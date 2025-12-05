@@ -125,6 +125,7 @@ namespace LandingZone.Core.UI
         public static void InvalidateWorkspace()
         {
             _workspace = null; // Will be recreated on next DrawBucketWorkspace call
+            _paletteFilterLookup = null; // Clear palette cache in case mods changed
         }
 
         /// <summary>
@@ -178,8 +179,12 @@ namespace LandingZone.Core.UI
             DrawContainerPopup(filters);
             DrawDetailedTooltipPopup();
 
-            // Sync workspace changes back to settings
-            SyncSettingsFromWorkspace(filters);
+            // Sync workspace changes back to settings (only when dirty)
+            if (_workspace?.IsDirty == true)
+            {
+                SyncSettingsFromWorkspace(filters);
+                _workspace.ClearDirty();
+            }
         }
 
         /// <summary>

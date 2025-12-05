@@ -139,6 +139,17 @@ namespace LandingZone.Core.UI
         private readonly Dictionary<FilterImportance, List<Clause>> _bucketClauses = new();
         private readonly Dictionary<int, OrGroup> _orGroups = new();
 
+        /// <summary>
+        /// Indicates if the workspace has changed since last sync.
+        /// Set by mutation methods, cleared by ClearDirty().
+        /// </summary>
+        public bool IsDirty { get; private set; }
+
+        /// <summary>
+        /// Clears the dirty flag. Called after syncing to FilterSettings.
+        /// </summary>
+        public void ClearDirty() => IsDirty = false;
+
         public BucketWorkspace()
         {
             // Initialize buckets with one empty clause each
@@ -182,6 +193,7 @@ namespace LandingZone.Core.UI
 
             var clause = new Clause(_nextClauseId++, importance);
             _bucketClauses[importance].Add(clause);
+            IsDirty = true;
             return clause;
         }
 
@@ -210,6 +222,7 @@ namespace LandingZone.Core.UI
                     {
                         kvp.Value.Remove(clause);
                     }
+                    IsDirty = true;
                     return;
                 }
             }
@@ -248,6 +261,7 @@ namespace LandingZone.Core.UI
             {
                 chip.ClauseId = clauseId;
                 clause.Chips.Add(chip);
+                IsDirty = true;
             }
         }
 
@@ -288,6 +302,7 @@ namespace LandingZone.Core.UI
             chip.ClauseId = targetClauses[0].ClauseId;
             chip.OrGroupId = null;
             targetClauses[0].Chips.Add(chip);
+            IsDirty = true;
         }
 
         /// <summary>
@@ -313,6 +328,7 @@ namespace LandingZone.Core.UI
             sourceClause.Chips.Remove(chip);
             chip.ClauseId = targetClauseId;
             targetClause.Chips.Add(chip);
+            IsDirty = true;
         }
 
         /// <summary>
@@ -351,6 +367,7 @@ namespace LandingZone.Core.UI
                             RemoveFromOrGroup(filterId);
                         }
                         clause.Chips.Remove(chip);
+                        IsDirty = true;
                         return;
                     }
                 }
@@ -389,6 +406,7 @@ namespace LandingZone.Core.UI
                 }
             }
 
+            IsDirty = true;
             return groupId;
         }
 
@@ -416,6 +434,7 @@ namespace LandingZone.Core.UI
                         _orGroups.Remove(groupId);
                     }
                 }
+                IsDirty = true;
             }
         }
 
