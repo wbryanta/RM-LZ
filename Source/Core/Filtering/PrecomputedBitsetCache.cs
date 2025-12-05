@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using LandingZone.Data;
 using UnityEngine;
 using Verse;
@@ -43,13 +42,7 @@ namespace LandingZone.Core.Filtering
                 // Extract the underlying ISiteFilter if this is a FilterPredicateAdapter
                 if (predicate is FilterPredicateAdapter adapter)
                 {
-                    var filterField = typeof(FilterPredicateAdapter).GetField("_filter",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-
-                    if (filterField != null && filterField.GetValue(adapter) is ISiteFilter siteFilter)
-                    {
-                        SiteFilter = siteFilter;
-                    }
+                    SiteFilter = adapter.UnderlyingFilter;
                 }
             }
 

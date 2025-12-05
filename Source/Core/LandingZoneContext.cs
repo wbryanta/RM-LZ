@@ -112,6 +112,17 @@ namespace LandingZone.Core
         }
 
         /// <summary>
+        /// Clears all result caches. Called on world change to prevent stale tile data.
+        /// </summary>
+        public static void ClearResultCaches()
+        {
+            BreakdownCache.Clear();
+            RankCache.Clear();
+            LatestResults = System.Array.Empty<TileScore>();
+            LastSearchWasEmpty = false;
+        }
+
+        /// <summary>
         /// Evaluates a tile against the original requirements to determine which are satisfied.
         /// </summary>
         private static Data.RelaxedMatchInfo EvaluateTileAgainstOriginalRequirements(int tileId)
