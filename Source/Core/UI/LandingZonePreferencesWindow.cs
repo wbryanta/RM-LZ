@@ -93,6 +93,12 @@ namespace LandingZone.Core.UI
                 {
                     LandingZoneContext.State.Preferences.ActivePreset = null;
                 }
+
+                // Invalidate workspace to refresh from current filters on mode switch
+                if (currentMode == UIMode.Advanced)
+                {
+                    AdvancedModeUI.InvalidateWorkspace();
+                }
             }
 
             // Content area (below banner)
