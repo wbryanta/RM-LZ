@@ -370,13 +370,12 @@ namespace LandingZone.Core.UI
                             UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "rivers");
                         }
 
-                        // Individual river list
-                        var riverTypes = RiverFilter.GetAllRiverTypes().Select(r => r.defName).ToList();
-                        foreach (var riverType in riverTypes)
+                        // Individual river list (show label, store by defName)
+                        foreach (var riverDef in RiverFilter.GetAllRiverTypes())
                         {
-                            var importance = filters.Rivers.GetImportance(riverType);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), riverType, ref importance);
-                            filters.Rivers.SetImportance(riverType, importance);
+                            var importance = filters.Rivers.GetImportance(riverDef.defName);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), riverDef.LabelCap, ref importance);
+                            filters.Rivers.SetImportance(riverDef.defName, importance);
                         }
                     },
                     filters => (filters.Rivers.HasAnyImportance, filters.Rivers.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
@@ -702,13 +701,12 @@ namespace LandingZone.Core.UI
                             UIHelpers.DrawFilterConflicts(listing, AdvancedModeUI.GetActiveConflicts(), "roads");
                         }
 
-                        // Individual road list
-                        var roadTypes = RoadFilter.GetAllRoadTypes().Select(r => r.defName).ToList();
-                        foreach (var roadType in roadTypes)
+                        // Individual road list (show label, store by defName)
+                        foreach (var roadDef in RoadFilter.GetAllRoadTypes())
                         {
-                            var importance = filters.Roads.GetImportance(roadType);
-                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), roadType, ref importance);
-                            filters.Roads.SetImportance(roadType, importance);
+                            var importance = filters.Roads.GetImportance(roadDef.defName);
+                            UIHelpers.DrawImportanceSelector(listing.GetRect(30f), roadDef.LabelCap, ref importance);
+                            filters.Roads.SetImportance(roadDef.defName, importance);
                         }
                     },
                     filters => (filters.Roads.HasAnyImportance, filters.Roads.HasCritical ? FilterImportance.Critical : FilterImportance.Preferred)
@@ -1208,7 +1206,7 @@ namespace LandingZone.Core.UI
                 // Silently fail
             }
 
-            return "LandingZone_StoneSource_Mod".Translate("Unknown");
+            return "LandingZone_StoneSource_Mod".Translate("LandingZone_StoneSource_Unknown".Translate());
         }
 
         // ============================================================================

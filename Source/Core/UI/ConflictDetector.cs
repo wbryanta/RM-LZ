@@ -329,8 +329,8 @@ namespace LandingZone.Core.UI
             if (filters.Stockpiles.HasCritical) count++;
             if (filters.ForageableFoodImportance == FilterImportance.Critical) count++;
 
-            // Hilliness
-            if (filters.AllowedHilliness.Count > 0 && filters.AllowedHilliness.Count < 5) count++;
+            // Hilliness (4 types: Flat, SmallHills, LargeHills, Mountainous)
+            if (filters.AllowedHilliness.Count > 0 && filters.AllowedHilliness.Count < 4) count++;
 
             // Biome lock
             if (filters.LockedBiome != null) count++;

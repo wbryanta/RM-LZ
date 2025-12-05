@@ -658,6 +658,7 @@
   <LandingZone_MutatorAliasResolved>'{0}' resolved to '{1}' via mod alias.</LandingZone_MutatorAliasResolved>
   <LandingZone_StoneSource_Vanilla>Base game stone type</LandingZone_StoneSource_Vanilla>
   <LandingZone_StoneSource_Mod>Added by {0}</LandingZone_StoneSource_Mod>
+  <LandingZone_StoneSource_Unknown>Unknown mod</LandingZone_StoneSource_Unknown>
 
   <!-- Terrain & Access Group -->
   <LandingZone_Filter_TerrainAccessGroup>Terrain &amp; Access</LandingZone_Filter_TerrainAccessGroup>
